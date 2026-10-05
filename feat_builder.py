@@ -74,7 +74,8 @@ def fair_weather_id(weather):
 class FeatureBuilder:
     """每次决策调用build(); 每帧调用track_bullets()更新弹速。"""
 
-    CORE_DIMS = 308  # R17: 260+48(对手建模扩展: 历史40+资源8)
+    CORE_DIMS = 316  # R61t(F5): 308+8扩展one-hot(20角色全覆盖;
+    #                # 尾部追加=现有308维内部布局零变化, 模型零迁移)
 
     def __init__(self, n_macros):
         self.n_macros = n_macros

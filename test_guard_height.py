@@ -60,10 +60,14 @@ def main():
     fb = FeatureBuilder(55)
     C = FeatureBuilder.CORE_DIMS
 
-    # 布局(R57重组): [302]=own_air [303]=下段位 [304..307]=pose块
+    # 布局(R57重组+R61t F5扩展): [302]=own_air [303]=下段位
+    # [304..307]=pose块(段序固定, 不随CORE_DIMS尾部扩展移动)
+    # [308..315]=F5扩展one-hot(零填充)
     lo_off = 303
-    check("布局常量", lo_off == C - 5 and C == 308,
-          "CORE=%d 下段位@%d pose@[%d..%d]" % (C, lo_off, C - 4, C - 1))
+    POSE_OFF = 304   # 段序固定位置(非CORE-4)
+    check("布局常量", lo_off == 303 and C == 316,
+          "CORE=%d 下段位@%d pose@[%d..%d] 扩展@[%d..%d]"
+          % (C, lo_off, POSE_OFF, POSE_OFF + 3, C - 8, C - 1))
     check("下段表语义", LOW_ATTACK_IDS == frozenset((303, 311, 402, 412)),
           str(sorted(LOW_ATTACK_IDS)))
 
@@ -87,21 +91,22 @@ def main():
         f = build(fb, mk_state(opp_act=aid))
         check("ID%d不误触" % aid, f[lo_off] == 0.0)
 
-    # 4. 蓄力可见: 对手pose 0→7 pose区必须变化
+    # 4. 蓄力可见: 对手pose 0→7 pose区必须变化(段序固定@304)
     f_p0 = build(fb, mk_state(opp_pose=0))
     f_p7 = build(fb, mk_state(opp_pose=7))
-    check("pose进入特征", f_p7[C - 3] == 7 / 30.0
-          and f_p0[C - 3] == 0.0,
-          "pose维 %.3f→%.3f" % (f_p0[C - 3], f_p7[C - 3]))
+    check("pose进入特征", f_p7[POSE_OFF + 1] == 7 / 30.0
+          and f_p0[POSE_OFF + 1] == 0.0,
+          "pose维 %.3f→%.3f" % (f_p0[POSE_OFF + 1], f_p7[POSE_OFF + 1]))
 
     # 5. poseFrame进度可见
     f_pf = build(fb, mk_state(opp_pf=50))
-    check("poseFrame进入特征", f_pf[C - 1] == 0.5,
-          "%.2f" % f_pf[C - 1])
+    check("poseFrame进入特征", f_pf[POSE_OFF + 3] == 0.5,
+          "%.2f" % f_pf[POSE_OFF + 3])
 
     # 6. 我方pose也入特征(对称)
     f_my = build(fb, mk_state(my_pose=15))
-    check("我方pose入特征", f_my[C - 4] == 0.5, "%.2f" % f_my[C - 4])
+    check("我方pose入特征", f_my[POSE_OFF] == 0.5,
+          "%.2f" % f_my[POSE_OFF])
 
     # 7. 重组无重叠: [302]own_air不被pose区覆盖(airBorne=True时>0)
     st_air = mk_state()

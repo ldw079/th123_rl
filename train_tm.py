@@ -633,12 +633,17 @@ class TMTrainer:
         core = self.feat_builder.build(left, right, weather, bullets)
         # R14: 对手角色one-hot — R17: 段10对手建模27→75, 段11起点179→227
         # R60(F-8): 越界守卫改为合法槽校验(0/1/2+11-19; 3-10=技能特征块
-        # 严禁one-hot[R19契约], 20/21=fvariant位)
+        # 严禁one-hot[R19契约], 20/21=fvariant位, 22-27=扩展区[R61t])
         opp_id = getattr(self, '_opp_char_id', None)
         if opp_id is not None:
-            assert opp_id in (0, 1, 2) or 11 <= opp_id <= 19, \
-                "对手池序非法槽位: %r" % opp_id
-            core[227 + opp_id] = 1.0
+            if opp_id <= 19:
+                # 前12角色: 段11合法槽(0-2+11-19)
+                assert opp_id in (0, 1, 2) or 11 <= opp_id <= 19, \
+                    "对手池序非法槽位: %r" % opp_id
+                core[227 + opp_id] = 1.0
+            else:
+                # 后8角色: 扩展区(core[308+i], R61t F5)
+                core[self._EXT_OPP_OFF + (opp_id - 20)] = 1.0
         # P0-2修复: turn_recency写入正确的core[33](feat_builder预留位)
         core[33] = min(self._dir_frames, 62) / 62.0   # 62fps教义: 1秒=62帧
         # 拼宏one-hot
@@ -758,15 +763,22 @@ class TMTrainer:
     # iku/sanae/cirno/meiling/utsuho/suwako)暂不注入(无池快照未参战,
     # 缺席优于碰撞) — 20角色全量one-hot待CORE_DIMS 316扩维(改进方案
     # §1.2既有规划)后补位。
+    # R61t(F5): 20角色全唯一映射 — 前12走段11合法槽, 后8走扩展区
+    # (CORE_DIMS 308→316, 尾部追加=零内部布局变化)
     _CHAR_POOL_IDX = {"reimu": 0, "marisa": 1, "suika": 2,
                       "sakuya": 11, "patchouli": 12, "yuyuko": 13,
                       "reisen": 14, "komachi": 15, "tenshi": 16,
-                      "alice": 17, "youmu": 18, "remilia": 19}
+                      "alice": 17, "youmu": 18, "remilia": 19,
+                      # 扩展区(写core[308+i], F5新增)
+                      "yukari": 20, "aya": 21, "iku": 22, "sanae": 23,
+                      "cirno": 24, "meiling": 25, "utsuho": 26,
+                      "suwako": 27}
+    _EXT_OPP_OFF = 308   # R61t(F5): 扩展one-hot起始(core尾部)
 
     def _wire_opp_ids(self, opp_char):
-        """R19/R47: 对手角色id接线(池序合法槽唯一映射)。
-        P1侧: _opp_char_id注入特征段11合法槽(0/1/2+11-19);
-        未映射角色→None(不注入, 缺席优于碰撞)。P2侧同构注入其驾驶角色。
+        """R19/R47: 对手角色id接线(20角色全唯一映射).
+        前12角色走段11合法槽(0/1/2+11-19); 后8角色走扩展区
+        (core[308+i], R61t F5新增 — 尾部追加=现有布局零变化).
         R21: feat_builder._opp_char接角色名(opp_model查表用)。"""
         self._opp_char_id = self._CHAR_POOL_IDX.get(opp_char)
         self.feat_builder._opp_char = opp_char

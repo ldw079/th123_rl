@@ -98,7 +98,8 @@ import opp_model
 import macros
 import macros_marisa
 import macros_suika
-chk(feat_builder.FeatureBuilder.CORE_DIMS == 308, "CORE_DIMS==308(R17)",
+chk(feat_builder.FeatureBuilder.CORE_DIMS == 316,
+    "CORE_DIMS==316(R61t F5: 308+8扩展one-hot)",
     "got %r" % feat_builder.FeatureBuilder.CORE_DIMS)
 chk(opp_model.OpponentModel.N_FEATS == 75,
     "opp_model.N_FEATS==75(基础27+历史40+资源8)",
@@ -107,7 +108,7 @@ _n_by_mod = (macros.N_MACROS, macros_marisa.N_MACROS_MARISA,
              macros_suika.N_MACROS_SUIKA)
 for n in _n_by_mod:
     fb = feat_builder.FeatureBuilder(n)
-    chk(fb.n_side == 2 * n + 308, "n_side==2N+308@N=%d" % n,
+    chk(fb.n_side == 2 * n + 316, "n_side==2N+316@N=%d(R61t F5)" % n,
         "got %d" % fb.n_side)
 # ppo对手子网络切片位置与段10严格对齐(错位=静默读错特征)
 from ppo import PPOTrainer as _PT
@@ -254,15 +255,14 @@ _m60 = _re60.search(
 _vals60 = [int(v) for v in
            _re60.findall(r':\s*(\d+)', _m60.group(1))] \
     if _m60 else []
-_legal60 = {0, 1, 2} | set(range(11, 20))
-chk(_m60 is not None and len(_vals60) == len(set(_vals60)) == 12
+_legal60 = {0, 1, 2} | set(range(11, 28))
+chk(_m60 is not None and len(_vals60) == len(set(_vals60)) == 20
     and set(_vals60) <= _legal60,
-    "池序映射: 12槽全合法无重复(R60 F-8修正版: 消灭溢出fvariant位+"
-    "六对复用; 3-10技能块禁one-hot[R19契约] — 20角色全量待316扩维)",
+    "池序映射: 20角色全唯一无重复(R61t F5: 前12走段11+后8走扩展区)",
     str(sorted(_vals60)))
 chk("core[227 + opp_id] = 1.0" in tt
-    and "assert opp_id in (0, 1, 2) or 11 <= opp_id <= 19" in tt,
-    "对手one-hot写core[227]带合法槽守卫(R60 F-8)")
+    and "core[self._EXT_OPP_OFF + (opp_id - 20)] = 1.0" in tt,
+    "对手one-hot双区写入(R61t F5: 段11+扩展区)")
 chk('_CHAR_POOL_IDX' in tt,
     "20角色池序映射在位(R47: 原R19三角色池序已扩容)")
 chk(tt.count('GUARD_ALL_IDS') >= 2,
@@ -619,8 +619,8 @@ chk('"macro_counts_%s%s.npy" % (char, suffix)' in tt,
 import side_driver as sd_mod
 for _ch in ("reimu", "marisa", "suika"):
     _d = sd_mod.SideDriver(_ch, "L")
-    chk(_d.n_side == 5 * _d.n_macros + 308,
-        "SideDriver维度@%s(R30含untech块)" % _ch,
+    chk(_d.n_side == 5 * _d.n_macros + 316,
+        "SideDriver维度@%s(R61t F5含扩展one-hot)" % _ch,
         "n_side=%d" % _d.n_side)
     chk(int(_d.macro_reach.max()) > 0 and int(_d.macro_reach_v.max()) > 0,
         "SideDriver二维射程解析非空@%s(R25)" % _ch,

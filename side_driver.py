@@ -170,14 +170,16 @@ class SideDriver:
     def _side_feat(self, own, opp, weather, bullets):
         core = self.feat_builder.build(own, opp, weather, bullets)
         core[33] = min(self._dir_frames, 62) / 62.0
-        # R19: 对手角色注入(池序0/1/2) — 原P2/eval侧恒缺(审查2026-10-02)
-        # R60(F-8): 合法槽守卫(0/1/2+11-19; 3-10=技能块, 20/21=fvariant)
-        # — 与train_tm同构
+        # R19: 对手角色注入 — R61t(F5): 前12走段11, 后8走扩展区
         _oid = getattr(self, 'opp_char_id', None)
         if _oid is not None:
-            assert _oid in (0, 1, 2) or 11 <= _oid <= 19, \
-                "对手池序非法槽位: %r" % _oid
-            core[227 + _oid] = 1.0
+            if _oid <= 19:
+                assert _oid in (0, 1, 2) or 11 <= _oid <= 19, \
+                    "对手池序非法槽位: %r" % _oid
+                core[227 + _oid] = 1.0
+            else:
+                # 扩展区(core[308+i], R61t F5)
+                core[308 + (_oid - 20)] = 1.0
         s = np.zeros(self.n_side, dtype=np.float32)
         s[self.last_macro] = 1.0
         s[self.n_macros + self.last_macro2] = 1.0
