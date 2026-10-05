@@ -1,0 +1,15 @@
+# R61(F4, 主规划): 工程基线 — 大产物/缓存不入库(代码+文档+测试+门禁入库)
+# data/: BC库/模型档4.7GB(血统由C9校验+store管理, 非git职责)
+# frames/: 视觉帧转储61MB
+# _archive/: 退役归档516MB
+data/
+frames/
+_archive/
+logs/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.log
+*.tmp
+*.tmp.npz
+*.corrupt

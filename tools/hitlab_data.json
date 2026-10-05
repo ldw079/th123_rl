@@ -1,0 +1,214 @@
+{
+ "diag2a": {
+  "ctrl_5A": [
+   {
+    "hitstop_peak": 9,
+    "hp_drops": 1,
+    "sync": true,
+    "l_acts": [
+     300
+    ]
+   },
+   {
+    "hitstop_peak": 9,
+    "hp_drops": 1,
+    "sync": true,
+    "l_acts": [
+     300
+    ]
+   },
+   {
+    "hitstop_peak": 9,
+    "hp_drops": 1,
+    "sync": true,
+    "l_acts": [
+     300
+    ]
+   }
+  ],
+  "a2_idle": [
+   {
+    "gap": 30,
+    "rep": 0,
+    "hitstop_peak": 0,
+    "hp_drops": 0,
+    "dist_min": 1.0,
+    "l_acts": [
+     6,
+     9,
+     309
+    ],
+    "sync": true
+   },
+   {
+    "gap": 30,
+    "rep": 1,
+    "hitstop_peak": 0,
+    "hp_drops": 0,
+    "dist_min": 1.0,
+    "l_acts": [
+     6,
+     9,
+     309
+    ],
+    "sync": true
+   },
+   {
+    "gap": 50,
+    "rep": 0,
+    "hitstop_peak": 0,
+    "hp_drops": 0,
+    "dist_min": 0.0,
+    "l_acts": [
+     6,
+     9,
+     309
+    ],
+    "sync": true
+   },
+   {
+    "gap": 50,
+    "rep": 1,
+    "hitstop_peak": 0,
+    "hp_drops": 0,
+    "dist_min": 0.0,
+    "l_acts": [
+     6,
+     9,
+     309
+    ],
+    "sync": true
+   },
+   {
+    "gap": 70,
+    "rep": 0,
+    "hitstop_peak": 0,
+    "hp_drops": 0,
+    "dist_min": 0.0,
+    "l_acts": [
+     6,
+     9,
+     309
+    ],
+    "sync": true
+   },
+   {
+    "gap": 70,
+    "rep": 1,
+    "hitstop_peak": 0,
+    "hp_drops": 0,
+    "dist_min": 0.0,
+    "l_acts": [
+     6,
+     9,
+     309
+    ],
+    "sync": true
+   },
+   {
+    "gap": 90,
+    "rep": 0,
+    "hitstop_peak": 0,
+    "hp_drops": 0,
+    "dist_min": 40.0,
+    "l_acts": [
+     6,
+     9,
+     309
+    ],
+    "sync": true
+   },
+   {
+    "gap": 90,
+    "rep": 1,
+    "hitstop_peak": 0,
+    "hp_drops": 0,
+    "dist_min": 1.232666015625,
+    "l_acts": [
+     6,
+     9,
+     309
+    ],
+    "sync": true
+   },
+   {
+    "gap": 110,
+    "rep": 0,
+    "hitstop_peak": 0,
+    "hp_drops": 0,
+    "dist_min": 123.85723876953125,
+    "l_acts": [
+     6,
+     9,
+     309
+    ],
+    "sync": true
+   },
+   {
+    "gap": 110,
+    "rep": 1,
+    "hitstop_peak": 0,
+    "hp_drops": 0,
+    "dist_min": 0.51165771484375,
+    "l_acts": [
+     6,
+     9,
+     309
+    ],
+    "sync": true
+   }
+  ],
+  "a3_marisa": [
+   {
+    "gap": 70,
+    "hitstop_peak": 9,
+    "hp_drops": 1,
+    "l_acts": [
+     7,
+     8,
+     9,
+     306
+    ],
+    "sync": true
+   },
+   {
+    "gap": 90,
+    "hitstop_peak": 9,
+    "hp_drops": 1,
+    "l_acts": [
+     7,
+     8,
+     9,
+     306
+    ],
+    "sync": true
+   },
+   {
+    "gap": 110,
+    "hitstop_peak": 9,
+    "hp_drops": 1,
+    "l_acts": [
+     7,
+     8,
+     9,
+     306
+    ],
+    "sync": true
+   },
+   {
+    "gap": 130,
+    "hitstop_peak": 9,
+    "hp_drops": 1,
+    "l_acts": [
+     7,
+     9,
+     306
+    ],
+    "sync": true
+   }
+  ]
+ },
+ "meta": {
+  "date": "2026-09-23 11:44"
+ }
+}

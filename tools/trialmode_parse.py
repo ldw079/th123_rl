@@ -1,0 +1,104 @@
+# -*- coding: utf-8 -*-
+"""Trialmode连段包解析器(R30, 用户2026-10-02提供数据源)。
+格式(docs: [The pack format.pdf + 实样本逆向):
+- JSON: expected=记法序列, score[0].min_damage/hits=合格线,
+  inputs=录制帧(部分包有, 含errored标记=概率连证据)
+- expected令牌: 招式[:帧偏移] !前缀=必须精确帧 [n]=按键持续帧
+  d前缀=冲刺中 hj=hjc高跳 j44/j66=空中dash scN=符卡ID /f5a=远近变体
+用法: python tools/trialmode_parse.py [char] → 列出可转换连段+概率连标注
+"""
+import io
+import json
+import os
+import re
+import sys
+import zipfile
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.stdout.reconfigure(encoding='utf8')
+
+PACK = r'D:\touhou\hisoutensoku2026-06-15\Trialmode连段包'
+PACKS = {
+    'reimu': ['白天子-灵梦连段包，直接解压里面的东西即可.zip',
+              '老阿皮灵梦阴间连段+实用连段.rar'],
+    'marisa': ['marisa_小朔士.zip', 'Marisa_xianxiang 现象.zip'],
+    'suika': ['[Finished]Suika_xianxiang 现象.zip', 'Suika_laozhao 老赵.rar'],
+}
+TOK = re.compile(r'(!?)([a-z0-9/]+?)(?:\[(\d+)\])?(?::(\d+))?$')
+
+
+def parse_expected(s):
+    rows = []
+    for tok in s.split():
+        m = TOK.match(tok)
+        if not m:
+            rows.append({'raw': tok})
+            continue
+        exact, move, hold, frame = m.groups()
+        rows.append({
+            'move': move,
+            'frame': int(frame) if frame else None,
+            'hold': int(hold) if hold else None,
+            'exact': bool(exact),
+        })
+    return rows
+
+
+def load_pack(fn):
+    """zip包 → [(combo_name, parsed, min_dmg, has_inputs, errored)]。
+    rar包跳过(暂无解压依赖)。"""
+    if fn.endswith('.rar'):
+        return []
+    p = os.path.join(PACK, fn)
+    if not os.path.exists(p):
+        return []
+    out = []
+    z = zipfile.ZipFile(p)
+    for n in z.namelist():
+        base = n.split('/')[-1]
+        if not base or base.endswith(('.backup', '.gif', '.jpg', '.json')):
+            continue
+        try:
+            d = json.loads(z.read(n).decode('utf-8'))
+        except Exception:
+            continue
+        exp = d.get('expected')
+        if not exp:
+            continue
+        sc = (d.get('score') or [{}])[0]
+        out.append({
+            'name': base,
+            'steps': parse_expected(exp),
+            'min_damage': sc.get('min_damage', 0),
+            'min_hits': sc.get('min_hits', 0),
+            'has_recording': bool(d.get('inputs')),
+            'errored': base.endswith('_errored') or '_errored' in n,
+        })
+    return out
+
+
+def main():
+    chars = sys.argv[1:] or ['reimu', 'marisa', 'suika']
+    for ch in chars:
+        combos = []
+        for pk in PACKS.get(ch, []):
+            combos.extend(load_pack(pk))
+        # 概率连判定: errored文件存在 或 带!精确帧标记密集
+        prob = [c for c in combos if c['errored']]
+        exact_heavy = [c for c in combos
+                       if sum(1 for s in c['steps'] if s.get('exact')) >= 2]
+        print('==== %s: %d条(概率连证据%d + 高精度!标记%d) ===='
+              % (ch, len(combos), len(prob), len(exact_heavy)))
+        for c in combos[:10]:
+            tag = '⚠概率' if c['errored'] else (
+                '!精' if c in exact_heavy else '   ')
+            print('  %s %4d伤 %2d段 | %s'
+                  % (tag, c['min_damage'], len(c['steps']), c['name'][:40]))
+        # 帧偏移覆盖统计(时序密度)
+        with_frame = sum(1 for c in combos
+                         if any(s.get('frame') for s in c['steps']))
+        print('  带帧偏移标注: %d/%d' % (with_frame, len(combos)))
+
+
+if __name__ == '__main__':
+    main()

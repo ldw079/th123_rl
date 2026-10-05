@@ -1,0 +1,19 @@
+{
+    "modules": {
+        "modules\\MemoryPatch\\MemoryPatch.dll": {
+            "enabled": true
+        },
+        "modules\\ReplayDnD\\ReplayDnD.dll": {
+            "enabled": true
+        },
+        "modules\\SokuAIOfflinePlayer\\SokuAIOfflinePlayer.dll": {
+            "enabled": false
+        },
+        "modules\\SokuAIOfflinePlayer\\SokuAITrainer.dll": {
+            "enabled": false
+        },
+        "modules\\SokuAITrainerEnv\\SokuAITrainerEnv.dll": {
+            "enabled": true
+        }
+    }
+}

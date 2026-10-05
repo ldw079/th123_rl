@@ -1,0 +1,52 @@
+{
+ "deployed_path": "D:\\touhou\\hisoutensoku2026-06-15\\th123_train\\modules\\SokuAIOfflinePlayer\\SokuAITrainer.dll",
+ "deployed_md5": "386737DE01ACFDECE70A27F7F6842A26",
+ "built_path": "D:\\temp\\build\\SokuAITrainer.dll",
+ "build_script": "D:\\temp\\build\\build_tm.bat",
+ "source_root": "D:\\temp\\build\\SokuAI-master",
+ "bat_explicit_units": [
+  "Training\\TrainingMod\\main.cpp",
+  "Training\\TrainingMod\\network.cpp",
+  "Training\\TrainingMod\\sokuData.cpp",
+  "Training\\TrainingMod\\state.cpp",
+  "d3dx_stub.cpp"
+ ],
+ "wildcard_deps": [
+  "SokuLib\\src\\Weather.hpp",
+  "SokuLib\\src\\Weather.cpp",
+  "Training\\TrainingMod\\Packet.hpp",
+  "SokuLib\\src\\SokuLib.hpp",
+  "SokuLib\\src\\Vector.hpp",
+  "SokuLib\\src\\CharacterManager.hpp",
+  "SokuLib\\src\\Character.hpp"
+ ],
+ "source_md5": {
+  "Training\\TrainingMod\\main.cpp": "70C1013F7E01CBBC860614A4790E04A4",
+  "Training\\TrainingMod\\network.cpp": "1215E7D65A04C78596BC70BD9F234300",
+  "Training\\TrainingMod\\sokuData.cpp": "6E6EC730CAB0299028571F20541086E4",
+  "Training\\TrainingMod\\state.cpp": "E75D27D02F77D99611880DDB0FCD8B60",
+  "d3dx_stub.cpp": "1FBBDF776653880046AFB0C4FE038196",
+  "SokuLib\\src\\Weather.hpp": "2ED3FC0744DF8A46F6039D84AF4DEB58",
+  "SokuLib\\src\\Weather.cpp": "42BAC08AC828C1A2C368C2F293A85D21",
+  "Training\\TrainingMod\\Packet.hpp": "276C51EA5909C315F5E47E96FD3C8170",
+  "SokuLib\\src\\SokuLib.hpp": "09A92DD453DA65E0309150D59BFFFE8A",
+  "SokuLib\\src\\Vector.hpp": "8074AF44FA5EA4DDA190251210D18D51",
+  "SokuLib\\src\\CharacterManager.hpp": "98B7F94A98F002DC0D24BE1647588465",
+  "SokuLib\\src\\Character.hpp": "937EEFD6636A1D958B59718A1C9F0D0B"
+ },
+ "masking": {
+  "seiran_hand_0xFF": "state.cpp: WEATHER_MOUNTAIN_VAPOR branch",
+  "seiran_gauge_sentinel": "0xFFFF (unsigned short wire value)",
+  "aurora_active_mask": "network.cpp: displayed==AURORA -> active=AURORA"
+ },
+ "note": "R11 info-symmetry; ported 2026-09-22 from OfflineVersusMod",
+ "oracle_deployed": {
+  "deployed_path": "D:\\temp\\rl_game\\modules\\SokuAITrainerEnv\\SokuAITrainerEnv.dll",
+  "deployed_md5": "B7E8C8052EF062783FC1131FA8F37DF6",
+  "built_path": "D:\\temp\\soku_arch\\build\\out\\SokuAITrainerEnv.dll",
+  "built_md5": "B7E8C8052EF062783FC1131FA8F37DF6",
+  "build_script": "D:\\temp\\soku_arch\\build\\build_mod.bat",
+  "patch_script": "D:\\temp\\soku_arch\\build\\patch_sources.py",
+  "note": "SokuAI-master\u57fa\u5ea7+\u8865\u4e011-8(\u88ab\u52a8\u89c2\u6d4b/\u79cd\u5b50/TRACE/INPUTLOG\u7cbe\u786e\u5bf9\u9f50/FGSPOOF); \u90e8\u7f72\u2260\u6784\u5efa\u65f6\u544a\u8b66\u7531C9\u7684oracle\u65ad\u8a00\u627f\u62c5"
+ }
+}
