@@ -218,3 +218,19 @@ SC_MACROS_MARISA = {"卡·星星", "卡·钻头", "卡·星炮SC", "卡·邪恋"
 # 符卡消费表(从card_tables: 魔理沙卡费)
 SC_COST_MARISA = {0: 1, 1: 1, 200: 3, 202: 5, 203: 5, 204: 4, 205: 2, 206: 3,
                   207: 5, 208: 1, 209: 3, 211: 2, 212: 3, 214: 4, 215: 2, 219: 5}
+
+# ==== R61n(C4): 表里择+压起身套件 ====
+MACROS_MARISA.append(('择·中段', [(('right', 'D'), 6), ((), 2), (('right',), 6), (('right', 'A'), 10)]))
+MACROS_MARISA.append(('择·下段', [(('right', 'D'), 6), ((), 2), (('right',), 6), (('down',), 6), (('down', 'A'), 10)]))
+MACROS_MARISA.append(('择·投', [(('right', 'D'), 6), ((), 2), (('right',), 6), (('A', 'D'), 6)]))
+MACROS_MARISA.append(('压起身·即', [(('down', 'A'), 12), ((), 4), (('A',), 8)]))
+MACROS_MARISA.append(('压起身·延迟', [((), 8), (('A',), 10), ((), 2), (('down', 'A'), 10)]))
+MACROS_MARISA.append(('压起身·空', [(('up',), 6), (('down',), 6), (('down', 'A'), 12)]))
+MACROS_MARISA.append(('压起身·穿', [(('left', 'D'), 6), ((), 4), (('left',), 8)]))
+MELEE_MACROS_MARISA |= {'择·中段', '择·下段', '择·投', '压起身·即', '压起身·延迟', '压起身·空', '压起身·穿'}
+COMBO_MACROS_MARISA |= {'择·中段', '择·下段', '择·投', '压起身·即', '压起身·延迟', '压起身·空', '压起身·穿'}
+MACRO_NAMES_MARISA = [m[0] for m in MACROS_MARISA]
+# R61n: 追加宏的规范化(预置帧≥5 — hitlab标定阈值)
+MACROS_MARISA[-7:] = [(n, _norm_presteps(sc)) for n, sc in MACROS_MARISA[-7:]]
+MACRO_NAMES_MARISA = [m[0] for m in MACROS_MARISA]
+N_MACROS_MARISA = len(MACROS_MARISA)

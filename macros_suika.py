@@ -214,3 +214,19 @@ SC_MACROS_SUIKA = {"卡·投掷", "卡·鬼缚", "卡·力量", "卡·紫力", "
 
 SC_COST_SUIKA = {0: 1, 1: 1, 200: 2, 201: 2, 202: 2, 203: 5, 204: 4, 205: 4,
                  206: 1, 207: 4, 208: 5, 212: 3}
+
+# ==== R61n(C4): 表里择+压起身套件 ====
+MACROS_SUIKA.append(('择·中段', [(('right', 'D'), 6), ((), 2), (('right',), 6), (('right', 'A'), 12)]))
+MACROS_SUIKA.append(('择·下段', [(('right', 'D'), 6), ((), 2), (('right',), 6), (('down',), 6), (('down', 'A'), 12)]))
+MACROS_SUIKA.append(('择·投', [(('right', 'D'), 6), ((), 2), (('right',), 6), (('A', 'D'), 6)]))
+MACROS_SUIKA.append(('压起身·即', [(('down', 'A'), 14), ((), 4), (('A',), 10)]))
+MACROS_SUIKA.append(('压起身·延迟', [((), 10), (('A',), 12), ((), 2), (('down', 'A'), 12)]))
+MACROS_SUIKA.append(('压起身·空', [(('up',), 6), (('down',), 6), (('down', 'A'), 14)]))
+MACROS_SUIKA.append(('压起身·穿', [(('left', 'D'), 6), ((), 4), (('left',), 8)]))
+MELEE_MACROS_SUIKA |= {'择·中段', '择·下段', '择·投', '压起身·即', '压起身·延迟', '压起身·空', '压起身·穿'}
+COMBO_MACROS_SUIKA |= {'择·中段', '择·下段', '择·投', '压起身·即', '压起身·延迟', '压起身·空', '压起身·穿'}
+MACRO_NAMES_SUIKA = [m[0] for m in MACROS_SUIKA]
+# R61n: 追加宏的规范化(预置帧≥5 — hitlab标定阈值)
+MACROS_SUIKA[-7:] = [(n, _norm_presteps(sc)) for n, sc in MACROS_SUIKA[-7:]]
+MACRO_NAMES_SUIKA = [m[0] for m in MACROS_SUIKA]
+N_MACROS_SUIKA = len(MACROS_SUIKA)

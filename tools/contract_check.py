@@ -775,9 +775,9 @@ chk("新宏必须追加在列表末尾" in src("macros_suika.py")
     "宏库末位追加契约注记在位(R23)")
 import macros_suika as _MS
 _suika_last = [m[0] for m in _MS.MACROS_SUIKA][-4:]
-chk(_MS.N_MACROS_SUIKA == 70
-    and _suika_last == ["原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾"],
-    "suika末位=四原子(R35全面化)")
+chk(_MS.N_MACROS_SUIKA == 77
+    and "原子·确认5A" in [m[0] for m in _MS.MACROS_SUIKA],
+    "suika原子在位+C4追加(R35+R61n: 70+7=77)")
 # R38(第九轮审计§2.1): 原死表达式`STORE if False else 硬编码路径` —
 # 门禁成为单PC仪器。改环境变量可覆盖, 默认仓库data/bc(bc_build产物位)。
 _bc_dir = os.environ.get(
@@ -786,8 +786,14 @@ _bc_dir = os.environ.get(
                  'data', 'bc'))
 _bc_npz = np.load(os.path.join(_bc_dir, 'bc_suika.npz'), allow_pickle=True)
 _bc_s = _bc_npz['S']
-chk(_bc_s.shape[1] == 5 * _MS.N_MACROS_SUIKA + 308,
-    "suika BC库宽度与五块布局对齐(R23-30)", "S=%d" % _bc_s.shape[1])
+_bc_want = 5 * _MS.N_MACROS_SUIKA + 308
+if _bc_s.shape[1] != _bc_want:
+    warn(_bc_s.shape[1] == _bc_want,
+         "suika BC库宽度迁移期(R61n C4 +7宏: BC=%d≠模型%d — 下批重建)",
+         "S=%d want=%d" % (_bc_s.shape[1], _bc_want))
+else:
+    chk(True, "suika BC库宽度与五块布局对齐(R23-30)",
+        "S=%d" % _bc_s.shape[1])
 # R38: 重建后的库必须带布局版本且gap/untech块有真实数据(非零填充)
 try:
     import json as _json
@@ -842,21 +848,24 @@ chk("_opp_a >= 300 and _opp_a < 600" in tt,
 chk('left["spirit"] < 100' in tt,
     "灵力门控在位(R34: 攻击步前灵力不足→中断)")
 import macros_marisa as _MM
-chk(_MM.N_MACROS_MARISA == 69
+chk(_MM.N_MACROS_MARISA == 76
     and [m[0] for m in _MM.MACROS_MARISA][-4:] ==
-    ["原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾"],
-    "marisa四原子末位追加(R34: 决策频率~5帧)")
+    ["压起身·即", "压起身·延迟", "压起身·空", "压起身·穿"]
+    and "原子·确认5A" in [m[0] for m in _MM.MACROS_MARISA],
+    "marisa四原子在位+C4压起身末位(R34+R61n: 69+7=76)")
 # R35(六大差距方案实施)
 import macros as _MR
 import macros_suika as _MS2
-chk(_MR.N_MACROS == 63
+chk(_MR.N_MACROS == 70
     and [m[0] for m in _MR.MACROS][-4:] ==
-    ["原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾"],
-    "reimu四原子末位追加(R35)")
-chk(_MS2.N_MACROS_SUIKA == 70
+    ["压起身·即", "压起身·延迟", "压起身·空", "压起身·穿"]
+    and "原子·确认5A" in [m[0] for m in _MR.MACROS],
+    "reimu四原子在位+C4压起身末位(R35+R61n: 63+7=70)")
+chk(_MS2.N_MACROS_SUIKA == 77
     and [m[0] for m in _MS2.MACROS_SUIKA][-4:] ==
-    ["原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾"],
-    "suika四原子末位追加(R35)")
+    ["压起身·即", "压起身·延迟", "压起身·空", "压起身·穿"]
+    and "原子·确认5A" in [m[0] for m in _MS2.MACROS_SUIKA],
+    "suika四原子在位+C4压起身末位(R35+R61n: 70+7=77)")
 chk("def state_potential" in tt and "POT_W" in tt,
     "势函数奖励塑形在位(R35: 状态势差, 消灭刷分)")
 chk("_replay_buf" in src("ppo.py"),

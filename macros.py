@@ -301,3 +301,19 @@ def whiff_cost(name):
 def macro_script(idx):
     """返回宏的执行脚本: [(按键名元组, 持续帧), ...]"""
     return MACROS[idx][1]
+
+# ==== R61n(C4): 表里择+压起身套件 ====
+MACROS.append(('择·中段', [(('right', 'D'), 6), ((), 2), (('right',), 6), (('right', 'A'), 10)]))
+MACROS.append(('择·下段', [(('right', 'D'), 6), ((), 2), (('right',), 6), (('down',), 6), (('down', 'A'), 10)]))
+MACROS.append(('择·投', [(('right', 'D'), 6), ((), 2), (('right',), 6), (('A', 'D'), 6)]))
+MACROS.append(('压起身·即', [(('down', 'A'), 12), ((), 4), (('A',), 8)]))
+MACROS.append(('压起身·延迟', [((), 8), (('A',), 10), ((), 2), (('down', 'A'), 10)]))
+MACROS.append(('压起身·空', [(('up',), 6), (('down',), 6), (('down', 'A'), 12)]))
+MACROS.append(('压起身·穿', [(('left', 'D'), 6), ((), 4), (('left',), 8)]))
+MELEE_MACROS |= {'择·中段', '择·下段', '择·投', '压起身·即', '压起身·延迟', '压起身·空', '压起身·穿'}
+COMBO_MACROS |= {'择·中段', '择·下段', '择·投', '压起身·即', '压起身·延迟', '压起身·空', '压起身·穿'}
+MACRO_NAMES = [m[0] for m in MACROS]
+# R61n: 追加宏的规范化(预置帧≥5 — hitlab标定阈值)
+MACROS[-7:] = [(n, _norm_presteps(sc)) for n, sc in MACROS[-7:]]
+MACRO_NAMES = [m[0] for m in MACROS]
+N_MACROS = len(MACROS)
