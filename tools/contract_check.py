@@ -1528,6 +1528,9 @@ _BEHAVIOR_TESTS = [
     # R61p(E2): 价值网络讲解
     ("test_teach_e2.py",
      "R61p(E2): value_rank排名+explain_with_value讲解+情境敏感"),
+    # R61q(E3): 校准难度
+    ("test_difficulty_e3.py",
+     "R61q(E3): 四档难度+温度/掩码/牌组限制+阶梯+校准推荐"),
 ]
 for _tname, _tdesc in _BEHAVIOR_TESTS:
     _tp = os.path.join(ROOT, _tname)
