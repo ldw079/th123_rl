@@ -1541,6 +1541,9 @@ _BEHAVIOR_TESTS = [
     # R61u(C1): 统一执行器+分支门
     ("test_executor_c1.py",
      "R61u(C1): 分支门评估(hit/blocked/jump/whiff/delay)+队列推进+拍子/压起身模板"),
+    # R61v(C3): 目押link门
+    ("test_link_c3.py",
+     "R61v(C3): untech→0等待/最速出/超时截断/逐步恢复+目押宏模板"),
 ]
 for _tname, _tdesc in _BEHAVIOR_TESTS:
     _tp = os.path.join(ROOT, _tname)

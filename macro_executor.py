@@ -15,7 +15,15 @@
   ("confirm", 0)              — 命中门(既有: d_deal>0→续, 否则4帧截断)
   ("cconfirm", 0)             — 接触门(既有: d_deal>0或被防→续)
   ("sc:ID", 0)                — 符卡步(既有, 状态机)
-  ("branch", {cond: steps})   — **分支门(新)**: 按游戏状态路由
+  ("branch", {cond: steps})   — **分支门(C1)**: 按游戏状态路由
+  ("link", (max_wait, steps)) — **目押门(C3)**: 等untech→0最速出招
+
+目押(C3, combo改进方案§2.4):
+  连段步进器读对手untech(每帧可见), 下一击条件改为"对手hitstun
+  结束后≤2帧内"而非固定第N帧. link=(max_wait, steps) = 等待
+  untech→0后最速出招, 超时max_wait落空截断. 近/远A分辨(Part1
+  的fvariant)在此必需 — 步进器按fvariant查帧表(MOVE_STARTUP
+  已有基础).
 
 分支条件:
   "hit"        — 上一攻击命中(d_deal > 0) → 取该分支的步骤
@@ -23,6 +31,10 @@
   "whiff"      — 空挥(默认None=截断, 同confirm超时)
   "delay_then" — 放帧: (N, steps) = 门通过后延迟N帧再续(拍子择)
   "opp_jump"   — 对手空中(airBorne) → 该分支
+
+目押(C3):
+  ("link", (max_wait, steps)) — 等对手untech→0后最速出;
+  超时max_wait帧未到0 → 截断. 观察窗计数器用gate_frames.
 """
 from __future__ import annotations
 
@@ -145,6 +157,25 @@ def advance_queue(macro_queue, gate_frames, left, right, d_deal, d_take,
                     macro_queue = list(result) + macro_queue
                 return macro_queue, gate_frames, dec_name, None
 
+            elif isinstance(keys, str) and keys == "link":
+                # R61v(C3): 目押门 — 等对手untech→0最速出招
+                # fl = (max_wait, steps); gate_frames作为观察窗
+                max_wait, steps = fl
+                gate_frames += 1
+                opp_untech = right.get("untech", 0) or 0
+                if opp_untech <= 0:
+                    # 对手恢复完毕 → 最速出招
+                    macro_queue.pop(0)
+                    gate_frames = 0
+                    macro_queue = list(steps) + macro_queue
+                elif gate_frames >= max_wait:
+                    # 超时 → 落空截断(对手已恢复但我们没跟上)
+                    macro_queue = []
+                    gate_frames = 0
+                    dec_name = None
+                    sc_reset_fn()
+                return macro_queue, gate_frames, dec_name, None
+
             elif isinstance(keys, str):
                 # confirm/cconfirm 门(既有语义)
                 gate_frames += 1
@@ -229,3 +260,41 @@ def oki_branch(char):
             "whiff": None,   # 空挥→截断
         })
     ])
+
+
+def make_link_step(max_wait, steps):
+    """构造目押门步骤(C3): 等untech→0后最速出.
+
+    max_wait: 最长等待帧数(超时截断)
+    steps: untech→0后要执行的步骤列表
+    """
+    return ("link", (max_wait, list(steps)))
+
+
+def just_frame_link(char, starter_steps, follow_up, max_wait=20):
+    """目押连段宏(C3): 起手→link等恢复→最速追击.
+
+    攻略核心: "目押=对手恢复瞬间命中=最大连段窗口"
+    实现: 起手confirm通过→link门等untech→0→最速出追击
+    max_wait=20帧(约0.32秒) — 超过说明对手已脱连.
+    """
+    return starter_steps + [
+        ("confirm", 0),
+        make_link_step(max_wait, follow_up),
+    ]
+
+
+# 目押预制: 5A→link→2A (基础目押确认连)
+def just_frame_5a_2a(char='reimu'):
+    """5A命中→等恢复→最速2A(目押基础)."""
+    starter = [(("A",), 8)]
+    follow = [(("down",), 5), (("down", "A"), 8)]
+    return ("目押·5A2A", just_frame_link(char, starter, follow))
+
+
+# 目押预制: 2A→link→5A (下段→中段目押)
+def just_frame_2a_5a(char='reimu'):
+    """2A命中→等恢复→最速5A(下中目押)."""
+    starter = [(("down",), 5), (("down", "A"), 8)]
+    follow = [(("A",), 8)]
+    return ("目押·2A5A", just_frame_link(char, starter, follow))
