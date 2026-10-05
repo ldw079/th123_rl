@@ -23,6 +23,20 @@ PACKS = {
               '老阿皮灵梦阴间连段+实用连段.rar'],
     'marisa': ['marisa_小朔士.zip', 'Marisa_xianxiang 现象.zip'],
     'suika': ['[Finished]Suika_xianxiang 现象.zip', 'Suika_laozhao 老赵.rar'],
+    # R61i(C6): 17新角色 — 仅zip包(rar跳过, 暂无解压依赖)
+    'yukari': ['yukari_challenge 十字凤.zip'],
+    'komachi': ['Komachi 十字凤.zip'],
+    'meiling': ['Meirin Normal Combos In Combat 给油.zip',
+                'Meirin Romantic combos 给油.zip'],
+    'sanae': ['Sanae_challenge by 十字凤.zip'],
+    'youmu': ['Youmu Junior [2022.2.17] 109 combos 三回転Tstar.zip'],
+    'yuyuko': ['Yuyuko_combo记得是芙幽做的.zip'],
+    'tenshi': ['天子连段包-Anmoto.zip'],
+    'suwako': ['妖精--泄矢诹访子连段包v1.1.zip',
+               '诹访子连段专项大合集120+ -鱼的千千.zip'],
+    'alice': ['爱丽丝连段包1.1-米神こめ神.zip'],
+    'cirno': ['白天子-琪露诺的连段包.zip'],
+    # 无zip包: sakuya/patchouli/reisen/remilia/aya/iku/utsuho(7角色)
 }
 TOK = re.compile(r'(!?)([a-z0-9/]+?)(?:\[(\d+)\])?(?::(\d+))?$')
 
