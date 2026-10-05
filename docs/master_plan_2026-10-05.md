@@ -59,7 +59,7 @@
 | C5 | ender 菜单（分层连段, 宪法 SOP 第 10 步, 触发条件已到） | combo 改进 2.5 | 2 天 | 宏数回落 + 二次决策快路径 |
 |  | *状态(10-05 ✅): ("ender",[indices])+starter_ender_pair+build_ender_menu; 复用B2事件掩码机制; test 11 PASS; 宏库集成待训练期标定ender列表* | | | |
 | C6 | 17 新角色 Trialmode 连段包 + A4 原子宏排查（仪表已上线, 查掩码/配额/可出性三关） | combo 改进 S1/S2 | 3 天 | 采纳曲线脱离 0; 新库死招扫描过 |
-|  | *状态(10-05 ✅15/17): 58条TM连段入15角色宏库(TM=atk=reach全等验证✓, 门禁505/0); 用户补包aya/remilia/utsuho(rar解压)/sakuya(rar解压)/iku(19=衣玖); 无包: patchouli/reisen(2角色)* | | | |
+|  | *状态(10-05 ✅17/17): 62条TM连段入17角色(16角色有数据+patchouli包超阈值0条); TM=atk=reach全等验证✓; 门禁512/0/0; 全部角色数据源就位* | | | |
 
 ### 工作流 D · 规模化（本地, 与 B/C 并行——**撤云修订 2026-10-05**）
 
