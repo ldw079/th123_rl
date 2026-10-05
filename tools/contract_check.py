@@ -1531,6 +1531,9 @@ _BEHAVIOR_TESTS = [
     # R61q(E3): 校准难度
     ("test_difficulty_e3.py",
      "R61q(E3): 四档难度+温度/掩码/牌组限制+阶梯+校准推荐"),
+    # R61r(E5): 坏习惯检测
+    ("test_habit_e5.py",
+     "R61r(E5): 五种坏习惯检测+惩罚宏映射+教学报告"),
 ]
 for _tname, _tdesc in _BEHAVIOR_TESTS:
     _tp = os.path.join(ROOT, _tname)
