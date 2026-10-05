@@ -1537,6 +1537,9 @@ _BEHAVIOR_TESTS = [
     # R61s(F6): 评估体系
     ("test_eval_f6.py",
      "R61s(F6): matchup矩阵分析+排名+超人距离度量"),
+    # R61u(C1): 统一执行器+分支门
+    ("test_executor_c1.py",
+     "R61u(C1): 分支门评估(hit/blocked/jump/whiff/delay)+队列推进+拍子/压起身模板"),
 ]
 for _tname, _tdesc in _BEHAVIOR_TESTS:
     _tp = os.path.join(ROOT, _tname)
