@@ -58,7 +58,7 @@ CHAR_MACRO_MOVES = {
     'sakuya': dict(_COMMON, **{'TM·6a_2c_hj9_j5a_j6a': (302,), 'TM·6a_d623b_j5b_j66_j': (302,), 'TM·d623b_j5c_j66_j6a_': (400,), 'TM·5aaa_d623b_j5b_j66': (400,)}),
     'patchouli': dict(_COMMON),
     'yuyuko': dict(_COMMON, **{'TM·2a_6a_6c_dskill4b': (303,), 'TM·5a_5aa_5aaa_sc203_': (300,), 'TM·hj9_j2a_2a_2b_6c_h': (303,), 'TM·5a_5aa_5aaa_f5a_6a': (300,)}),
-    'reisen': dict(_COMMON),
+    'reisen': dict(_COMMON, **{'TM·d236b_hj9_j5a_j2b_': (400,), 'TM·d236b_d236b_hj8_j2': (400,), 'TM·dskill1b_dskill1b_': (300,), 'TM·5a_6b_hj9_j8a_j2b_': (300,)}),
     'komachi': dict(_COMMON, **{'TM·5a_5aa_5aaa_5aaaa_': (300,), 'TM·f5a_6c_sc206': (300,), 'TM·f5a_6c_sc206': (300,), 'TM·hj8_j66_j2a_sc203': (305,)}),
     'tenshi': dict(_COMMON, **{'TM·hj9_j5a_j2c_jsc207': (300,), 'TM·6_d6_5a_5aa_2b_sc2': (300,), 'TM·d6_5a_5aa_2b_5c_d6': (300,), 'TM·6_6b_hj9_j5a_j2b_5': (401,)}),
     # R45: 剩余11角色 — 全20角色齐备

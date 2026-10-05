@@ -42,7 +42,9 @@ PACKS = {
     'utsuho': ['utsuho_trialmode.zip'],
     'sakuya': ['sakuya_trialmode.zip'],
     'iku': ['19大学习连段包——by妖精.zip'],
-    # 无包: patchouli/reisen(2角色)
+    # 无包: (全部有包 — patchouli/reisen用户补充)
+    'patchouli': ['Patchouli Trial Mode.zip'],
+    'reisen': ['reisen basic combos.zip'],
 }
 TOK = re.compile(r'(!?)([a-z0-9/]+?)(?:\[(\d+)\])?(?::(\d+))?$')
 

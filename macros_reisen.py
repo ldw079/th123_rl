@@ -122,3 +122,12 @@ _RAW_REISEN = list(MACROS_REISEN)
 MACROS_REISEN = [(n, _norm_presteps(sc)) for n, sc in _RAW_REISEN]
 NORMALIZED_AFFECTED_REISEN = {n for (n, s0), (_, s1) in
                             zip(_RAW_REISEN, MACROS_REISEN) if s0 != s1}
+
+# ==== R61j(C6): Trialmode连段完整集成 ====
+MACROS_REISEN.append(('TM·d236b_hj9_j5a_j2b_', [(('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10), ((), 2), ('confirm', 0), (('down',), 4), (('up', 'right'), 8), (('A',), 8), ((), 9), (('down',), 6), (('down', 'B'), 10), (('right', 'D'), 8), (('A',), 8), ((), 7), (('up',), 6), (('up',), 2), (('up', 'A'), 12), (('C',), 12)]))
+MACROS_REISEN.append(('TM·d236b_d236b_hj8_j2', [(('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10), ((), 2), ('confirm', 0), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10), (('up',), 6), (('down',), 6), (('down', 'C'), 12), ((), 18), (('right', 'D'), 8), (('A',), 8), ((), 8), (('up',), 6), (('up',), 2), (('up', 'A'), 12)]))
+MACROS_REISEN.append(('TM·dskill1b_dskill1b_', [(('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10), ((), 2), ('confirm', 0), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10), (('down',), 4), (('up', 'right'), 8), (('A',), 8), ((), 12), (('down',), 6), (('down', 'B'), 10), ((), 7), (('right', 'D'), 8), (('A',), 8), ((), 8), (('up',), 6), (('up',), 2), (('up', 'A'), 12)]))
+MACROS_REISEN.append(('TM·5a_6b_hj9_j8a_j2b_', [(('A',), 8), ((), 2), ('confirm', 0), (('right',), 6), (('right', 'B'), 10), ((), 15), (('down',), 4), (('up', 'right'), 8), (('up',), 6), (('up',), 2), (('up', 'A'), 12), ((), 24), (('down',), 6), (('down', 'B'), 10), (('right', 'D'), 8), (('A',), 8), ((), 6), (('up',), 6), (('up',), 2), (('up', 'A'), 12)]))
+REISEN_COMBO_MACROS |= {'TM·d236b_hj9_j5a_j2b_', 'TM·d236b_d236b_hj8_j2', 'TM·dskill1b_dskill1b_', 'TM·5a_6b_hj9_j8a_j2b_'}
+# R61j: TM宏追加后同步names
+MACRO_NAMES_REISEN = [m[0] for m in MACROS_REISEN]
