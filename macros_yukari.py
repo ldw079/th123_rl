@@ -106,7 +106,7 @@ YUKARI_BULLET_MACROS = {"5B", "6B", "2B", "5C", "6C", "jB", "j2B", "jC", "j6C", 
 # dx<150被贴身禁令掩掉(升龙/反转最需的距离) + 空挥按1.0×而非技能档
 YUKARI_SKILL_MACROS = {"236B", "236C", "623B", "623C", "22B", "22C", "214B", "214C"}
 YUKARI_AIR_MACROS = {"jA", "j6A", "j8A", "j2A", "jB", "j2B", "jC", "j6C", "空翔前", "空翔后", "空冲后", "飞翔", "高跳"}
-YUKARI_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾", 'TM·3a_sc215', 'TM·3a_sc208', 'TM·5a_5aa_5aaa_sc201_', 'TM·5a_5aa_5aaa_5aaaa_'}
+YUKARI_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾"}
 YUKARI_STRING_MACROS = {"压制A", "压制B"}
 YUKARI_SC_NAMES = {"卡·灵击札", "卡·药水", "卡·当前", "卡·符卡三", "卡·符卡五", "卡·符卡八", "卡·终卡六"}
 YUKARI_GUARD_PREP = ("立防", "蹲防")
@@ -128,7 +128,7 @@ MACROS_YUKARI.append(('TM·3a_sc215', [(('down',), 6), (('down', 'right'), 2), (
 MACROS_YUKARI.append(('TM·3a_sc208', [(('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 10), ((), 2), ('confirm', 0), ((), 8), ('sc:208', 0)]))
 MACROS_YUKARI.append(('TM·5a_5aa_5aaa_sc201_', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ('sc:201', 0), ((), 30), (('right',), 6), (('B',), 10), ((), 12), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('B', 'down', 'right'), 10)]))
 MACROS_YUKARI.append(('TM·5a_5aa_5aaa_5aaaa_', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 30), (('left',), 6), (('A',), 10), ((), 15), (('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 14), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10)]))
-
+YUKARI_COMBO_MACROS |= {'TM·3a_sc215', 'TM·3a_sc208', 'TM·5a_5aa_5aaa_sc201_', 'TM·5a_5aa_5aaa_5aaaa_'}
 # R61j: TM宏追加后同步names
 MACRO_NAMES_YUKARI = [m[0] for m in MACROS_YUKARI]
 # R61j: TM宏引用的SC卡耗费补入

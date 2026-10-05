@@ -64,9 +64,9 @@ CHAR_MACRO_MOVES = {
     # R45: 剩余11角色 — 全20角色齐备
     'alice': dict(_COMMON, **{'TM·8_j6a': (302,), 'TM·8_j6a_j6a_6a': (302,), 'TM·d236b_sc200_sc203': (400,), 'TM·2a_3a_dskill1b_hj9': (303,)}),
     'youmu': dict(_COMMON, **{'TM·hj8_j2a_4_sc204': (303,), 'TM·f2a_sc203': (303,), 'TM·d623c_sc203': (400,), 'TM·d6_2c_hj8_j2a_sc20': (412,)}),
-    'remilia': dict(_COMMON),
+    'remilia': dict(_COMMON, **{'TM·5a_5aa_5aaa_5aaaa_': (300,), 'TM·5a_5aa_5aaa_5aaaa_': (300,), 'TM·2a_sc206': (303,), 'TM·5a_5aa_5aaa_5aaaa_': (300,)}),
     'yukari': dict(_COMMON, **{'TM·3a_sc215': (304,), 'TM·3a_sc208': (304,), 'TM·5a_5aa_5aaa_sc201_': (300,), 'TM·5a_5aa_5aaa_5aaaa_': (300,)}),
-    'aya': dict(_COMMON),
+    'aya': dict(_COMMON, **{'TM·6_d236b_sc206': (400,), 'TM·2a_2a_sc206': (303,), 'TM·hj9_j5a_j5b_j66_j5': (300,)}),
     'iku': dict(_COMMON),
     'sanae': dict(_COMMON, **{'TM·2a_3a_2c_sc205': (303,), 'TM·5a_5aa_5aaa_5aaaa_': (300,), 'TM·2a_3a_5c_sc205': (303,), 'TM·5a_5aa_5aaa_2b_sc2': (300,)}),
     'cirno': dict(_COMMON, **{'TM·5a_5aa_5aaa_5c_sc2': (300,), 'TM·5a_5aa_5aaa_5c_d62': (300,), 'TM·hj9_j5a_j6a_j5c_j6': (300,), 'TM·hj9_j5a_j5c_j66_j5': (300,)}),

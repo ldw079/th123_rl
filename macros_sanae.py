@@ -106,7 +106,7 @@ SANAE_BULLET_MACROS = {"5B", "6B", "2B", "5C", "6C", "jB", "j2B", "jC", "j6C", "
 # dx<150被贴身禁令掩掉(升龙/反转最需的距离) + 空挥按1.0×而非技能档
 SANAE_SKILL_MACROS = {"236B", "236C", "623B", "623C", "22B", "22C", "214B", "214C"}
 SANAE_AIR_MACROS = {"jA", "j6A", "j8A", "j2A", "jB", "j2B", "jC", "j6C", "空翔前", "空翔后", "空冲后", "飞翔", "高跳"}
-SANAE_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾", 'TM·2a_3a_2c_sc205', 'TM·5a_5aa_5aaa_5aaaa_', 'TM·2a_3a_5c_sc205', 'TM·5a_5aa_5aaa_2b_sc2'}
+SANAE_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾"}
 SANAE_STRING_MACROS = {"压制A", "压制B"}
 SANAE_SC_NAMES = {"卡·灵击札", "卡·药水", "卡·当前", "卡·符卡一", "卡·符卡二", "卡·符卡四", "卡·终卡"}
 SANAE_GUARD_PREP = ("立防", "蹲防")
@@ -128,7 +128,7 @@ MACROS_SANAE.append(('TM·2a_3a_2c_sc205', [(('down',), 6), (('down', 'A'), 10),
 MACROS_SANAE.append(('TM·5a_5aa_5aaa_5aaaa_', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 3), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 7), ('sc:205', 0)]))
 MACROS_SANAE.append(('TM·2a_3a_5c_sc205', [(('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 15), (('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 14), ((), 8), (('C',), 12), ((), 5), ('sc:205', 0)]))
 MACROS_SANAE.append(('TM·5a_5aa_5aaa_2b_sc2', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 3), (('down',), 6), (('down', 'B'), 10), ('sc:201', 0), ((), 30), (('left',), 6), (('right',), 6), (('right', 'A'), 12), (('right',), 6), (('right', 'B'), 10)]))
-
+SANAE_COMBO_MACROS |= {'TM·2a_3a_2c_sc205', 'TM·5a_5aa_5aaa_5aaaa_', 'TM·2a_3a_5c_sc205', 'TM·5a_5aa_5aaa_2b_sc2'}
 # R61j: TM宏追加后同步names
 MACRO_NAMES_SANAE = [m[0] for m in MACROS_SANAE]
 # R61j: TM宏引用的SC卡耗费补入

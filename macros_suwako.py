@@ -106,7 +106,7 @@ SUWAKO_BULLET_MACROS = {"5B", "6B", "2B", "5C", "6C", "jB", "j2B", "jC", "j6C", 
 # dx<150被贴身禁令掩掉(升龙/反转最需的距离) + 空挥按1.0×而非技能档
 SUWAKO_SKILL_MACROS = {"236B", "236C", "623B", "623C", "22B", "22C", "214B", "214C"}
 SUWAKO_AIR_MACROS = {"jA", "j6A", "j8A", "j2A", "jB", "j2B", "jC", "j6C", "空翔前", "空翔后", "空冲后", "飞翔", "高跳"}
-SUWAKO_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾", 'TM·8_j8a_sc208', 'TM·f5a_sc208', 'TM·5a_5aa_5aaa_j5b_j6', 'TM·5a_5aa_5aaa_5aaaa'}
+SUWAKO_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾"}
 SUWAKO_STRING_MACROS = {"压制A", "压制B"}
 SUWAKO_SC_NAMES = {"卡·灵击札", "卡·药水", "卡·当前", "卡·符卡一", "卡·符卡二", "卡·符卡五", "卡·符卡九"}
 SUWAKO_GUARD_PREP = ("立防", "蹲防")
@@ -128,7 +128,7 @@ MACROS_SUWAKO.append(('TM·8_j8a_sc208', [(('up',), 6), (('up',), 6), (('up',), 
 MACROS_SUWAKO.append(('TM·f5a_sc208', [(('A',), 10), ((), 2), ('confirm', 0), ('sc:208', 0)]))
 MACROS_SUWAKO.append(('TM·5a_5aa_5aaa_j5b_j6', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 30), (('B',), 10), (('right',), 6), (('right', 'C'), 12), ((), 14), (('left', 'D'), 8), ('sc:209', 0)]))
 MACROS_SUWAKO.append(('TM·5a_5aa_5aaa_5aaaa', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 30), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6)]))
-
+SUWAKO_COMBO_MACROS |= {'TM·8_j8a_sc208', 'TM·f5a_sc208', 'TM·5a_5aa_5aaa_j5b_j6', 'TM·5a_5aa_5aaa_5aaaa'}
 # R61j: TM宏追加后同步names
 MACRO_NAMES_SUWAKO = [m[0] for m in MACROS_SUWAKO]
 # R61j: TM宏引用的SC卡耗费补入

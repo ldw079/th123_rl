@@ -106,7 +106,7 @@ YOUMU_BULLET_MACROS = {"5B", "6B", "2B", "5C", "6C", "jB", "j2B", "jC", "j6C", "
 # dx<150被贴身禁令掩掉(升龙/反转最需的距离) + 空挥按1.0×而非技能档
 YOUMU_SKILL_MACROS = {"236B", "236C", "623B", "623C", "22B", "22C", "214B", "214C"}
 YOUMU_AIR_MACROS = {"jA", "j6A", "j8A", "j2A", "jB", "j2B", "jC", "j6C", "空翔前", "空翔后", "空冲后", "飞翔", "高跳"}
-YOUMU_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾", 'TM·hj8_j2a_4_sc204', 'TM·f2a_sc203', 'TM·d623c_sc203', 'TM·d6_2c_hj8_j2a_sc20'}
+YOUMU_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾"}
 YOUMU_STRING_MACROS = {"压制A", "压制B"}
 YOUMU_SC_NAMES = {"卡·灵击札", "卡·药水", "卡·当前", "卡·符卡一", "卡·符卡二", "卡·符卡三", "卡·符卡九"}
 YOUMU_GUARD_PREP = ("立防", "蹲防")
@@ -128,7 +128,7 @@ MACROS_YOUMU.append(('TM·hj8_j2a_4_sc204', [(('up',), 6), ((), 13), (('down',),
 MACROS_YOUMU.append(('TM·f2a_sc203', [(('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 22), ('sc:203', 0)]))
 MACROS_YOUMU.append(('TM·d623c_sc203', [(('right',), 3), (('down',), 3), (('down', 'right'), 3), (('C', 'down', 'right'), 10), ((), 2), ('confirm', 0), ('sc:203', 0)]))
 MACROS_YOUMU.append(('TM·d6_2c_hj8_j2a_sc20', [(('right',), 6), (('down',), 6), (('down', 'C'), 10), ((), 2), ('confirm', 0), ((), 18), (('up',), 6), (('down',), 6), (('down', 'A'), 10), ((), 9), ('sc:204', 0)]))
-
+YOUMU_COMBO_MACROS |= {'TM·hj8_j2a_4_sc204', 'TM·f2a_sc203', 'TM·d623c_sc203', 'TM·d6_2c_hj8_j2a_sc20'}
 # R61j: TM宏追加后同步names
 MACRO_NAMES_YOUMU = [m[0] for m in MACROS_YOUMU]
 # R61j: TM宏引用的SC卡耗费补入
