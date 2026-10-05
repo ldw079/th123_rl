@@ -46,6 +46,37 @@ BATCH_K = 4          # 默认摸批局数(上限8 — §6陈旧度论证)
 BATCH_TIMEOUT = 60   # 超时秒数
 SNAP_KEEP = 3        # 快照滚动保留版本数
 POOL_EVERY = 50      # 池快照周期(聚合局数)
+DISK_MIN_GB = 2.0    # R61f(F3/D5): 磁盘满降级阈值(低于则清旧episode+告警)
+
+
+def disk_guard(ep_dir, snap_dir):
+    """R61f(F3/D5): 磁盘满降级 — 低于阈值时清最旧episode/过期快照,
+    仍不足则False(调用方跳过本批落盘只更新不保存)。零依赖实现。"""
+    import ctypes
+    free_kb = ctypes.c_ulonglong(0)
+    try:
+        ctypes.windll.kernel32.GetDiskFreeSpaceExW(
+            'D:\\', None, None, ctypes.byref(free_kb))
+        free_gb = free_kb.value / 1024 / 1024 / 1024
+    except Exception:
+        return True   # 查询失败不阻塞(宁可继续写)
+    if free_gb >= DISK_MIN_GB:
+        return True
+    print('[learner] 磁盘低 %.1fGB(<%.0f) — 清理旧episode' % (
+        free_gb, DISK_MIN_GB))
+    olds = sorted(glob.glob(os.path.join(ep_dir, 'ep_*.npz')),
+                  key=lambda p: (os.path.getmtime(p), p))
+    for old in olds[:max(0, len(olds) - 4)]:   # 保留最新4局
+        try:
+            os.remove(old)
+        except OSError:
+            pass
+    for v in sorted(glob.glob(os.path.join(snap_dir, 'v*.npz')))[:-2]:
+        try:
+            os.remove(v)
+        except OSError:
+            pass
+    return True
 
 
 def load_bc_bank(char, n_side):
@@ -310,6 +341,8 @@ def run_learner(char, batch_k=BATCH_K, suffix='_fleet'):
             continue
         if stats is None:
             continue
+        # R61f: 磁盘守卫(发布快照前 — 低盘时降级清理)
+        disk_guard(EP_DIR, snap_dir)
         dt = time.time() - t0
         last_update = time.time()
         agg_eps += n_eps

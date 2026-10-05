@@ -206,7 +206,10 @@ if HAS_TORCH:
                     bias.reshape(1, -1).astype(np.float32)).to(DEVICE)
                 with torch.no_grad():
                     logits, _, _ = self.net(X, S, t, m)
-                    logits = logits + b
+                    # R61f(F3): bias/temp对齐numpy语义(ppo.py:514-516的
+                    # softmax((Z+bias)/temp)=Z/temp+bias/temp; 原加在
+                    # /temp后差×T系数, 探索强度随温度漂移)
+                    logits = logits + b / t
                     probs = F.softmax(logits, dim=1).cpu().numpy()[0]
             else:
                 with torch.no_grad():
@@ -215,13 +218,21 @@ if HAS_TORCH:
             return int(self.rng.choice(len(probs), p=probs))
 
         def update(self, feats, acts, rewards, sides, ep_lens,
-                   ep_terms=None, masks=None, bc_targets=None,
-                   bc_mask=None, temp=1.0, bc_extra=None,
-                   opp_next=None, **kw):
+                   ep_terms=None, ep_first=None, bc_targets=None,
+                   bc_mask=None, temp=1.0, masks=None,
+                   bc_extra=None, opp_next=None, **kw):
             """批量PPO更新(完整语义: PPO clip + BC + aux + 熵)。
+            R61f(F3): 签名对齐numpy版参数序(原第7位是masks而numpy是
+            ep_first — 位置调用者会在两个语义间静默错位, 从零审计"签名
+            陷阱")。ep_first暂不支持(GPU值头无bootstrap用), 传非None时
+            响亮报错。
             stored_logp(kw): R56(fleet红线①) — actor采样时记录的logP(a)
             (N_episode,)float。提供时episode行用它做logp_old(真重要性比,
             与R38回放行同构); 未提供时按现状重算(单实例兼容)。"""
+            if ep_first is not None:
+                raise NotImplementedError(
+                    "ppo_gpu暂不支持ep_first(截断bootstrap) — "
+                    "生产路径未使用, 如需启用请先实现值头V(s_end)")
             N = len(acts)
             Rn = rewards / (self._rstd + 1e-6)
             if float(rewards.std()) > 1e-6:
@@ -651,7 +662,10 @@ if HAS_TORCH:
                 self._bcw = float(m[2])
                 self._updates = int(m[3])
                 self._rstd = float(m[4])
-                self._adaptive_lr_scale = float(m[5])
+                # R61f(F3): 旧档meta仅5元素(无lr_scale) → 越界IndexError
+                # (镜像ppo.py:309-311的len守卫, 缺省1.0)
+                self._adaptive_lr_scale = (float(m[5])
+                                           if len(m) >= 6 else 1.0)
 
 else:
     class PPOTrainerGPU:

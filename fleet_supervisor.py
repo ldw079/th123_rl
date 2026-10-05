@@ -91,6 +91,39 @@ def aggregate_stats(fleet_dir):
     return stats or None
 
 
+def reap_orphans():
+    """R61f(F3/D5): 启动时回收孤儿 — 上次supervisor被强杀时其子进程
+    (actor_worker/learner_hub)可能残留(占游戏实例+learner双写者由
+    R61e单实例锁兜底)。按WMI ParentProcessId判定: 父进程已死=孤儿。"""
+    out = subprocess.run(
+        ['powershell', '-NoProfile', '-Command',
+         "Get-CimInstance Win32_Process -Filter \"Name like 'python%'\" "
+         "| Where-Object { $_.CommandLine -match 'actor_worker|learner_hub' } "
+         "| ForEach-Object { '{0}|{1}' -f $_.ProcessId, $_.ParentProcessId }"],
+        capture_output=True, text=True, timeout=30)
+    live = set()
+    workers = []
+    for line in (out.stdout or '').strip().splitlines():
+        try:
+            pid_s, ppid_s = line.strip().split('|')
+            pid, ppid = int(pid_s), int(ppid_s)
+        except ValueError:
+            continue
+        live.add(pid)
+        workers.append((pid, ppid))
+    n = 0
+    for pid, ppid in workers:
+        if pid == os.getpid() or ppid in live:
+            continue          # 自己/父仍在(受管或属本会话) — 不碰
+        try:
+            os.kill(pid, 9)
+            n += 1
+            log('孤儿回收: PID=%d(父%d已死)' % (pid, ppid))
+        except OSError:
+            pass
+    return n
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--actors', type=int, default=8)
@@ -157,6 +190,10 @@ def main():
                 actor_id += 1
                 time.sleep(STAGGER_S)
 
+        # R61f: 上次强杀残留的孤儿回收(在boot前 — 释放游戏实例/端口)
+        _orphans = reap_orphans()
+        if _orphans:
+            log('启动前回收孤儿%d个' % _orphans)
         log('全部启动 — 监督模式')
 
         # 监督循环

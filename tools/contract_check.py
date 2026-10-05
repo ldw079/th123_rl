@@ -1427,6 +1427,27 @@ _bs = _re61e.findall(r'_BULLET_MACROS = \{([^}]*)\}', src("macros_sakuya.py"))
 chk(_bs and '"2C"' in _bs[0],
     "R61e: 生成库BULLET补2C(17库, 原宏存在但零分类)")
 
+# ---- R61f(F3尾巴清偿第二批, 2026-10-05) ----
+chk("logits = logits + b / t" in gp60,
+    "R61f: GPU采样bias/temp对齐numpy语义(原加在/temp后差×T系数)")
+chk("(float(m[5])\n                                           if len(m) >= 6 else 1.0)" in gp60
+    or "if len(m) >= 6 else 1.0" in gp60,
+    "R61f: GPU旧档meta 5元素守卫(原m[5]越界IndexError)")
+chk("ep_first=None, bc_targets=None," in gp60,
+    "R61f: GPU update签名对齐numpy参数序(原第7位语义不同=陷阱)")
+chk("def disk_guard(" in lh,
+    "R61f/D5: learner磁盘满降级(清旧episode+过期快照)")
+chk("def reap_orphans(" in src("fleet_supervisor.py"),
+    "R61f/D5: supervisor孤儿回收(WMI父进程判定)")
+chk("_s = (_s * 0x85EBCA6B) & 0xFFFFFFFF" in aw,
+    "R61f: actor种子SplitMix32终混(原线性式理论可碰撞)")
+chk("or char is None:" in src("skill_levels.py"),
+    "R61f: cid_to_slot合并路径已删(cid102/106/108三角色歧义)")
+chk("if len(deck) > 20:" in src("deck_sampler.py"),
+    "R61f: deck抽样32张边界截断(技能段保序在前)")
+chk("stats记的是**模型**对每个对手的胜率" in src("league.py"),
+    "R61f: league docstring方向修正(原与实现相反)")
+
 # ---- R61(用户2026-10-05"d+快速胜利")奖励经济学 ----
 chk("def graze_low_rate(f):" in tt60
     and "GRAZE_SAT_F = 6000.0" in tt60,

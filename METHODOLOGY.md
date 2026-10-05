@@ -5,7 +5,7 @@
 > **修订权**: 纪律红线(§0)与奖励方向性规定(§4定律)的变更需用户批准;
 > 其余条目可随实证迭代, 但必须在"修订记录"追加一行。
 > 姊妹文档: ARCHITECTURE.md(模型框架) · docs/multi_instance_input.md(TM通道全档)
-> 版本: 2.52 · 2026-10-05 · R61e(F3尾巴快杀+B6+F4收官: COM首位修复/GPU原子save/learner单实例锁/17库BULLET补2C/COM难度持久化/requirements.txt) + 事故根因结论(360一次性扫描)
+> 版本: 2.53 · 2026-10-05 · R61f(F3尾巴第二批九连清: bias/temp对齐/meta守卫/签名对齐/磁盘降级/孤儿回收/种子混合/cid歧义/deck边界/league docstring)
 
 ---
 
@@ -1604,3 +1604,21 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
   - **验证**: 门禁494 PASS/0 FAIL(+6断言); 变异+3(R61e标签增量
     自检)。F3清单余: cid_to_slot/旧档meta越界/种子碰撞/子串断言
     29%替换等(~10项, 下批)。
+- 2.53 (2026-10-05, R61f — F3尾巴第二批九连清, 从零审计P2/P3扫尾):
+  - **ppo_gpu三修**: ①采样bias/temp对齐numpy(bias加在/temp后差
+    ×T系数 — numpy语义softmax((Z+b)/temp), GPU改logits+b/t);
+    ②旧档meta 5元素len守卫(原m[5]越界IndexError, 镜像ppo.py);
+    ③update签名对齐numpy参数序(原第7位GPU=masks而numpy=ep_first
+    — 位置调用者会在两个语义间静默错位; ep_first传非None响亮报错)。
+  - **fleet加固(D5补全)**: ④learner磁盘满降级(disk_guard: <2GB时
+    清旧episode+过期快照); ⑤supervisor孤儿回收(reap_orphans: WMI
+    ParentProcessId判定, boot前执行); ⑥actor种子SplitMix32终混
+    (原线性式理论可碰撞)。
+  - **数据语义**: ⑦cid_to_slot合并路径删除(原docstring称"无歧义"
+    为假: cid102/106/108三角色槽位分歧, 合并查按dict序取reimu=
+    跨角色手牌错槽; char=None返回None); ⑧deck抽样32张边界截断
+    (6×4+4×2极端溢出, 技能段保序在前); ⑨league docstring方向修正
+    (原"胜率>80%权重提高"与实现降权0.3×相反)。
+  - **验证**: 门禁503 PASS/0 FAIL(+9断言); 变异+4(R61f标签增量
+    自检144+1全拦截); test_visual_stack含cid歧义新断言通过;
+    GPU三套件不回归。**F3清单只剩子串断言29%替换计划(持续项)**。

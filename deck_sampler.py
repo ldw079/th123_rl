@@ -62,6 +62,11 @@ def sample_deck(char_engine_id: int, rng: random.Random,
         n_sc_types = rng.randint(2, min(4, len(scs)))
         for sid in rng.sample(scs, n_sc_types):
             deck.extend([sid] * rng.randint(1, 2))
+    # R61f(F3, 从零审计"deck>4张边界"): 极端抽样6×4+4×2=32>20 —
+    # 技能段可能被SC挤出(升级路线密度受损)。修: 先截20, 技能段天然
+    # 在前保住; 且系统卡填充分支仅在<20时触发(原语义不变)。
+    if len(deck) > 20:
+        deck = deck[:20]
     # 填充系统卡到20
     while len(deck) < 20:
         deck.append(rng.choice(_SYSTEM_IDS))

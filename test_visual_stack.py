@@ -57,10 +57,11 @@ assert len(sd.feat_hist) == 5, '5帧上限失效: %d' % len(sd.feat_hist)
 assert sd._visual_feat() is not None
 # 技能等级查表接线(R19: P2侧_char_name)
 assert sd.feat_builder._char_name == 'reimu', 'SideDriver._char_name未设'
-# cid_to_slot真表(R19: 原恒None桩)
+# cid_to_slot真表(R19: 原恒None桩; R61f: 合并路径已删—cid歧义)
 from skill_levels import cid_to_slot, skill_levels_from_hand
-assert cid_to_slot(100) == 0 and cid_to_slot(103, 'reimu') == 1 \
-    and cid_to_slot(110, 'suika') == 3 and cid_to_slot(200) is None
+assert cid_to_slot(100) is None and cid_to_slot(103, 'reimu') == 1 \
+    and cid_to_slot(110, 'suika') == 3 and cid_to_slot(200) is None \
+    and cid_to_slot(102, 'reimu') == 3 and cid_to_slot(102, 'marisa') == 0
 _lv0 = skill_levels_from_hand(b'\x64\x02\xff\xff\xff\xff\xff\xff\xff\xff',
                               [0, 0, 0, 0], b'\x64\x03' + b'\xff' * 8,
                               char='reimu')

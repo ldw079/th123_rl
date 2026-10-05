@@ -103,19 +103,16 @@ def skill_levels_from_hand(hand_bytes, prev_levels=None, prev_hand=None,
 
 
 def cid_to_slot(cid, char=None):
-    """卡ID→技能槽。R19(审查2026-10-02): 原为无条件return None的桩 —
-    技能等级特征(段11 dims 230..233)恒0且level_macros.adjust_script
-    永远短路。现按CHAR_SKILL_MAPS查表(来源: 文件头CHM攻略卡表;
-    R4注记: 槽位映射未经hitlab二次标定, 卡表ID区间本身经生产使用)。
-    char=None时合并查(100..110区间三表槽位一致, 无歧义)。"""
-    if not (100 <= cid < 200):
+    """卡ID→技能槽。R19(审查2026-10-02): 原为无条件returnNone的桩。
+    R61f(F3, 从零审计): **合并路径(char=None)已删** — 原docstring称
+    "100..110区间三表槽位一致无歧义"为假: cid102(reimu=22系3/
+    marisa·suika=236系0)/cid106(marisa=3,其他=2)/cid108(suika=2,
+    其他=3)三处分歧, 合并查表按dict序取reimu — 跨角色手牌解析错槽。
+    现char=None一律返回None(响亮于错表); 生产两处调用均传char ✓;
+    表来源: 文件头CHM攻略卡表(R4注记: 未经hitlab二次标定)。"""
+    if not (100 <= cid < 200) or char is None:
         return None
-    if char is not None:
-        return CHAR_SKILL_MAPS.get(char, {}).get(cid)
-    for _m in CHAR_SKILL_MAPS.values():
-        if cid in _m:
-            return _m[cid]
-    return None
+    return CHAR_SKILL_MAPS.get(char, {}).get(cid)
 
 
 def hand_skill_availability(hand_bytes, char):

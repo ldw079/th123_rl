@@ -353,6 +353,19 @@ MUTATIONS = [
      "R61e回退: GPU save裸写(中断=半档损坏) → 原子落盘断言必须红"),
     ("learner_hub.py", "'learner_%s%s.lock' % (char, suffix)", "'no_lock_unused'",
      "R61e-D5回退: learner双实例锁移除(双写者竞争复活) → 单实例锁断言必须红"),
+    # ---- R61f(F3尾巴第二批, 2026-10-05) ----
+    ("ppo_gpu.py", "logits = logits + b / t",
+     "logits = logits + b",
+     "R61f回退: 采样bias回到/temp后(×T系数失真) → bias语义断言必须红"),
+    ("ppo_gpu.py", "if len(m) >= 6 else 1.0",
+     "if True else m[5]",
+     "R61f回退: 旧档meta无len守卫(5元素越界) → meta守卫断言必须红"),
+    ("skill_levels.py", "or char is None:",
+     "or False:",
+     "R61f回退: cid合并路径复活(cid102歧义错表) → 合并删除断言必须红"),
+    ("deck_sampler.py", "if len(deck) > 20:",
+     "if False:",
+     "R61f回退: deck边界截断移除(32张溢出) → deck边界断言必须红"),
 ]
 
 

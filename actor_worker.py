@@ -185,9 +185,17 @@ def run_actor(char, actor_id, port, tps=480, episodes=1000,
                 print('[actor%d] 快照 → v%d' % (actor_id, ver))
         # R57(2.3): 每局重播种 — ppo.load不还原rng且tr.ppo在本actor永不
         # 更新, 同版本内每局deepcopy从同一rng状态出发 → 探针掷点/采样
-        # 噪声的随机结构逐局同构(跨局相关性=红线③所防)。按(ver, ep)派生。
-        tr.ppo.rng = np.random.default_rng(
-            seed_base + state['snap_ver'] * 1_000_001 + state['ep'])
+        # 噪声的随机结构逐局同构(跨局相关性=红线③所防)。
+        # R61f(F3): 线性式(actor*1e6+ver*1e6+ep)理论可碰撞(从零审计)
+        # — SplitMix32终混消解
+        _s = (seed_base + state['snap_ver'] * 1_000_001 + state['ep']) \
+            & 0xFFFFFFFF
+        _s ^= _s >> 16
+        _s = (_s * 0x85EBCA6B) & 0xFFFFFFFF
+        _s ^= _s >> 13
+        _s = (_s * 0xC2B2AE35) & 0xFFFFFFFF
+        _s ^= _s >> 16
+        tr.ppo.rng = np.random.default_rng(_s)
         # deck/league rng独立(原种子=hash(char), 同角色actor会同步)
         tr._deck_rng = _rnd.Random(seed_base + state['ep'])
         fleet_logps.clear()   # 上一局异常中断的残记录清零
