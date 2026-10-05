@@ -49,7 +49,7 @@
 | # | 任务 | 来源 | 工作量 | 验收 |
 |---|---|---|---|---|
 | C1 | **分支门系统 + 放帧门参数 + 执行器统一**（压制树工程化: hit/blocked/whiff/opp_jump/opp_dd 六叶; 放帧=门后延迟; train_tm/side_driver 执行器借 episode_core 模式统一——双拷贝终结） | combo 改进方案 2.3 | 5 天 | 全分支合成帧测试 + 变异; 执行器单源 |
-|  | *状态(10-05 ✅核心): macro_executor.py — advance_queue统一推进+evaluate_branch分支路由(hit/blocked/jump/whiff)+delay_then放帧+拍子/压起身模板; test 17 PASS; train_tm/side_driver接线为下批(核心已就位)* | | | |
+|  | *状态(10-05 ✅完成): macro_executor.py统一执行器+分支门(hit/blocked/jump/whiff/delay_then)+train_tm/side_driver双接线(双拷贝终结); test 17 PASS; 门禁510/0/0* | | | |
 | C2 | frame_macros 处置: DD 变体补双击释放间隔 / 投技指令攻略取证 / 放帧概念并入 C1 → 修正后接线或删除 | R18/R19 | 1 天 | 接线或删档二选一, 不留死代码 |
 |  | *状态(10-05 ✅删除): frame_macros.py整个删除 — 其宏零消费者(反应表按名匹配角色库名非独立宏), DD与角色库结界2/4重复, 投技A+D未经攻略取证, 放帧概念归C1分支门delay_then处理; 有价值的表里择/压起身套件归C4重新实现* | | | |
 | C3 | 目押自适应（`link` 条件帧: 等 untech→0 最速出招; fvariant 帧表双列扩展） | combo 改进 2.4 | 3 天 | hitlab 校准 + 冒烟 |
