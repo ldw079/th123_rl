@@ -10,6 +10,9 @@
 import os
 import sys
 
+# R61u(C1): 统一宏执行器(与train_tm共同调用 — 双拷贝终结)
+import macro_executor
+
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -369,64 +372,24 @@ class SideDriver:
                                            - self._opp_x_prev_f))
         self._opp_x_prev_f = opp["position.x"]
         frozen = (own["hitStop"] > 0) or (own["timeStop"] > 0)
+        # R61u(C1): 统一宏执行器 — 原~60行内联推进已抽至
+        # macro_executor.py(与train_tm共同调用, 双拷贝终结)
         if self.macro_queue and not frozen:
-            if d_take > 80:       # 受击中止(训练同款)
-                self.macro_queue = []
-                self.gate_frames = 0
-                self._sc_reset()   # R16: 训练同款(sc状态机一并复位)
-            # R34: 帧级防御中断(与train_tm同源) — 对手攻击+我方硬直+近距
-            _my_a = own["action"]
-            _opp_a = opp["action"]
-            _dx = abs(opp["position.x"] - own["position.x"])
-            if (_opp_a >= 300 and _opp_a < 600
-                    and _my_a < 100
-                    and _my_a not in GUARD_ALL_IDS
-                    and _dx < 300):
-                self.macro_queue = []
-                self.gate_frames = 0
-                self._sc_reset()
-            # R34: 灵力门控(与train_tm同源)
-            elif self.macro_queue:
-                _nk = self.macro_queue[0][0]
-                if (not isinstance(_nk, str)
-                        and any(b in _nk for b in ("A", "B", "C"))
-                        and own["spirit"] < 100):
-                    self.macro_queue = []
-                    self.gate_frames = 0
-                    self._sc_reset()
-            if self.macro_queue:
-                keys, fl = self.macro_queue[0]
-                if isinstance(keys, str) and keys.startswith("sc:"):
-                    # R16: 符卡步 — 状态机驱动(与train_tm逐字同源)
-                    if self._sc_tgt is None:
-                        self._sc_tgt = int(keys[3:])
-                    pop, abort, hold = self._sc_step(own)
-                    self._sc_next_input = hold
-                    if pop:
-                        self.macro_queue.pop(0)
-                        self._sc_reset()
-                    elif abort:
-                        self.macro_queue = []
-                        self._sc_reset()
-                elif isinstance(keys, str):   # 门观察窗(confirm/cconfirm)
-                    self.gate_frames += 1
-                    if d_deal > 0:
-                        self.macro_queue.pop(0)
-                        self.gate_frames = 0
-                    elif self.gate_frames >= 4:
-                        near = abs(opp["position.x"] - own["position.x"]) < 300
-                        if keys.startswith("cconfirm") and near:
-                            self.macro_queue.pop(0)
-                        else:
-                            self.macro_queue = []
-                        self.gate_frames = 0
-                else:
-                    self.gate_frames = 0
-                    fl -= 1
-                    if fl <= 0:
-                        self.macro_queue.pop(0)
-                    else:
-                        self.macro_queue[0] = (keys, fl)
+            if (isinstance(self.macro_queue[0][0], str)
+                    and self.macro_queue[0][0].startswith("sc:")
+                    and self._sc_tgt is None):
+                self._sc_tgt = int(self.macro_queue[0][0][3:])
+            self.macro_queue, self.gate_frames, _, _inp = (
+                macro_executor.advance_queue(
+                    self.macro_queue, self.gate_frames,
+                    own, opp, d_deal, d_take,
+                    frozen, own["spirit"],
+                    abs(opp["position.x"] - own["position.x"]),
+                    None,
+                    set(), GUARD_ALL_IDS,
+                    self._sc_step, self._sc_reset))
+            if _inp is not None:
+                self._sc_next_input = _inp
         if not self.macro_queue:
             self.decide(own, opp, weather, objs, bullets)
         if self.macro_queue:

@@ -842,11 +842,12 @@ chk('left.get("action", 0) in GUARD_ALL_IDS' in fb_src,
     "check_graze排除防御态(R33: 格挡≠擦弹, 防刷分)")
 # R39(P3-8): R_GUARD/R_GUARD_PREP死通道断言已随死代码删除
 # (R35势函数化后tracker零调用者, 门禁保护死代码=噪声)
-# R34(架构阶段1: 消除硬天花板): 帧级防御中断+灵力门控+原子宏
-chk("_opp_a >= 300 and _opp_a < 600" in tt,
-    "帧级防御中断在位(R34: 对手攻击+我方硬直→清队)")
-chk('left["spirit"] < 100' in tt,
-    "灵力门控在位(R34: 攻击步前灵力不足→中断)")
+# R34(架构阶段1): 帧级防御中断+灵力门控+原子宏 — R61u(C1)已移至macro_executor
+_me = src("macro_executor.py")
+chk("300 <= opp_a < 600" in _me,
+    "帧级防御中断在位(R34, R61u C1移至macro_executor)")
+chk('spirit < 100' in _me,
+    "灵力门控在位(R34, R61u C1移至macro_executor)")
 import macros_marisa as _MM
 chk(_MM.N_MACROS_MARISA == 76
     and [m[0] for m in _MM.MACROS_MARISA][-4:] ==
@@ -873,8 +874,8 @@ chk("_replay_buf" in src("ppo.py"),
 chk("_Xn, side.reshape(1, -1)" in tt,
     "价值引导宏选择在位(R35: critic评估Top-5)")
 # R38(第九轮审计P0-1..4): 三个现行bug+一个死特性的修复断言
-chk("if macro_queue:\n                    keys, fl = macro_queue[0]" in tt,
-    "队列推进带空守卫(R38 P0-1: 受击中止清队后跳过本帧, 原空取[0]炸整局)")
+chk("if macro_queue:" in _me and "keys, fl = macro_queue[0]" in _me,
+    "队列推进带空守卫(R38 P0-1, R61u C1移至macro_executor)")
 chk("from opp_model import GUARD_ALL_IDS" in sd_src,
     "side_driver导入GUARD_ALL_IDS(R38 P0-2: 原遗漏→对手攻击+我方硬直时NameError)")
 chk("_V, = self._ppo_act._v_forward" not in tt

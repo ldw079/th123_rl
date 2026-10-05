@@ -214,6 +214,8 @@ GUARD_PREP_MACROS = ("立防", "蹲防")  # 真格挡宏(不含空防/后跳/结
 import frame_events
 from frame_events import FrameEventDetector, pick_reaction, reaction_mask
 from frame_events import E_NONE as _FE_NONE
+# R61u(C1): 统一宏执行器(双拷贝终结 — train_tm与side_driver共同调用)
+import macro_executor
 _FRAME_EV_NAMES = {v: k for k, v in frame_events.__dict__.items()
                    if k.startswith('E_') and isinstance(v, int)}
 
@@ -1314,81 +1316,26 @@ class TMTrainer:
                     tti = max(0.0, near_d / closing / 62.0)   # 帧→秒: /62
             prev_near_d = near_d
 
-            # ---- 宏队列推进(hitstop冻结保键 + 受击中止 + 门观察窗 + sc状态机) ----
+            # ---- 宏队列推进(R61u C1: 统一执行器) ----
             frozen = (left["hitStop"] > 0) or (left["timeStop"] > 0)
+            # R61u(C1): 内联队列推进(原~70行)已抽至macro_executor.py
+            # — train_tm与side_driver共同调用(双拷贝终结)
             if macro_queue and not frozen:
-                # 受击中止: 单帧承伤超阈=真被打, 截断交还决策权(v2制度回迁)
-                if d_take > 80:
-                    macro_queue = []
-                    gate_frames = 0
-                    dec_name = None    # 受击中止不判空挥(承伤已是惩罚)
-                    self._sc_reset()
-                # R34(架构差距#1: 决策频率硬天花板): 帧级防御中断 —
-                # 对手进入攻击态 + 我方处于硬直/移动(非攻击非防御) + 近距
-                # → 清队交还控制(策略大概率选防御, 比开环继续安全)。
-                # 条件严格防误触: 仅我方确实无防(硬直/收招/步间)时才断。
-                _my_a = left["action"]
-                _opp_a = right["action"]
-                if (_opp_a >= 300 and _opp_a < 600
-                        and _my_a < 100
-                        and _my_a not in GUARD_ALL_IDS
-                        and abs(dx_guard) < 300
-                        and dec_name not in GUARD_PREP_MACROS):
-                    macro_queue = []
-                    gate_frames = 0
-                    dec_name = None
-                    self._sc_reset()
-                # R34(架构差距#6: 连段弹性): 灵力门控 —
-                # 宏队列下一步是攻击键 + 灵力不足 → 中断(防空挥)
-                # (原elif: 受击中止/R34清队后队已空, 改if不改变语义)
-                if macro_queue:
-                    _nk = macro_queue[0][0]
-                    if (not isinstance(_nk, str)
-                            and any(b in _nk for b in ("A", "B", "C"))
-                            and left["spirit"] < 100):
-                        macro_queue = []
-                        gate_frames = 0
-                        dec_name = None
-                        self._sc_reset()
-                # 推进(守卫对齐side_driver: 受击中止清队后跳过本帧推进,
-                # 否则空队列取[0] → IndexError炸整局 — 第九轮审计P0-1)
-                if macro_queue:
-                    keys, fl = macro_queue[0]
-                    if isinstance(keys, str) and keys.startswith("sc:"):
-                        # 符卡步: 状态机驱动(包手牌反馈闭环)
-                        if self._sc_tgt is None:
-                            self._sc_tgt = int(keys[3:])
-                        pop, abort, hold = self._sc_step(left)
-                        self._sc_next_input = hold
-                        if pop:
-                            macro_queue.pop(0)
-                            self._sc_reset()
-                        elif abort:
-                            macro_queue = []
-                            dec_name = None    # SC中止是输入确认失败, 不判空挥
-                            self._sc_reset()
-                    elif isinstance(keys, str):
-                        # 门观察窗(4帧): hitstop晚结算不误判落空;
-                        # cconfirm另容"贴身仍在打"(被防零伤也算接触)
-                        gate_frames += 1
-                        if d_deal > 0:
-                            macro_queue.pop(0)
-                            gate_frames = 0
-                        elif gate_frames >= 4:
-                            near = abs(right["position.x"]
-                                       - left["position.x"]) < 300
-                            if keys.startswith("cconfirm") and near:
-                                macro_queue.pop(0)
-                            else:
-                                macro_queue = []
-                            gate_frames = 0
-                    else:
-                        gate_frames = 0
-                        fl -= 1
-                        if fl <= 0:
-                            macro_queue.pop(0)
-                        else:
-                            macro_queue[0] = (keys, fl)
+                # 符卡目标步初始化(sc:步状态机需要)
+                if isinstance(macro_queue[0][0], str) \
+                        and macro_queue[0][0].startswith("sc:") \
+                        and self._sc_tgt is None:
+                    self._sc_tgt = int(macro_queue[0][0][3:])
+                _prev_q = macro_queue
+                macro_queue, gate_frames, dec_name, _cur_inp = (
+                    macro_executor.advance_queue(
+                        macro_queue, gate_frames,
+                        left, right, d_deal, d_take,
+                        frozen, left["spirit"], dx_guard, dec_name,
+                        GUARD_PREP_MACROS, GUARD_ALL_IDS,
+                        self._sc_step, self._sc_reset))
+                if _cur_inp is not None:
+                    self._sc_next_input = _cur_inp
 
             # ---- 决策点(队列空) ----
             # R61l(B2): 事件反应期间产生**策略条件化决策点** —
