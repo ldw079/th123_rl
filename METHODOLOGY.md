@@ -5,7 +5,7 @@
 > **修订权**: 纪律红线(§0)与奖励方向性规定(§4定律)的变更需用户批准;
 > 其余条目可随实证迭代, 但必须在"修订记录"追加一行。
 > 姊妹文档: ARCHITECTURE.md(模型框架) · docs/multi_instance_input.md(TM通道全档)
-> 版本: 2.53 · 2026-10-05 · R61f(F3尾巴第二批九连清: bias/temp对齐/meta守卫/签名对齐/磁盘降级/孤儿回收/种子混合/cid歧义/deck边界/league docstring)
+> 版本: 2.54 · 2026-10-05 · R61g(B1完成: BC匹配器SC词汇+具体卡解析+三角色BC库重建 — SC标签1.07%/0.72%/2.02%脱零, 卡牌维度M2收官)
 
 ---
 
@@ -1622,3 +1622,20 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
   - **验证**: 门禁503 PASS/0 FAIL(+9断言); 变异+4(R61f标签增量
     自检144+1全拦截); test_visual_stack含cid歧义新断言通过;
     GPU三套件不回归。**F3清单只剩子串断言29%替换计划(持续项)**。
+- 2.54 (2026-10-05, R61g — B1完成, 卡牌维度M2收官):
+  - **bc_match SC词汇**: sc:步从"结构性排除"(SC标签恒0%的根因)
+    改为SC按压时间线(3帧纯SC位, 朝向无关); inp_bits扩8元组
+    (+SC/SW位 — 专家流的battle AandB组合键经battle_to_trainer
+    映射为SC位, input_codec:197 — 卡牌使用在输入流里真实可观测)。
+  - **bc_build具体卡解析**: resolve_sc_label — 匹配器给的是"某卡
+    被使用"(所有SC共享按键形态), 按对齐帧手牌选中位(hand[0])
+    解析到sc_target==该ID的具体卡宏; 无匹配/空手丢行(空表优于
+    错表); tgt=-1泛卡宏兜底。
+  - **BC库重建(191分片全量)**: reimu 16364/marisa 5673/suika
+    15349行 — **SC标签脱零: 1.07%/0.72%/2.02%**(原全0%); 具体
+    卡top: reimu(卡·当前116/鬼神玉39/妙珠14) suika(卡·当前242/
+    鬼缚33/大杀24)。旧库备份D:\temp\bc_*_pre_r61g.npz。
+  - **验证**: test_sc_vocab_r61g 10 PASS(sc展开/SC按压匹配expert_
+    bits 8元组/具体卡解析四路); 门禁507/0(+3断言); 变异+2
+    (R61g标签, 146+1全拦截); 沙箱FILES补bc_match/bc_build/card_
+    tables(SC断言载体)。
