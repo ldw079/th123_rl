@@ -1534,6 +1534,9 @@ _BEHAVIOR_TESTS = [
     # R61r(E5): 坏习惯检测
     ("test_habit_e5.py",
      "R61r(E5): 五种坏习惯检测+惩罚宏映射+教学报告"),
+    # R61s(F6): 评估体系
+    ("test_eval_f6.py",
+     "R61s(F6): matchup矩阵分析+排名+超人距离度量"),
 ]
 for _tname, _tdesc in _BEHAVIOR_TESTS:
     _tp = os.path.join(ROOT, _tname)
