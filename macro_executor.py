@@ -35,6 +35,11 @@
 目押(C3):
   ("link", (max_wait, steps)) — 等对手untech→0后最速出;
   超时max_wait帧未到0 → 截断. 观察窗计数器用gate_frames.
+
+ender菜单(C5, combo改进方案§2.5):
+  ("ender", [macro_indices]) — 起手confirm通过后清空队列+设置
+  ender掩码(策略在下一决策点从菜单中自主选择终结技).
+  架构: 复用B2事件掩码机制(train_tm._frame_event_mask).
 """
 from __future__ import annotations
 
@@ -176,6 +181,18 @@ def advance_queue(macro_queue, gate_frames, left, right, d_deal, d_take,
                     sc_reset_fn()
                 return macro_queue, gate_frames, dec_name, None
 
+            elif isinstance(keys, str) and keys == "ender":
+                # R61w(C5): ender菜单 — 起手通过后策略选终结技
+                # 清空队列+返回ender信号(调用方设掩码→策略在下一
+                # 决策点从菜单中自主选择 — 复用B2事件掩码机制)
+                macro_queue = []
+                gate_frames = 0
+                sc_reset_fn()
+                # fl = list of valid ender macro indices
+                # 调用方检查返回的inp == ("ender", indices)
+                return macro_queue, gate_frames, dec_name, (
+                    "ender", fl)
+
             elif isinstance(keys, str):
                 # confirm/cconfirm 门(既有语义)
                 gate_frames += 1
@@ -298,3 +315,53 @@ def just_frame_2a_5a(char='reimu'):
     starter = [(("down",), 5), (("down", "A"), 8)]
     follow = [(("A",), 8)]
     return ("目押·2A5A", just_frame_link(char, starter, follow))
+
+
+# ===== C5: ender菜单系统 =====
+
+def make_ender_step(ender_indices):
+    """构造ender菜单步骤: 起手通过后策略从列表中选终结技.
+
+    ender_indices: list[int] — 可选ender宏的索引列表
+    (在宏库中的位置; 策略在下一决策点从这些宏中自主选择)
+    """
+    return ("ender", list(ender_indices))
+
+
+def starter_ender_pair(starter_name, starter_steps, ender_names,
+                        char_lib):
+    """生成起手+ender菜单宏对.
+
+    starter: 正常宏(confirm通过后→ender菜单)
+    enders: 终结技宏(由策略选择, 不直接入策略动作空间—菜单驱动)
+    返回: (starter_macro, [ender_macros]) — enders可从主宏库中
+    选择已有宏(如连段A的终结步), 或创建新ender专宏.
+    """
+    names = char_lib['names']
+    ender_idx = [names.index(n) for n in ender_names
+                 if n in names]
+    if not ender_idx:
+        return None, []
+    starter = (starter_name, starter_steps + [
+        ("confirm", 0),
+        make_ender_step(ender_idx)])
+    enders = [(n, char_lib['macros'][i][1])
+              for i, n in [(names.index(n), n)
+                           for n in ender_names if n in names]]
+    return starter, enders
+
+
+def build_ender_menu(char_lib, starter_macros, ender_names):
+    """为角色构建完整ender菜单系统.
+
+    starter_macros: [(名称, 脚本), ...] — 起手宏定义
+    ender_names: [str, ...] — 可用作ender的宏名列表
+    返回: [(starter_name, script_with_ender), ...]
+    """
+    out = []
+    for name, script in starter_macros:
+        s, _ = starter_ender_pair(name, script, ender_names,
+                                  char_lib)
+        if s is not None:
+            out.append(s)
+    return out

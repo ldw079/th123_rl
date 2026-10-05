@@ -1544,6 +1544,9 @@ _BEHAVIOR_TESTS = [
     # R61v(C3): 目押link门
     ("test_link_c3.py",
      "R61v(C3): untech→0等待/最速出/超时截断/逐步恢复+目押宏模板"),
+    # R61w(C5): ender菜单
+    ("test_ender_c5.py",
+     "R61w(C5): ender信号+清队+起手/菜单生成+无效过滤"),
 ]
 for _tname, _tdesc in _BEHAVIOR_TESTS:
     _tp = os.path.join(ROOT, _tname)
