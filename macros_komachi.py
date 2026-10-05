@@ -106,7 +106,7 @@ KOMACHI_BULLET_MACROS = {"5B", "6B", "2B", "5C", "6C", "jB", "j2B", "jC", "j6C",
 # dx<150被贴身禁令掩掉(升龙/反转最需的距离) + 空挥按1.0×而非技能档
 KOMACHI_SKILL_MACROS = {"236B", "236C", "623B", "623C", "22B", "22C", "214B", "214C"}
 KOMACHI_AIR_MACROS = {"jA", "j6A", "j8A", "j2A", "jB", "j2B", "jC", "j6C", "空翔前", "空翔后", "空冲后", "飞翔", "高跳"}
-KOMACHI_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾"}
+KOMACHI_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾", 'TM·5a_5aa_5aaa_5aaaa_', 'TM·f5a_6c_sc206', 'TM·f5a_6c_sc206', 'TM·hj8_j66_j2a_sc203'}
 KOMACHI_STRING_MACROS = {"压制A", "压制B"}
 KOMACHI_SC_NAMES = {"卡·灵击札", "卡·药水", "卡·当前", "卡·符卡一", "卡·符卡三", "卡·符卡四", "卡·符卡五"}
 KOMACHI_GUARD_PREP = ("立防", "蹲防")
@@ -122,3 +122,15 @@ _RAW_KOMACHI = list(MACROS_KOMACHI)
 MACROS_KOMACHI = [(n, _norm_presteps(sc)) for n, sc in _RAW_KOMACHI]
 NORMALIZED_AFFECTED_KOMACHI = {n for (n, s0), (_, s1) in
                             zip(_RAW_KOMACHI, MACROS_KOMACHI) if s0 != s1}
+
+# ==== R61j(C6): Trialmode连段完整集成 ====
+MACROS_KOMACHI.append(('TM·5a_5aa_5aaa_5aaaa_', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), ((), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 4), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 8), ('sc:201', 0)]))
+MACROS_KOMACHI.append(('TM·f5a_6c_sc206', [(('A',), 10), ((), 2), ('confirm', 0), (('right',), 6), (('right', 'C'), 12), ((), 30), ('sc:206', 0)]))
+MACROS_KOMACHI.append(('TM·f5a_6c_sc206', [(('A',), 10), ((), 2), ('confirm', 0), (('right',), 6), (('right', 'C'), 12), ((), 10), ('sc:206', 0)]))
+MACROS_KOMACHI.append(('TM·hj8_j66_j2a_sc203', [(('up',), 6), ((), 27), (('right', 'D'), 8), (('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 21), ('sc:203', 0)]))
+
+# R61j: TM宏追加后同步names
+MACRO_NAMES_KOMACHI = [m[0] for m in MACROS_KOMACHI]
+# R61j: TM宏引用的SC卡耗费补入
+SC_COST_KOMACHI[201] = 5
+SC_COST_KOMACHI[206] = 4

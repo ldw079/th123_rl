@@ -57,22 +57,22 @@ CHAR_MACRO_MOVES = {
     # R44(2026-10-04): 六新角色 — 通用骨架表(生成器tools/gen_newchar_libs.py)
     'sakuya': dict(_COMMON),
     'patchouli': dict(_COMMON),
-    'yuyuko': dict(_COMMON),
+    'yuyuko': dict(_COMMON, **{'TM·2a_6a_6c_dskill4b': (303,), 'TM·5a_5aa_5aaa_sc203_': (300,), 'TM·hj9_j2a_2a_2b_6c_h': (303,), 'TM·5a_5aa_5aaa_f5a_6a': (300,)}),
     'reisen': dict(_COMMON),
-    'komachi': dict(_COMMON),
-    'tenshi': dict(_COMMON),
+    'komachi': dict(_COMMON, **{'TM·5a_5aa_5aaa_5aaaa_': (300,), 'TM·f5a_6c_sc206': (300,), 'TM·f5a_6c_sc206': (300,), 'TM·hj8_j66_j2a_sc203': (305,)}),
+    'tenshi': dict(_COMMON, **{'TM·hj9_j5a_j2c_jsc207': (300,), 'TM·6_d6_5a_5aa_2b_sc2': (300,), 'TM·d6_5a_5aa_2b_5c_d6': (300,), 'TM·6_6b_hj9_j5a_j2b_5': (401,)}),
     # R45: 剩余11角色 — 全20角色齐备
-    'alice': dict(_COMMON),
-    'youmu': dict(_COMMON),
+    'alice': dict(_COMMON, **{'TM·8_j6a': (302,), 'TM·8_j6a_j6a_6a': (302,), 'TM·d236b_sc200_sc203': (400,), 'TM·2a_3a_dskill1b_hj9': (303,)}),
+    'youmu': dict(_COMMON, **{'TM·hj8_j2a_4_sc204': (303,), 'TM·f2a_sc203': (303,), 'TM·d623c_sc203': (400,), 'TM·d6_2c_hj8_j2a_sc20': (412,)}),
     'remilia': dict(_COMMON),
-    'yukari': dict(_COMMON),
+    'yukari': dict(_COMMON, **{'TM·3a_sc215': (304,), 'TM·3a_sc208': (304,), 'TM·5a_5aa_5aaa_sc201_': (300,), 'TM·5a_5aa_5aaa_5aaaa_': (300,)}),
     'aya': dict(_COMMON),
     'iku': dict(_COMMON),
-    'sanae': dict(_COMMON),
-    'cirno': dict(_COMMON),
-    'meiling': dict(_COMMON),
+    'sanae': dict(_COMMON, **{'TM·2a_3a_2c_sc205': (303,), 'TM·5a_5aa_5aaa_5aaaa_': (300,), 'TM·2a_3a_5c_sc205': (303,), 'TM·5a_5aa_5aaa_2b_sc2': (300,)}),
+    'cirno': dict(_COMMON, **{'TM·5a_5aa_5aaa_5c_sc2': (300,), 'TM·5a_5aa_5aaa_5c_d62': (300,), 'TM·hj9_j5a_j6a_j5c_j6': (300,), 'TM·hj9_j5a_j5c_j66_j5': (300,)}),
+    'meiling': dict(_COMMON, **{'TM·d6_5a_5aa_5aaa_d62': (300,), 'TM·5a_5aa_5aaa_2b_5c_': (300,), 'TM·f5a_3a_6c_d623c': (300,)}),
     'utsuho': dict(_COMMON),
-    'suwako': dict(_COMMON),
+    'suwako': dict(_COMMON, **{'TM·8_j8a_sc208': (309,), 'TM·f5a_sc208': (300,), 'TM·5a_5aa_5aaa_j5b_j6': (300,), 'TM·5a_5aa_5aaa_5aaaa': (300,)}),
 }
 REACH_MARGIN = 80.0   # 掩码放宽(起手期间对手位移+模型前冲余量)
 

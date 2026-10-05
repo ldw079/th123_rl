@@ -106,7 +106,7 @@ ALICE_BULLET_MACROS = {"5B", "6B", "2B", "5C", "6C", "jB", "j2B", "jC", "j6C", "
 # dx<150被贴身禁令掩掉(升龙/反转最需的距离) + 空挥按1.0×而非技能档
 ALICE_SKILL_MACROS = {"236B", "236C", "623B", "623C", "22B", "22C", "214B", "214C"}
 ALICE_AIR_MACROS = {"jA", "j6A", "j8A", "j2A", "jB", "j2B", "jC", "j6C", "空翔前", "空翔后", "空冲后", "飞翔", "高跳"}
-ALICE_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾"}
+ALICE_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾", 'TM·8_j6a', 'TM·8_j6a_j6a_6a', 'TM·d236b_sc200_sc203', 'TM·2a_3a_dskill1b_hj9'}
 ALICE_STRING_MACROS = {"压制A", "压制B"}
 ALICE_SC_NAMES = {"卡·灵击札", "卡·药水", "卡·当前", "卡·符卡一", "卡·符卡二", "卡·符卡三", "卡·终卡二"}
 ALICE_GUARD_PREP = ("立防", "蹲防")
@@ -122,3 +122,14 @@ _RAW_ALICE = list(MACROS_ALICE)
 MACROS_ALICE = [(n, _norm_presteps(sc)) for n, sc in _RAW_ALICE]
 NORMALIZED_AFFECTED_ALICE = {n for (n, s0), (_, s1) in
                             zip(_RAW_ALICE, MACROS_ALICE) if s0 != s1}
+
+# ==== R61j(C6): Trialmode连段完整集成 ====
+MACROS_ALICE.append(('TM·8_j6a', [(('up',), 6), (('right',), 6), (('right', 'A'), 10), ((), 2), ('confirm', 0)]))
+MACROS_ALICE.append(('TM·8_j6a_j6a_6a', [(('up',), 6), (('right',), 6), (('right', 'A'), 10), ((), 2), ('confirm', 0), ((), 30), (('right',), 6), (('right', 'A'), 12), (('right',), 6), (('right', 'A'), 12)]))
+MACROS_ALICE.append(('TM·d236b_sc200_sc203', [(('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10), ((), 2), ('confirm', 0), ('sc:200', 0), ((), 30), ('sc:203', 0)]))
+MACROS_ALICE.append(('TM·2a_3a_dskill1b_hj9', [(('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 18), (('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 14), ((), 5), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10), (('down',), 4), (('up', 'right'), 8), (('right',), 6), (('right', 'B'), 10), ((), 28), (('right', 'D'), 8), (('right',), 6), (('right', 'A'), 12)]))
+
+# R61j: TM宏追加后同步names
+MACRO_NAMES_ALICE = [m[0] for m in MACROS_ALICE]
+# R61j: TM宏引用的SC卡耗费补入
+SC_COST_ALICE[203] = 3

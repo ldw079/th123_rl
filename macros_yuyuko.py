@@ -106,7 +106,7 @@ YUYUKO_BULLET_MACROS = {"5B", "6B", "2B", "5C", "6C", "jB", "j2B", "jC", "j6C", 
 # dx<150被贴身禁令掩掉(升龙/反转最需的距离) + 空挥按1.0×而非技能档
 YUYUKO_SKILL_MACROS = {"236B", "236C", "623B", "623C", "22B", "22C", "214B", "214C"}
 YUYUKO_AIR_MACROS = {"jA", "j6A", "j8A", "j2A", "jB", "j2B", "jC", "j6C", "空翔前", "空翔后", "空冲后", "飞翔", "高跳"}
-YUYUKO_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾"}
+YUYUKO_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾", 'TM·2a_6a_6c_dskill4b', 'TM·5a_5aa_5aaa_sc203_', 'TM·hj9_j2a_2a_2b_6c_h', 'TM·5a_5aa_5aaa_f5a_6a'}
 YUYUKO_STRING_MACROS = {"压制A", "压制B"}
 YUYUKO_SC_NAMES = {"卡·灵击札", "卡·药水", "卡·当前", "卡·符卡一", "卡·符卡二", "卡·符卡三", "卡·符卡十"}
 YUYUKO_GUARD_PREP = ("立防", "蹲防")
@@ -122,3 +122,14 @@ _RAW_YUYUKO = list(MACROS_YUYUKO)
 MACROS_YUYUKO = [(n, _norm_presteps(sc)) for n, sc in _RAW_YUYUKO]
 NORMALIZED_AFFECTED_YUYUKO = {n for (n, s0), (_, s1) in
                             zip(_RAW_YUYUKO, MACROS_YUYUKO) if s0 != s1}
+
+# ==== R61j(C6): Trialmode连段完整集成 ====
+MACROS_YUYUKO.append(('TM·2a_6a_6c_dskill4b', [(('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 15), (('right',), 6), (('right', 'A'), 12), ((), 9), (('right',), 6), (('right', 'C'), 12), (('left',), 3), (('down',), 3), (('left',), 3), (('B', 'left'), 10)]))
+MACROS_YUYUKO.append(('TM·5a_5aa_5aaa_sc203_', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), ((), 5), (('A',), 6), (('A',), 6), (('A',), 6), ('sc:203', 0), ((), 30), (('down',), 4), (('up', 'right'), 8), (('up',), 6), (('up',), 2), (('up', 'A'), 12)]))
+MACROS_YUYUKO.append(('TM·hj9_j2a_2a_2b_6c_h', [(('down',), 4), (('up', 'right'), 8), ((), 22), (('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 28), (('down',), 6), (('down', 'A'), 10), (('down',), 6), (('down', 'B'), 10), ((), 8), (('right',), 6), (('right', 'C'), 12), ((), 15), (('down',), 4), (('up', 'right'), 8), (('A',), 8), ((), 13), (('up',), 6), (('up',), 2), (('up', 'A'), 12)]))
+MACROS_YUYUKO.append(('TM·5a_5aa_5aaa_f5a_6a', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), ((), 5), (('A',), 6), (('A',), 6), (('A',), 6), ((), 30), (('A',), 10), (('right',), 6), (('right', 'A'), 12), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('B', 'down', 'right'), 10)]))
+
+# R61j: TM宏追加后同步names
+MACRO_NAMES_YUYUKO = [m[0] for m in MACROS_YUYUKO]
+# R61j: TM宏引用的SC卡耗费补入
+SC_COST_YUYUKO[203] = 4

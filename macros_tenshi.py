@@ -106,7 +106,7 @@ TENSHI_BULLET_MACROS = {"5B", "6B", "2B", "5C", "6C", "jB", "j2B", "jC", "j6C", 
 # dx<150被贴身禁令掩掉(升龙/反转最需的距离) + 空挥按1.0×而非技能档
 TENSHI_SKILL_MACROS = {"236B", "236C", "623B", "623C", "22B", "22C", "214B", "214C"}
 TENSHI_AIR_MACROS = {"jA", "j6A", "j8A", "j2A", "jB", "j2B", "jC", "j6C", "空翔前", "空翔后", "空冲后", "飞翔", "高跳"}
-TENSHI_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾"}
+TENSHI_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾", 'TM·hj9_j5a_j2c_jsc207', 'TM·6_d6_5a_5aa_2b_sc2', 'TM·d6_5a_5aa_2b_5c_d6', 'TM·6_6b_hj9_j5a_j2b_5'}
 TENSHI_STRING_MACROS = {"压制A", "压制B"}
 TENSHI_SC_NAMES = {"卡·灵击札", "卡·药水", "卡·当前", "卡·符卡一", "卡·符卡二", "卡·符卡三", "卡·符卡八"}
 TENSHI_GUARD_PREP = ("立防", "蹲防")
@@ -122,3 +122,12 @@ _RAW_TENSHI = list(MACROS_TENSHI)
 MACROS_TENSHI = [(n, _norm_presteps(sc)) for n, sc in _RAW_TENSHI]
 NORMALIZED_AFFECTED_TENSHI = {n for (n, s0), (_, s1) in
                             zip(_RAW_TENSHI, MACROS_TENSHI) if s0 != s1}
+
+# ==== R61j(C6): Trialmode连段完整集成 ====
+MACROS_TENSHI.append(('TM·hj9_j5a_j2c_jsc207', [(('down',), 4), (('up', 'right'), 8), ((), 12), (('A',), 8), ((), 2), ('confirm', 0), ((), 4), (('down',), 6), (('down', 'C'), 12), ('sc:207', 0)]))
+MACROS_TENSHI.append(('TM·6_d6_5a_5aa_2b_sc2', [(('right',), 6), (('right',), 6), (('A',), 8), ((), 2), ('confirm', 0), ((), 16), (('A',), 6), (('A',), 6), ((), 4), (('down',), 6), (('down', 'B'), 10), ('sc:207', 0)]))
+MACROS_TENSHI.append(('TM·d6_5a_5aa_2b_5c_d6', [(('right',), 6), (('A',), 8), ((), 2), ('confirm', 0), ((), 12), (('A',), 6), (('A',), 6), ((), 4), (('down',), 6), (('down', 'B'), 10), (('C',), 12), ((), 7), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('C', 'down', 'right'), 10)]))
+MACROS_TENSHI.append(('TM·6_6b_hj9_j5a_j2b_5', [(('right',), 6), (('right',), 6), (('right', 'B'), 10), ((), 2), ('confirm', 0), (('down',), 4), (('up', 'right'), 8), ((), 3), (('A',), 8), (('down',), 6), (('down', 'B'), 10), ((), 22), (('A',), 8), (('A',), 6), (('A',), 6), ((), 4), (('A',), 6), (('A',), 6), (('A',), 6)]))
+
+# R61j: TM宏追加后同步names
+MACRO_NAMES_TENSHI = [m[0] for m in MACROS_TENSHI]

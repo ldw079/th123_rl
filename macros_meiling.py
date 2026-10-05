@@ -106,7 +106,7 @@ MEILING_BULLET_MACROS = {"5B", "6B", "2B", "5C", "6C", "jB", "j2B", "jC", "j6C",
 # dx<150被贴身禁令掩掉(升龙/反转最需的距离) + 空挥按1.0×而非技能档
 MEILING_SKILL_MACROS = {"236B", "236C", "623B", "623C", "22B", "22C", "214B", "214C"}
 MEILING_AIR_MACROS = {"jA", "j6A", "j8A", "j2A", "jB", "j2B", "jC", "j6C", "空翔前", "空翔后", "空冲后", "飞翔", "高跳"}
-MEILING_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾"}
+MEILING_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾", 'TM·d6_5a_5aa_5aaa_d62', 'TM·5a_5aa_5aaa_2b_5c_', 'TM·f5a_3a_6c_d623c'}
 MEILING_STRING_MACROS = {"压制A", "压制B"}
 MEILING_SC_NAMES = {"卡·灵击札", "卡·药水", "卡·当前", "卡·符卡一", "卡·符卡三", "卡·符卡七", "卡·符卡十"}
 MEILING_GUARD_PREP = ("立防", "蹲防")
@@ -122,3 +122,13 @@ _RAW_MEILING = list(MACROS_MEILING)
 MACROS_MEILING = [(n, _norm_presteps(sc)) for n, sc in _RAW_MEILING]
 NORMALIZED_AFFECTED_MEILING = {n for (n, s0), (_, s1) in
                             zip(_RAW_MEILING, MACROS_MEILING) if s0 != s1}
+
+# ==== R61j(C6): Trialmode连段完整集成 ====
+MACROS_MEILING.append(('TM·d6_5a_5aa_5aaa_d62', [(('right',), 6), (('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('B', 'down', 'right'), 10), ((), 4), ('sc:204', 0), ((), 30), (('right',), 6), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('C', 'down', 'right'), 10)]))
+MACROS_MEILING.append(('TM·5a_5aa_5aaa_2b_5c_', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 3), (('down',), 6), (('down', 'B'), 10), (('C',), 12), (('up',), 6), (('A',), 8), ((), 8), (('up',), 6), (('up',), 2), (('up', 'A'), 12)]))
+MACROS_MEILING.append(('TM·f5a_3a_6c_d623c', [(('A',), 10), ((), 2), ('confirm', 0), (('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 14), ((), 3), (('right',), 6), (('right', 'C'), 12), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('C', 'down', 'right'), 10)]))
+
+# R61j: TM宏追加后同步names
+MACRO_NAMES_MEILING = [m[0] for m in MACROS_MEILING]
+# R61j: TM宏引用的SC卡耗费补入
+SC_COST_MEILING[204] = 4

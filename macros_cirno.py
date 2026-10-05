@@ -106,7 +106,7 @@ CIRNO_BULLET_MACROS = {"5B", "6B", "2B", "5C", "6C", "jB", "j2B", "jC", "j6C", "
 # dx<150被贴身禁令掩掉(升龙/反转最需的距离) + 空挥按1.0×而非技能档
 CIRNO_SKILL_MACROS = {"236B", "236C", "623B", "623C", "22B", "22C", "214B", "214C"}
 CIRNO_AIR_MACROS = {"jA", "j6A", "j8A", "j2A", "jB", "j2B", "jC", "j6C", "空翔前", "空翔后", "空冲后", "飞翔", "高跳"}
-CIRNO_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾"}
+CIRNO_COMBO_MACROS = {"连段A", "连段B", "空连A", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾", 'TM·5a_5aa_5aaa_5c_sc2', 'TM·5a_5aa_5aaa_5c_d62', 'TM·hj9_j5a_j6a_j5c_j6', 'TM·hj9_j5a_j5c_j66_j5'}
 CIRNO_STRING_MACROS = {"压制A", "压制B"}
 CIRNO_SC_NAMES = {"卡·灵击札", "卡·药水", "卡·当前", "卡·符卡一", "卡·符卡三", "卡·符卡六", "卡·符卡九"}
 CIRNO_GUARD_PREP = ("立防", "蹲防")
@@ -122,3 +122,12 @@ _RAW_CIRNO = list(MACROS_CIRNO)
 MACROS_CIRNO = [(n, _norm_presteps(sc)) for n, sc in _RAW_CIRNO]
 NORMALIZED_AFFECTED_CIRNO = {n for (n, s0), (_, s1) in
                             zip(_RAW_CIRNO, MACROS_CIRNO) if s0 != s1}
+
+# ==== R61j(C6): Trialmode连段完整集成 ====
+MACROS_CIRNO.append(('TM·5a_5aa_5aaa_5c_sc2', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 16), (('C',), 12), ('sc:208', 0)]))
+MACROS_CIRNO.append(('TM·5a_5aa_5aaa_5c_d62', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 16), (('C',), 12), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('B', 'down', 'right'), 10)]))
+MACROS_CIRNO.append(('TM·hj9_j5a_j6a_j5c_j6', [(('down',), 4), (('up', 'right'), 8), (('A',), 8), ((), 2), ('confirm', 0), ((), 8), (('right',), 6), (('right', 'A'), 12), ((), 6), (('C',), 12), (('right', 'D'), 8), (('A',), 8), ((), 6), (('right',), 6), (('right', 'A'), 12)]))
+MACROS_CIRNO.append(('TM·hj9_j5a_j5c_j66_j5', [(('down',), 4), (('up', 'right'), 8), (('A',), 8), ((), 2), ('confirm', 0), ((), 8), (('C',), 12), ((), 6), (('right', 'D'), 8), (('A',), 8), ((), 7), (('C',), 12)]))
+
+# R61j: TM宏追加后同步names
+MACRO_NAMES_CIRNO = [m[0] for m in MACROS_CIRNO]
