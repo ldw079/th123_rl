@@ -562,15 +562,21 @@ if HAS_TORCH:
                         v_out[r[0]] = r[1]    # R54: 值头写v文件
                     else:
                         pi_out[r[0]] = r[1]
-            np.savez(pi_path, **pi_out,
+            # R61e(F3): 原子落盘(原裸np.savez中断=半档损坏源, 项目惯例
+            # tmp+os.replace; npz名须以.npz结尾否则numpy自动补后缀)
+            _tp = pi_path + '.tmp.npz'
+            np.savez(_tp, **pi_out,
                      meta=np.array([
                          self._temp, self._beta, self._bcw,
                          float(self._updates), self._rstd,
                          self._adaptive_lr_scale],
                          dtype=np.float32))
+            os.replace(_tp, pi_path)
             # R54修复: 值头参数写v文件(原全写pi文件+v文件只写dummy
             # → numpy版load从v文件读W1v时ValueError=GPU→numpy方向断)
-            np.savez(v_path, **v_out)
+            _tv = v_path + '.tmp.npz'
+            np.savez(_tv, **v_out)
+            os.replace(_tv, v_path)
 
         def load(self, pi_path, v_path):
             """加载 — 显式键映射+转置; 值头从v_path读(R54修复)。"""

@@ -346,6 +346,13 @@ MUTATIONS = [
      "R61c回退: γ因子消失(驻高势态零漂移) → γ断言必须红"),
     ("train_tm.py", "card_gauge_val=_cg", "card_gauge_val=None",
      "R61c回退: 晴岚哨兵断开(伪势跳±2.0复活) → 哨兵断言必须红"),
+    ("train_tm.py", "os.replace(_t, _p)", "pass",
+     "R61e-B6回退: COM难度不落盘(重启回Easy反复爬梯) → 持久化断言必须红"
+     "(变异不得带注释残留子串 — 第六型教训)"),
+    ("ppo_gpu.py", "os.replace(_tp, pi_path)", "pass  # os.replace_x(_tp, pi_path)",
+     "R61e回退: GPU save裸写(中断=半档损坏) → 原子落盘断言必须红"),
+    ("learner_hub.py", "'learner_%s%s.lock' % (char, suffix)", "'no_lock_unused'",
+     "R61e-D5回退: learner双实例锁移除(双写者竞争复活) → 单实例锁断言必须红"),
 ]
 
 

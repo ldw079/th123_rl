@@ -5,7 +5,7 @@
 > **修订权**: 纪律红线(§0)与奖励方向性规定(§4定律)的变更需用户批准;
 > 其余条目可随实证迭代, 但必须在"修订记录"追加一行。
 > 姊妹文档: ARCHITECTURE.md(模型框架) · docs/multi_instance_input.md(TM通道全档)
-> 版本: 2.51 · 2026-10-05 · R61d(A3裁决: 正防硬直150-157入沿+真倒地集7枚 — hitlab实证+SokuLib枚举) + 环境事故(源文件跨盘丢失)与pyc恢复重建
+> 版本: 2.52 · 2026-10-05 · R61e(F3尾巴快杀+B6+F4收官: COM首位修复/GPU原子save/learner单实例锁/17库BULLET补2C/COM难度持久化/requirements.txt) + 事故根因结论(360一次性扫描)
 
 ---
 
@@ -1580,3 +1580,27 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     D:\temp\th123_rl_final_1704全量快照(297文件)+改名备份
     (cc_r61d_backup/gs_r61d_backup/mp_backup/mutations_recovered.json)。
     **建议: 安装git并首提交(F4) — 版本控制是此类事故的终极防线**。
+  - **事故根因结论(2026-10-05晚, 五路取证)**: **360安全卫士一次性
+    扫描删除**。证据链: ①AntiVirusProduct显示360活跃+ZhuDongFangYu
+    (主动防御驱动)孤立在跑无主UI; ②Defender事件日志完整审查窗口期
+    零扫描零检测(排除); ③目录mtime精确锚定删除时序16:35-17:01单遍
+    C:→D:顺序扫描(robocopy保留源mtime揭示真实时刻); ④删除按文件名
+    跨盘追杀所有副本而__pycache__同名pyc全幸存(名称启发式特征);
+    ⑤诱饵实验(同名四文件90s)全部存活=非常驻监控。360ZipUpdater
+    16:15运行过(更新常触发云查杀)。**处置建议: 360恢复区找回四件+
+    项目目录加白/彻底卸载孤立组件**(git仓626407d已是终极防线)。
+- 2.52 (2026-10-05, R61e — 主规划F3快杀+B6+F4收官):
+  - **F3尾巴五连清**: ①--opp COM首位不再SideDriver("COM")KeyError
+    启动崩(镜像轮换COM分支: opp=None=VS_COM); ②ppo_gpu save原子
+    落盘pi+v(tmp+os.replace, roundtrip双向兼容复验✓); ③learner单实
+    例锁(PID查活, 双learner双写者竞争防线); ④17生成库BULLET补2C
+    (宏存在但零分类→贴身弹幕掩码+空挥成本双缺; 生成器模板同步);
+    ⑤requirements.txt(numpy+torch-CPU+外部依赖注释)。
+  - **B6(COM阶梯调优+回火裁定)**: 回火旧制维持2.31裁定(熵监控替代,
+    R39已废); 真实缺口=**难度不持久** — 重启回Easy反复爬梯(诊断多次
+    "重启后COM读数不可比"的根因)。修: 阶梯变化原子落盘
+    com_difficulty_{char}{suffix}.json+启动续档(--com-difficulty仅
+    无存档时作起点)。
+  - **验证**: 门禁494 PASS/0 FAIL(+6断言); 变异+3(R61e标签增量
+    自检)。F3清单余: cid_to_slot/旧档meta越界/种子碰撞/子串断言
+    29%替换等(~10项, 下批)。

@@ -325,6 +325,22 @@ class TMTrainer:
         self._ep_count = 0                                  # R47: 课程进度
         self._ret_win_hist = []                             # R47: 回报-胜率仪表
         self.com_difficulty = com_difficulty
+        # R61e(B6): 起读持久化难度 — 有存档则覆盖启动参数(重启不再回
+        # Easy反复爬梯); --com-difficulty仅作无存档时的起点
+        try:
+            import json as _json
+            _cd = os.path.join(
+                STORE_DIR, "com_difficulty_%s%s.json" % (char, suffix))
+            if os.path.exists(_cd):
+                _d = _json.load(open(_cd, encoding="utf8"))["difficulty"]
+                if 0 <= int(_d) <= 3:
+                    self.com_difficulty = int(_d)
+                    print("[COM阶梯] 续档难度%d(%s)" % (
+                        self.com_difficulty,
+                        ("Easy", "Normal", "Hard", "Lunatic")[
+                            self.com_difficulty]))
+        except (OSError, ValueError, KeyError):
+            pass
         # R14: 对手角色ID(用于one-hot)
         self._opp_char_id = None     # 模型文件后缀(实验分支隔离, 防双训练器写同档)
         lib = CHAR_LIBS[char]
@@ -442,14 +458,23 @@ class TMTrainer:
         self._com_hist = []       # R43方案B: COM对局胜负序列(1胜0负)
         if self.opp_cycle:
             from side_driver import SideDriver
-            self.opp = SideDriver(self.opp_cycle[0][0], "R")
-            self._wire_opp_ids(self.opp_cycle[0][0])
             _c0, _m0 = self.opp_cycle[0]
-            if _c0 != "COM" and _m0 is None:
-                _m0 = self._resolve_pool(_c0)
-            self._cur_opp_model = _m0 if _c0 != "COM" else None
-            if _m0 is not None:
-                self.opp.load(_m0)
+            if _c0 == "COM":
+                # R61e(F3): COM作首位原SideDriver("COM")KeyError启动崩
+                # (从零审计P2) — 镜像_rotate_opp的COM分支: opp=None=
+                # VS_COM模式, 对手角色=己方镜像(R21)
+                self.opp = None
+                self._opp_char_id = None
+                self.feat_builder._opp_char = self.char
+                self._cur_opp_model = None
+            else:
+                self.opp = SideDriver(_c0, "R")
+                self._wire_opp_ids(_c0)
+                if _m0 is None:
+                    _m0 = self._resolve_pool(_c0)
+                self._cur_opp_model = _m0
+                if _m0 is not None:
+                    self.opp.load(_m0)
         else:
             self.opp = None
             self._cur_opp_model = None
@@ -797,9 +822,13 @@ class TMTrainer:
     def _com_ladder(self):
         """R43方案B: COM难度阶梯 — 近COM_CLIMB_N局胜率≥50%升一级,
         近COM_FALL_N局<20%降一级(清空窗口重新积累)。难度变化在下一次
-        环境重建时生效(_make_env按self.com_difficulty传递)。"""
+        环境重建时生效(_make_env按self.com_difficulty传递)。
+        R61e(B6): 难度持久化(com_difficulty_{char}{suffix}.json原子写)
+        — 原仅内存态, 重启回Easy反复爬梯(诊断多次标注"重启后COM读数
+        不可比"的根因)。"难度爬升必回火1.8"旧制=2.31裁定熵监控替代。"""
         h = self._com_hist
         _names = ("Easy", "Normal", "Hard", "Lunatic")
+        _old_d = self.com_difficulty
         if (len(h) >= COM_CLIMB_N
                 and sum(h[-COM_CLIMB_N:]) / COM_CLIMB_N >= COM_CLIMB_WR
                 and self.com_difficulty < 3):
@@ -816,6 +845,17 @@ class TMTrainer:
             print("[COM阶梯] 近%d局胜率%.0f%% <%.0f%% → 降至难度%d(%s)"
                   % (COM_FALL_N, COM_FALL_WR * 100, 100.0 * COM_FALL_WR,
                      self.com_difficulty, _names[self.com_difficulty]))
+        if self.com_difficulty != _old_d:
+            import json as _json
+            _p = os.path.join(
+                STORE_DIR,
+                "com_difficulty_%s%s.json" % (self.char, self.suffix))
+            _t = _p + ".tmp"
+            with open(_t, "w", encoding="utf8") as _f:
+                _f.write(_json.dumps(
+                    {"difficulty": int(self.com_difficulty),
+                     "ts": time.strftime("%Y%m%d_%H%M%S")}))
+            os.replace(_t, _p)
 
     def _opp_label(self):
         c, _m = self.opp_cycle[self._opp_i]

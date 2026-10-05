@@ -147,7 +147,7 @@ N_MACROS_{UP} = len(MACROS_{UP})
 NORMALIZED_AFFECTED_{UP} = _norm_presteps(MACROS_{UP})
 
 {UP}_MELEE_MACROS = {{"5A", "2A", "6A", "3A", "4A", "jA", "j6A", "j8A", "j2A", "DA", "623B", "623C", "5A确认", "2A确认"}}
-{UP}_BULLET_MACROS = {{"5B", "6B", "2B", "5C", "6C", "jB", "j2B", "jC", "j6C"}}
+{UP}_BULLET_MACROS = {{"5B", "6B", "2B", "5C", "6C", "jB", "j2B", "jC", "j6C", "2C"}}
 # R46(§3-3修复): 指令必杀归SKILL(与手写库一致) — 原误入BULLET导致
 # dx<150被贴身禁令掩掉(升龙/反转最需的距离) + 空挥按1.0×而非技能档
 {UP}_SKILL_MACROS = {{"236B", "236C", "623B", "623C", "22B", "22C", "214B", "214C"}}

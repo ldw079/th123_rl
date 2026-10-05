@@ -194,6 +194,26 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
 
 
 def run_learner(char, batch_k=BATCH_K, suffix='_fleet'):
+    # R61e(F3/D5): 单实例锁 — 双learner同角色=双写者竞争(静默互踩
+    # 模型档); 锁文件+PID查活, 崩溃残留自动失效
+    lock = os.path.join(FLEET_DIR, 'learner_%s%s.lock' % (char, suffix))
+    os.makedirs(FLEET_DIR, exist_ok=True)
+    if os.path.exists(lock):
+        try:
+            _old = int(open(lock).read().strip())
+            import ctypes
+            k32 = ctypes.windll.kernel32
+            h = k32.OpenProcess(0x1000, False, _old)
+            if h:
+                k32.CloseHandle(h)
+                print('[learner] %s 已有实例(PID=%d) — 退出' % (char, _old))
+                sys.exit(1)
+        except (ValueError, OSError):
+            pass
+        os.remove(lock)
+    fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    os.write(fd, str(os.getpid()).encode())
+    os.close(fd)
     if PPOTrainerGPU is None:
         print('[learner] ppo_gpu不可用: %r — fleet learner必须GPU更新'
               % (_GPU_ERR,))

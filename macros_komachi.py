@@ -100,7 +100,8 @@ N_MACROS_KOMACHI = len(MACROS_KOMACHI)
 NORMALIZED_AFFECTED_KOMACHI = _norm_presteps(MACROS_KOMACHI)
 
 KOMACHI_MELEE_MACROS = {"5A", "2A", "6A", "3A", "4A", "jA", "j6A", "j8A", "j2A", "DA", "623B", "623C", "5A确认", "2A确认"}
-KOMACHI_BULLET_MACROS = {"5B", "6B", "2B", "5C", "6C", "jB", "j2B", "jC", "j6C"}
+# R61e(F3): 补2C入BULLET(从零审计P2 — 2C宏存在但零分类: 贴身禁弹幕掩码漏它+空挥成本按非弹1.0)
+KOMACHI_BULLET_MACROS = {"5B", "6B", "2B", "5C", "6C", "jB", "j2B", "jC", "j6C", "2C"}
 # R46(§3-3修复): 指令必杀归SKILL(与手写库一致) — 原误入BULLET导致
 # dx<150被贴身禁令掩掉(升龙/反转最需的距离) + 空挥按1.0×而非技能档
 KOMACHI_SKILL_MACROS = {"236B", "236C", "623B", "623C", "22B", "22C", "214B", "214C"}

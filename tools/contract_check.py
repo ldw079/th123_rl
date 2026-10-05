@@ -1064,8 +1064,8 @@ chk("TRUNK_FLAT = CONV3_F * 5 * 8" in gp53
 chk("OPP_CORE_OFF" in gp53 and "self.opp_off = 2 * n_out + OPP_CORE_OFF"
     in gp53,
     "ppo_gpu对手切片偏移正确(R54: 2*N_OUT+152)")
-chk("v_out[r[0]] = r[1]" in gp53 and "np.savez(v_path, **v_out)" in gp53,
-    "GPU save值头写v文件(R54b: 原全写pi+v文件dummy→numpy方向ValueError)")
+chk("v_out[r[0]] = r[1]" in gp53 and "os.replace(_tv, v_path)" in gp53,
+    "GPU save值头写v文件+原子落盘(R54b+R61e: 原裸savez已改tmp+replace)")
 # R55: 语义对齐
 chk("_replay_buf" in gp53 and "logp_old[_ord]" in gp53,
     "GPU回放缓冲在位(R55: 池8元组+真ratio)")
@@ -1410,6 +1410,22 @@ chk("stored_logp=LOGPS" in tt60
     "R60-F11: 行为策略logP入ratio(探针/bias/价值引导的实际分布)")
 chk("elif dx_abs < 150" in tt60 and "melee_idx" in tt60,
     "R60-F9: melee_idx保留(其他消费点)且150贴身禁弹幕不变")
+
+# ---- R61e(F3尾巴快杀+B6, 2026-10-05) ----
+chk('_c0 == "COM":' in tt60 and 'self.feat_builder._opp_char = self.char' in tt60,
+    "R61e: --opp COM首位不再SideDriver崩(镜像轮换COM分支)")
+chk("os.replace(_tp, pi_path)" in gp60 and "os.replace(_tv, v_path)" in gp60,
+    "R61e: ppo_gpu save原子落盘(pi+v, 原裸savez中断=半档损坏)")
+chk("'learner_%s%s.lock' % (char, suffix)" in lh,
+    "R61e/D5: learner单实例锁(双learner双写者竞争防线)")
+chk('com_difficulty_%s%s.json" % (self.char, self.suffix)' in tt60
+    and "续档难度" in tt60 and "os.replace(_t, _p)" in tt60,
+    "R61e/B6: COM难度持久化(读侧续档+写侧落盘双锚 — R61e变异"
+    "教训: 只锚读侧时杀落盘的变异逃逸)")
+import re as _re61e
+_bs = _re61e.findall(r'_BULLET_MACROS = \{([^}]*)\}', src("macros_sakuya.py"))
+chk(_bs and '"2C"' in _bs[0],
+    "R61e: 生成库BULLET补2C(17库, 原宏存在但零分类)")
 
 # ---- R61(用户2026-10-05"d+快速胜利")奖励经济学 ----
 chk("def graze_low_rate(f):" in tt60

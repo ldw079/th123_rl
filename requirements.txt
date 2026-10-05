@@ -1,0 +1,9 @@
+# R61e(F4): 依赖声明 — 本体只需两件
+numpy>=1.26
+# torch: ppo_gpu.py(fleet learner/GPU更新) — CPU版即可(见A5机型决策);
+# GPU实例用CUDA版: pip install torch --index-url https://download.pytorch.org/whl/cu121
+torch>=2.0
+# 外部依赖(非pip, 部署文档见METHODOLOGY/AGENTS.md):
+# - th123 游戏 + SokuAITrainer/SokuDirectXOptimizations/MemoryPatch mod集
+#   (mod源码树 D:\temp\build\SokuAI-master, 血统C9校验)
+# - oracle录制: SOKUAI_INPUTLOG=1 的mod构建(D:\temp\soku_arch)
