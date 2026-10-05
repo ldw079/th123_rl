@@ -1525,6 +1525,9 @@ _BEHAVIOR_TESTS = [
     # R61g: SC词汇(B1/M2)
     ("test_sc_vocab_r61g.py",
      "R61g(B1): SC按压匹配+expert_bits 8元组+具体卡解析"),
+    # R61p(E2): 价值网络讲解
+    ("test_teach_e2.py",
+     "R61p(E2): value_rank排名+explain_with_value讲解+情境敏感"),
 ]
 for _tname, _tdesc in _BEHAVIOR_TESTS:
     _tp = os.path.join(ROOT, _tname)

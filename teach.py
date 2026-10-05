@@ -72,6 +72,102 @@ def policy_entropy(ppo, feat, side, mask=None) -> float:
     return float(-np.sum(P * np.log(P)))
 
 
+def value_rank(ppo, char, dx, spirit, opp_air, opp_corner,
+               top_k=8):
+    """R61p(E2): 价值网络宏排名 — "这个局面下每个选择值多少".
+
+    方法: 构造侧向量(情境参数+各宏one-hot), 视觉置零(中性基线),
+    逐宏计算V(s, macro_i) → 排名. 不需要真实视觉(侧向信号已含
+    位置/灵力/对手状态等关键决策信息).
+
+    返回: [(宏名, V值, 排名), ...] top_k条, V值降序.
+    """
+    import numpy as np
+    from train_tm import CHAR_LIBS
+    from feat_builder import FeatureBuilder
+    lib = CHAR_LIBS[char]
+    n = len(lib['macros'])
+    names = lib['names']
+
+    # 构造基础侧向量(情境参数, 宏one-hot=0)
+    fb = FeatureBuilder(n)
+    n_side = 5 * n + fb.CORE_DIMS
+    side = np.zeros(n_side, dtype=np.float32)
+    # 填充core区(简化: 只填关键维度)
+    core_off = 2 * n
+    side[core_off + 2] = np.clip(dx / 600.0, -1, 1)   # dx
+    side[core_off + 4] = np.clip(dx / 600.0, 0, 1)     # adx
+    side[core_off + 6] = spirit / 2000.0                 # spirit
+    side[core_off + 8] = 1.0                              # own_hp(full)
+    side[core_off + 9] = 1.0                              # opp_hp(full)
+    side[core_off + 12] = 1.0 if opp_air else 0.0       # opp_airborne
+    side[core_off + 13] = 1.0 if opp_corner else 0.0    # opp_corner
+
+    # 视觉置零(14400 = 3×80×60)
+    feat = np.zeros(14400, dtype=np.uint8)
+
+    # 逐宏评估: 替换one-hot → V(s, macro)
+    results = []
+    for i in range(n):
+        s = side.copy()
+        s[i] = 1.0    # 当前宏one-hot
+        try:
+            Xn = ppo._trunk_fwd_chunked(feat.reshape(1, -1))
+            _, V = ppo._v_forward(Xn, s.reshape(1, -1))
+            v = float(V.ravel()[0])
+        except Exception:
+            v = 0.0
+        results.append((names[i], v, i))
+    results.sort(key=lambda x: -x[1])
+    return results[:top_k]
+
+
+def explain_with_value(char, dx, spirit, opp_air, opp_corner,
+                       model_choice, ppo, top_k=5) -> str:
+    """R61p(E2): 价值网络驱动的局面讲解(v2).
+
+    三层对比: 价值排名 vs 教义树 vs 模型实际选择.
+    输出格式:
+      【价值排名】(前5)
+      【教义标准】X
+      【模型选择】Y (置信度Z)
+      【价值分析】选Y在价值排名第N(V=...), 最优是X(V=...)
+    """
+    ranked = value_rank(ppo, char, dx, spirit, opp_air,
+                        opp_corner, top_k)
+    lib_names = {n for n, _, _ in ranked}
+    std = _doctrine_best(dx, opp_air, opp_corner, spirit,
+                         __import__('train_tm').CHAR_LIBS[char])
+
+    parts = []
+    parts.append('【局面】距离%.0f 对手%s%s 灵力%.0f'
+                 % (dx, '空中' if opp_air else '地面',
+                    ' 版边' if opp_corner else '', spirit))
+    parts.append('【价值排名】')
+    for rank, (name, v, _) in enumerate(ranked, 1):
+        marker = ' ←模型选' if name == model_choice else (
+            ' ←教义标准' if name == std else '')
+        parts.append('  %d. %s V=%.3f%s' % (rank, name, v, marker))
+
+    parts.append('【模型选择】%s' % model_choice)
+    # 价值差分析
+    choice_v = next((v for n, v, _ in ranked
+                     if n == model_choice), None)
+    best_n, best_v, _ = ranked[0]
+    if choice_v is not None:
+        gap = best_v - choice_v
+        if model_choice == best_n:
+            parts.append('【价值分析】✓ 模型选了价值最高的宏')
+        elif gap < 0.1:
+            parts.append('【价值分析】%s 与最优%s差%.3f — 接近等效'
+                         % (model_choice, best_n, gap))
+        else:
+            parts.append('【价值分析】%s(V=%.3f) 比最优%s(V=%.3f)低%.3f'
+                         % (model_choice, choice_v, best_n,
+                            best_v, gap))
+    return '\n'.join(parts)
+
+
 def _doctrine_best(dx, air, corner, spirit, lib) -> str:
     """教义树查询: 当前局面的标准应对宏名。"""
     names = set(lib['names'])
