@@ -64,7 +64,6 @@ FILES = [
          "teach.py",
          "ppo_gpu.py",
          "frame_events.py",
-         "frame_macros.py",
          # R61g(B1): SC词汇断言的载体
          "bc_match.py", "bc_build.py", "card_tables.py",
          "episode_core.py",

@@ -1099,12 +1099,8 @@ chk("F_VARIANT_IDS = frozenset((301, 311))" in src("feat_builder.py"),
     "改进方案示例集含321=5AAA/331=诹访子专属, 按空表优于错表只取两枚)")
 chk('right["action"] in F_VARIANT_IDS' in src("feat_builder.py"),
     "f变体位接线: 段11[o+20..o+21](R58 — 池扩展余位, 零扩维)")
-chk(os.path.exists(os.path.join(ROOT, "frame_macros.py")),
-    "frame_macros.py存在(R49 L1: 执行补件)")
-chk("DD_MACROS" in src("frame_macros.py")
-    and "THROW_MACROS" in src("frame_macros.py")
-    and "STAGGER_MACROS" in src("frame_macros.py"),
-    "DD变体+投技+放帧变体在位(R49 L1)")
+# R61h(C2): frame_macros已删 — 其宏零消费者(反应表匹配角色库名,
+# 非独立宏), DD与角色库重复/投技未经取证/放帧归C1分支门 → 不留死代码
 # ============ R50(2026-10-04): 体检A1/A2/A4修复 ============
 pp50 = src("ppo.py")
 chk("max(0.3," in pp50 and "elif kl < self.TARGET_KL:" in pp50,
