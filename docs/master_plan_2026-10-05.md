@@ -54,7 +54,7 @@
 | C4 | 表里择成对宏 + 压起身套件（攻略已给全部输入序列） | 技法覆盖 2.2/2.7 | 3 天 | 宏库登记 + SOP 十步流程 |
 | C5 | ender 菜单（分层连段, 宪法 SOP 第 10 步, 触发条件已到） | combo 改进 2.5 | 2 天 | 宏数回落 + 二次决策快路径 |
 | C6 | 17 新角色 Trialmode 连段包 + A4 原子宏排查（仪表已上线, 查掩码/配额/可出性三关） | combo 改进 S1/S2 | 3 天 | 采纳曲线脱离 0; 新库死招扫描过 |
-|  | *状态(10-05 部分✅): 工具链完整(trialmode_parse PACKS扩10角色+gen_trialmode_combos生成器+repr元组格式修复); 盘点985条可用; 试追加39条被门禁R39拦截(幽灵/SC耗费/射程三缺口 — 完整集成需同步reach_maps+sc_cost, 下批); 7角色无zip包(sakuya/patchouli/reisen/remilia/aya/iku/utsuho)* | | | |
+|  | *状态(10-05 ✅): 39条TM连段全量入10新角色宏库(门禁505/0全绿); 工具链c6_integrate.py完整(解析→转换→追加+类别+SC+射程+names五同步); 7角色无zip包(sakuya/patchouli/reisen/remilia/aya/iku/utsuho)* | | | |
 
 ### 工作流 D · 规模化（本地, 与 B/C 并行——**撤云修订 2026-10-05**）
 
