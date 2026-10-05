@@ -36,10 +36,13 @@ PACKS = {
                '诹访子连段专项大合集120+ -鱼的千千.zip'],
     'alice': ['爱丽丝连段包1.1-米神こめ神.zip'],
     'cirno': ['白天子-琪露诺的连段包.zip'],
-    # R61k(用户补包): aya/remilia zip
+    # R61k(用户补包): aya/remilia zip + utsuho/sakuya解压转zip + iku(19=衣玖)
     'aya': ['aya（文连段，共41个）.zip'],
     'remilia': ['蕾米连段包_SATORI.zip'],
-    # rar包(需解压工具): utsuho(高达)/sakuya(咲夜)
+    'utsuho': ['utsuho_trialmode.zip'],
+    'sakuya': ['sakuya_trialmode.zip'],
+    'iku': ['19大学习连段包——by妖精.zip'],
+    # 无包: patchouli/reisen(2角色)
 }
 TOK = re.compile(r'(!?)([a-z0-9/]+?)(?:\[(\d+)\])?(?::(\d+))?$')
 

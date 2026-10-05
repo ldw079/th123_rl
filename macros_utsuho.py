@@ -122,3 +122,14 @@ _RAW_UTSUHO = list(MACROS_UTSUHO)
 MACROS_UTSUHO = [(n, _norm_presteps(sc)) for n, sc in _RAW_UTSUHO]
 NORMALIZED_AFFECTED_UTSUHO = {n for (n, s0), (_, s1) in
                             zip(_RAW_UTSUHO, MACROS_UTSUHO) if s0 != s1}
+
+# ==== R61j(C6): Trialmode连段完整集成 ====
+MACROS_UTSUHO.append(('TM·3a_2c_hj9', [(('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 10), ((), 2), ('confirm', 0), ((), 30), (('down',), 6), (('down', 'C'), 12), ((), 24), (('down',), 4), (('up', 'right'), 8)]))
+MACROS_UTSUHO.append(('TM·3a_sc201_6', [(('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 10), ((), 2), ('confirm', 0), ((), 19), ('sc:201', 0), (('right',), 6)]))
+MACROS_UTSUHO.append(('TM·4a_2c_sc201_6', [(('left',), 6), (('left', 'A'), 10), ((), 2), ('confirm', 0), (('down',), 6), (('down', 'C'), 12), ((), 23), ('sc:201', 0), (('right',), 6)]))
+MACROS_UTSUHO.append(('TM·5a_5aa_6a_dskill1c', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), ((), 11), (('right',), 6), (('right', 'A'), 12), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('C', 'right'), 10), ((), 30), (('up',), 6), (('up',), 6), (('up',), 2), (('up', 'A'), 12)]))
+UTSUHO_COMBO_MACROS |= {'TM·3a_2c_hj9', 'TM·3a_sc201_6', 'TM·4a_2c_sc201_6', 'TM·5a_5aa_6a_dskill1c'}
+# R61j: TM宏追加后同步names
+MACRO_NAMES_UTSUHO = [m[0] for m in MACROS_UTSUHO]
+# R61j: TM宏引用的SC卡耗费补入
+SC_COST_UTSUHO[201] = 2

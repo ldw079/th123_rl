@@ -122,3 +122,12 @@ _RAW_SAKUYA = list(MACROS_SAKUYA)
 MACROS_SAKUYA = [(n, _norm_presteps(sc)) for n, sc in _RAW_SAKUYA]
 NORMALIZED_AFFECTED_SAKUYA = {n for (n, s0), (_, s1) in
                             zip(_RAW_SAKUYA, MACROS_SAKUYA) if s0 != s1}
+
+# ==== R61j(C6): Trialmode连段完整集成 ====
+MACROS_SAKUYA.append(('TM·6a_2c_hj9_j5a_j6a', [(('right',), 6), (('right', 'A'), 10), ((), 2), ('confirm', 0), (('down',), 6), (('down', 'C'), 12), ((), 4), (('down',), 4), (('up', 'right'), 8), (('A',), 8), ((), 13), (('right',), 6), (('right', 'A'), 12)]))
+MACROS_SAKUYA.append(('TM·6a_d623b_j5b_j66_j', [(('right',), 6), (('right', 'A'), 10), ((), 2), ('confirm', 0), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('B', 'down', 'right'), 10), ((), 29), (('B',), 10), (('right', 'D'), 8), (('right',), 6), (('right', 'A'), 12)]))
+MACROS_SAKUYA.append(('TM·d623b_j5c_j66_j6a_', [(('right',), 3), (('down',), 3), (('down', 'right'), 3), (('B', 'down', 'right'), 10), ((), 2), ('confirm', 0), ((), 30), (('C',), 12), (('right', 'D'), 8), (('right',), 6), (('right', 'A'), 12), ((), 8), (('B',), 10)]))
+MACROS_SAKUYA.append(('TM·5aaa_d623b_j5b_j66', [(('A',), 6), (('A',), 6), (('A',), 6), ((), 2), ('confirm', 0), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('B', 'down', 'right'), 10), ((), 30), (('B',), 10), (('right', 'D'), 8), (('right',), 6), (('right', 'A'), 12)]))
+SAKUYA_COMBO_MACROS |= {'TM·6a_2c_hj9_j5a_j6a', 'TM·6a_d623b_j5b_j66_j', 'TM·d623b_j5c_j66_j6a_', 'TM·5aaa_d623b_j5b_j66'}
+# R61j: TM宏追加后同步names
+MACRO_NAMES_SAKUYA = [m[0] for m in MACROS_SAKUYA]

@@ -21,7 +21,8 @@ from card_tables import CHAR_CARD_TABLES  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NEW_CHARS = ['yukari', 'komachi', 'meiling', 'sanae', 'youmu', 'yuyuko',
-             'tenshi', 'suwako', 'alice', 'cirno', 'aya', 'remilia']
+             'tenshi', 'suwako', 'alice', 'cirno', 'aya', 'remilia',
+             'utsuho', 'sakuya', 'iku']
 # 角色引擎ID(engine_id → char name)
 CID = {'reimu': 0, 'marisa': 1, 'suika': 9, 'sakuya': 2, 'alice': 3,
        'patchouli': 4, 'yuyuko': 7, 'reisen': 10, 'komachi': 12,

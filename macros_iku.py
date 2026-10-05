@@ -122,3 +122,12 @@ _RAW_IKU = list(MACROS_IKU)
 MACROS_IKU = [(n, _norm_presteps(sc)) for n, sc in _RAW_IKU]
 NORMALIZED_AFFECTED_IKU = {n for (n, s0), (_, s1) in
                             zip(_RAW_IKU, MACROS_IKU) if s0 != s1}
+
+# ==== R61j(C6): Trialmode连段完整集成 ====
+MACROS_IKU.append(('TM·2a_3a_6c_hj9_j5a_j', [(('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 19), (('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 14), ((), 5), (('right',), 6), (('right', 'C'), 12), (('down',), 4), (('up', 'right'), 8), (('A',), 8), ((), 15), (('down',), 6), (('down', 'A'), 10)]))
+MACROS_IKU.append(('TM·5a_5aa_6b_6c_d22b', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), ((), 6), (('right',), 6), (('right', 'B'), 10), (('right',), 6), (('right', 'C'), 12), (('down',), 3), (('down',), 3), (('B', 'down'), 10)]))
+MACROS_IKU.append(('TM·5a_5aa_5aaa_6c_hj9', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), ((), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('right',), 6), (('right', 'C'), 12), ((), 8), (('down',), 4), (('up', 'right'), 8), (('down',), 6), (('down', 'A'), 10)]))
+MACROS_IKU.append(('TM·8_j5a_j6c_j66_j5a_', [(('up',), 6), (('A',), 8), ((), 2), ('confirm', 0), ((), 7), (('right',), 6), (('right', 'C'), 12), ((), 3), (('right', 'D'), 8), (('A',), 8), ((), 10), (('right',), 6), (('right', 'A'), 12), (('B',), 10), (('right',), 6), (('right', 'C'), 12)]))
+IKU_COMBO_MACROS |= {'TM·2a_3a_6c_hj9_j5a_j', 'TM·5a_5aa_6b_6c_d22b', 'TM·5a_5aa_5aaa_6c_hj9', 'TM·8_j5a_j6c_j66_j5a_'}
+# R61j: TM宏追加后同步names
+MACRO_NAMES_IKU = [m[0] for m in MACROS_IKU]

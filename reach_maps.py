@@ -55,7 +55,7 @@ CHAR_MACRO_MOVES = {
     'marisa': dict(_COMMON, **{'B6C连': (400, 408)}),   # B起手+66B
     'suika': dict(_COMMON),
     # R44(2026-10-04): 六新角色 — 通用骨架表(生成器tools/gen_newchar_libs.py)
-    'sakuya': dict(_COMMON),
+    'sakuya': dict(_COMMON, **{'TM·6a_2c_hj9_j5a_j6a': (302,), 'TM·6a_d623b_j5b_j66_j': (302,), 'TM·d623b_j5c_j66_j6a_': (400,), 'TM·5aaa_d623b_j5b_j66': (400,)}),
     'patchouli': dict(_COMMON),
     'yuyuko': dict(_COMMON, **{'TM·2a_6a_6c_dskill4b': (303,), 'TM·5a_5aa_5aaa_sc203_': (300,), 'TM·hj9_j2a_2a_2b_6c_h': (303,), 'TM·5a_5aa_5aaa_f5a_6a': (300,)}),
     'reisen': dict(_COMMON),
@@ -67,11 +67,11 @@ CHAR_MACRO_MOVES = {
     'remilia': dict(_COMMON, **{'TM·5a_5aa_5aaa_5aaaa_': (300,), 'TM·5a_5aa_5aaa_5aaaa_': (300,), 'TM·2a_sc206': (303,), 'TM·5a_5aa_5aaa_5aaaa_': (300,)}),
     'yukari': dict(_COMMON, **{'TM·3a_sc215': (304,), 'TM·3a_sc208': (304,), 'TM·5a_5aa_5aaa_sc201_': (300,), 'TM·5a_5aa_5aaa_5aaaa_': (300,)}),
     'aya': dict(_COMMON, **{'TM·6_d236b_sc206': (400,), 'TM·2a_2a_sc206': (303,), 'TM·hj9_j5a_j5b_j66_j5': (300,)}),
-    'iku': dict(_COMMON),
+    'iku': dict(_COMMON, **{'TM·2a_3a_6c_hj9_j5a_j': (303,), 'TM·5a_5aa_6b_6c_d22b': (300,), 'TM·5a_5aa_5aaa_6c_hj9': (300,), 'TM·8_j5a_j6c_j66_j5a_': (300,)}),
     'sanae': dict(_COMMON, **{'TM·2a_3a_2c_sc205': (303,), 'TM·5a_5aa_5aaa_5aaaa_': (300,), 'TM·2a_3a_5c_sc205': (303,), 'TM·5a_5aa_5aaa_2b_sc2': (300,)}),
     'cirno': dict(_COMMON, **{'TM·5a_5aa_5aaa_5c_sc2': (300,), 'TM·5a_5aa_5aaa_5c_d62': (300,), 'TM·hj9_j5a_j6a_j5c_j6': (300,), 'TM·hj9_j5a_j5c_j66_j5': (300,)}),
     'meiling': dict(_COMMON, **{'TM·d6_5a_5aa_5aaa_d62': (300,), 'TM·5a_5aa_5aaa_2b_5c_': (300,), 'TM·f5a_3a_6c_d623c': (300,)}),
-    'utsuho': dict(_COMMON),
+    'utsuho': dict(_COMMON, **{'TM·3a_2c_hj9': (304,), 'TM·3a_sc201_6': (304,), 'TM·4a_2c_sc201_6': (412,), 'TM·5a_5aa_6a_dskill1c': (300,)}),
     'suwako': dict(_COMMON, **{'TM·8_j8a_sc208': (309,), 'TM·f5a_sc208': (300,), 'TM·5a_5aa_5aaa_j5b_j6': (300,), 'TM·5a_5aa_5aaa_5aaaa': (300,)}),
 }
 REACH_MARGIN = 80.0   # 掩码放宽(起手期间对手位移+模型前冲余量)
