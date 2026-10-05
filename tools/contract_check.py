@@ -1084,8 +1084,9 @@ chk("FRAME_WINDOWS" in src("frame_events.py")
     and "E_GUARDSTUN" in src("frame_events.py"),
     "攻略帧窗表+事件枚举在位(R49: DD 15F/插动12F等)")
 chk("_frame_detector" in src("train_tm.py")
-    and "frame_events.pick_reaction" in src("train_tm.py"),
-    "帧级事件接入_run_episode帧循环(R49 L3)")
+    and "frame_events.reaction_mask" in src("train_tm.py"),
+    "帧级事件接入_run_episode(R61l B2: reaction_mask策略条件化, "
+    "原pick_reaction固定权重随机已废)")
 chk('s[o] = min(left.get("pose"' in src("feat_builder.py"),
     "pose/poseFrame入14j段(R57: 显式入账, 原尾写静默覆盖14i后4维)")
 # R57(第十八轮2.5): 原"action细分//64下段可分"子串断言已删 — 特性是伪的
@@ -1118,10 +1119,10 @@ chk("_TRUE_DOWN_ACTS = frozenset({88, 89, 97, 98, 100, 143, 145})"
     in fe50,
     "WAKEUP检测=真倒地集7枚(R61d A3裁决: 站立/蹲/普通空受恢复非起身 — "
     "R51版全受击族把hitstun恢复误判起身, hitlab H1实证)")
-chk("if not macro_queue and not getattr(self, '_in_frame_reaction'"
-    in src("train_tm.py"),
-    "帧级反应守式模式(R51§F3: 决策点含_in_frame_reaction检查, "
-    "反应不入轨迹)")
+chk("if _ev_mask is not None:" in src("train_tm.py")
+    and "self._frame_event_mask = None" in src("train_tm.py"),
+    "R61l(B2): 事件反应决策化(掩码交集→策略选→决策后清除; "
+    "R51守式模式已废 — 反应决策入轨迹获信用)")
 chk('"sakuya": 11' in src("train_tm.py"),
     "新角色池序从11起(R51§C4: 原3-10与技能特征块冲突)")
 # ============ R41(第十二轮§2-1/§2-2): oracle侧血统闭环+源码树入罩 ============

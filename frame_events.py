@@ -293,3 +293,58 @@ def pick_reaction(event: int, left: dict, right: dict,
     probs = weights_arr / weights_arr.sum()
     idx = int(rng.choice(len(candidates), p=probs))
     return candidates[idx][0]
+
+
+def reaction_mask(event: int, left: dict, right: dict,
+                  macro_names: list, base_mask) -> np.ndarray:
+    """R61l(B2): 事件→策略条件化反应掩码。
+
+    与pick_reaction同源的候选过滤, 但返回掩码而非选择 —
+    策略在下一决策点从掩码约束的选项中**自主选择**(学习化),
+    替代固定权重随机(原版B2目标: "从固定权重随机→策略条件化")。
+
+    返回: (N,)bool 掩码(True=该宏是本事件的有效反应);
+    全False时返回None(无可用反应, 不触发决策点)。
+    """
+    if event not in REACTION_TABLE:
+        return None
+    dx = abs(right.get('position.x', 0) - left.get('position.x', 0))
+    spirit = left.get('spirit', 0)
+
+    def cond_ok(cond: str) -> bool:
+        if cond == 'always':
+            return True
+        if cond == 'down_guard':
+            return True
+        if cond == 'back_guard':
+            return True
+        if cond == 'opp_low':
+            return dx < 200
+        if cond == 'opp_low_hab':
+            return dx < 250
+        if cond == 'advantage':
+            return True
+        if cond == 'disadvantage':
+            return True
+        if cond == 'reversal_ok':
+            return spirit >= 200
+        if cond == 'close_range':
+            return dx < 200
+        if cond == 'mid_range':
+            return 200 <= dx < 400
+        if cond == 'far_range':
+            return dx >= 400
+        if cond == 'opp_pressure':
+            return dx < 300
+        return False
+
+    out = np.zeros(len(macro_names), dtype=bool)
+    for name_prefix, cond, _priority in REACTION_TABLE[event]:
+        for i, mn in enumerate(macro_names):
+            if mn.startswith(name_prefix) or name_prefix in mn:
+                if base_mask is not None and not base_mask[i]:
+                    break
+                if cond_ok(cond):
+                    out[i] = True
+                break
+    return out if out.any() else None

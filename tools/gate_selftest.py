@@ -374,6 +374,13 @@ MUTATIONS = [
     ("bc_build.py", "def resolve_sc_label(",
      "def resolve_sc_label_disabled(",
      "R61g回退: 具体卡解析改名断链(SC标签全是首个SC宏) → 解析断言必须红"),
+    # ---- R61l(B2): 反应表学习化 ----
+    ("train_tm.py", "frame_events.reaction_mask(",
+     "frame_events.pick_reaction(",
+     "R61l-B2回退: 事件回退到固定权重随机(策略失去事件约束) → B2断言必须红"),
+    ("train_tm.py", "if _ev_mask is not None:",
+     "if False:",
+     "R61l-B2回退: 事件掩码交集断开(策略失去事件约束) → B2断言必须红"),
 ]
 
 

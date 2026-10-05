@@ -212,7 +212,7 @@ def ko_round_reward(my_hp, opp_hp, win):
 GUARD_PREP_MACROS = ("立防", "蹲防")  # 真格挡宏(不含空防/后跳/结界)
 # R49: 帧级事件系统(L3时序墙) — R52: 用原名导入(代码中直接引用frame_events.*)
 import frame_events
-from frame_events import FrameEventDetector, pick_reaction
+from frame_events import FrameEventDetector, pick_reaction, reaction_mask
 from frame_events import E_NONE as _FE_NONE
 _FRAME_EV_NAMES = {v: k for k, v in frame_events.__dict__.items()
                    if k.startswith('E_') and isinstance(v, int)}
@@ -1070,6 +1070,8 @@ class TMTrainer:
         round_f0 = 0                         # R61: 本回合起始帧(快胜奖金计时)
         self._seiran_gauge = None            # R61c(B5): 晴岚gauge冻结值
         self._last_gauge = 0                 # R61c: 进入晴岚前的真实gauge
+        self._frame_event_mask = None        # R61l(B2): 事件反应掩码
+        self._in_frame_reaction = False      # R61l: 事件反应模式标记
         gate_frames = 0        # confirm门观察窗状态(hitstop晚结算容忍)
         # P2-1修复: 空挥判定状态(决策→决策窗口内的伤害/对手防御)
         dec_name, dec_dmg, dec_guarded = None, 0.0, False
@@ -1154,31 +1156,32 @@ class TMTrainer:
             frozen = (left["hitStop"] > 0) or (left["timeStop"] > 0)
             _fev, _fwin = self._frame_detector.detect(left, right, frozen)
             if _fev != _FE_NONE and macro_queue:
-                _rid = frame_events.pick_reaction(
+                # R61l(B2): 事件→策略条件化 — 原pick_reaction固定权重
+                # 随机选择, 改为清空队列+设置反应掩码, 让策略在下一
+                # 决策点从事件约束的选项中**自主选择**(学习化, 入轨迹
+                # →获信用/担责). 策略学会"被防时做什么"而非规则随机.
+                _rmask = frame_events.reaction_mask(
                     _fev, left, right,
                     CHAR_LIBS[self.char]['names'],
-                    self.base_mask, self._ppo_act.rng)
-                if _rid >= 0:
-                    _rn = CHAR_LIBS[self.char]['names'][_rid]
+                    self.base_mask)
+                if _rmask is not None:
                     macro_queue = []
                     gate_frames = 0
                     self._sc_reset()
-                    _script = self.macros[_rid][1]
-                    macro_queue = list(_script)
-                    self.frame_event_count += 1
-                    # R51: 标记反应模式 — 后续决策点检查此标记,
-                    # 反应结束前不产生新训练数据(奖励归上一策略动作)
+                    self._frame_event_mask = _rmask
                     self._in_frame_reaction = True
-                    self._reaction_frames_left = sum(f for _, f in _script)
+                    print("[帧级事件] %s→策略决策(掩码%d) (第%d次)" % (
+                        _FRAME_EV_NAMES.get(_fev, _fev),
+                        int(_rmask.sum()),
+                        self._frame_ev_count))
+                    self._frame_ev_count = (getattr(
+                        self, '_frame_ev_count', 0) + 1)
+                    self.frame_event_count += 1
                     if self.frame_event_count % 20 == 1:
-                        print("[帧级事件] %s→%s (第%d次)"
+                        print("[帧级事件] %s→策略决策 (第%d次)"
                               % (frame_events.EV_NAMES.get(_fev, '?'),
-                                 _rn, self.frame_event_count))
-            # R51: 反应模式帧计数递减(到0=反应结束, 恢复正常决策)
-            if getattr(self, '_in_frame_reaction', False):
-                self._reaction_frames_left -= 1
-                if self._reaction_frames_left <= 0:
-                    self._in_frame_reaction = False
+                                 self.frame_event_count))
+                # R61l(B2): 反应模式在决策完成后自动清除(见决策点)
 
                         # ---- 逐帧视觉栈(架构审查C: 连续帧=运动感知) ----
             self._push_frame(left, right, objs)
@@ -1376,9 +1379,12 @@ class TMTrainer:
                             macro_queue[0] = (keys, fl)
 
             # ---- 决策点(队列空) ----
-            # R51(§F3): 帧级反应期间不产生新决策点 — 守式模式(不入轨迹)
-            if not macro_queue and not getattr(self, '_in_frame_reaction',
-                                               False):
+            # R61l(B2): 事件反应期间产生**策略条件化决策点** —
+            # 策略从事件约束掩码中自主选择(入轨迹→获信用/担责)
+            # (R51旧版: 反应期间不产生决策=守式不入轨迹 — 已废,
+            #  B2让反应决策成为真实训练数据)
+            _ev_mask = getattr(self, '_frame_event_mask', None)
+            if not macro_queue:
                 # 虚拟视觉(包渲染, 内部维护3帧栈)
                 vf = self._visual_feat(left, right, objs)  # 栈由_push_frame维护
                 if vf is not None:
@@ -1391,6 +1397,9 @@ class TMTrainer:
                     # 决策掩码: 基础 + 符卡动态门控(目标在手且够耗费)
                     # + 背向禁方向攻 + 远距禁近战/贴身禁弹幕
                     mask = self.base_mask | self._sc_usable_mask(left)
+                    # R61l(B2): 事件反应掩码交集(策略从事件约束中选)
+                    if _ev_mask is not None:
+                        mask = mask & _ev_mask
                     dx_abs = abs(right["position.x"] - left["position.x"])
                     if back_turned:
                         mask = mask & ~self.dir_attack
@@ -1492,6 +1501,10 @@ class TMTrainer:
                         except Exception:
                             pass    # 价值引导失败不阻塞采样
                     self.macro_counts[mid] += 1
+                    # R61l(B2): 事件反应决策完成 — 清除掩码+守卫
+                    if _ev_mask is not None:
+                        self._frame_event_mask = None
+                        self._in_frame_reaction = False
                     # R56(fleet): actor模式logP记录(在mid最终确定后 —
                     # newbie探针/采样/价值引导重选三条路径统一于此记
                     # log π_snapshot(a_final|mask,bias))
