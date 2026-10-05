@@ -22,11 +22,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 def explain_situation(char: str, dx: float, opp_airborne: bool,
                       opp_corner: bool, spirit: float,
-                      model_choice: str) -> str:
+                      model_choice: str, entropy: float = None) -> str:
     """局面讲解: 标准应对 vs 模型选择(教义树驱动, 纯离线)。
 
     这是教学层的最轻量形态 — 不需要游戏实例, 输入是当前局面特征
     (从105B包解析), 输出是自然语言的"标准应对+模型偏差+建议"。
+    R61o(E4): entropy参数 = 策略输出分布的香农熵 — 标注置信度
+    (低熵=确信选择, 高熵=试探性选择; 讲解读者可判断建议的可靠度)。
     """
     from train_tm import CHAR_LIBS
     lib = CHAR_LIBS[char]
@@ -38,12 +40,36 @@ def explain_situation(char: str, dx: float, opp_airborne: bool,
                     ' 版边' if opp_corner else '', spirit))
     parts.append('【标准应对】%s' % std)
     parts.append('【模型选择】%s' % model_choice)
+    # R61o(E4): 置信度标注(熵→人类可读)
+    if entropy is not None:
+        if entropy < 1.0:
+            conf = '高置信'
+        elif entropy < 2.0:
+            conf = '中置信'
+        else:
+            conf = '低置信(试探)'
+        parts.append('【置信度】%s (熵%.2f)' % (conf, entropy))
     if model_choice == std:
         parts.append('【评价】✓ 符合标准')
     else:
         delta = _explain_delta(std, model_choice, lib)
         parts.append('【评价】偏差: %s' % delta)
     return '\n'.join(parts)
+
+
+def policy_entropy(ppo, feat, side, mask=None) -> float:
+    """R61o(E4): 策略输出分布的香农熵。
+
+    熵越低=策略越确信(分布尖锐); 越高=越试探(分布平坦).
+    用于讲解的置信度标注: 读者可判断"模型选X"是深思熟虑还是碰运气.
+    """
+    import numpy as np
+    P = ppo._pi_forward(feat.reshape(1, -1), side.reshape(1, -1),
+                        temp=1.0,
+                        mask=mask.reshape(1, -1) if mask is not None
+                        else None)[2][0]
+    P = np.clip(P, 1e-10, 1.0)
+    return float(-np.sum(P * np.log(P)))
 
 
 def _doctrine_best(dx, air, corner, spirit, lib) -> str:
@@ -105,11 +131,12 @@ def _explain_delta(std, choice, lib) -> str:
 
 
 def batch_explain(distill_path: str, char: str,
-                  limit: int = 10) -> list:
+                  limit: int = 10, ppo=None) -> list:
     """批量局面讲解(从distill数据反查模型偏差的Top场景)。
 
     输入: distill_data_{char}.npz(标准树审计的副产品, 含局面特征+模型选择)
     输出: [讲解文本, ...] — 优先展示偏离最大的场景
+    R61o(E4): ppo参数提供时, 计算每场景的策略熵并标注置信度
     """
     import numpy as np
     from train_tm import CHAR_LIBS
