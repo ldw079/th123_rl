@@ -65,6 +65,8 @@ FILES = [
          "ppo_gpu.py",
          "frame_events.py",
          "frame_macros.py",
+         # R61g(B1): SC词汇断言的载体
+         "bc_match.py", "bc_build.py", "card_tables.py",
          "episode_core.py",
          "actor_worker.py",
          "learner_hub.py",
@@ -366,6 +368,13 @@ MUTATIONS = [
     ("deck_sampler.py", "if len(deck) > 20:",
      "if False:",
      "R61f回退: deck边界截断移除(32张溢出) → deck边界断言必须红"),
+    # ---- R61g(B1): SC词汇 ----
+    ("bc_match.py", "SC_PRESS_F = 3",
+     "SC_PRESS_F = 0",
+     "R61g回退: sc:步零时长展开(SC标签回0%) → SC词汇断言必须红"),
+    ("bc_build.py", "def resolve_sc_label(",
+     "def resolve_sc_label_disabled(",
+     "R61g回退: 具体卡解析改名断链(SC标签全是首个SC宏) → 解析断言必须红"),
 ]
 
 

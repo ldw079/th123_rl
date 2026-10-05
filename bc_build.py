@@ -97,6 +97,34 @@ def render_frame(left, right, objs):
     return img
 
 
+def _hand_ids(hand_bytes):
+    """hand 10字节 → (ids, sel)。与train_tm._parse_hand同构。"""
+    ids = [hand_bytes[i * 2] for i in range(5)
+           if hand_bytes[i * 2] != 0xFF]
+    sel = hand_bytes[0] if hand_bytes[0] != 0xFF else None
+    return ids, sel
+
+
+def resolve_sc_label(sc_tgts, idx_by_name, hand_bytes):
+    """R61g(B1): SC通用标签→具体卡宏。专家按下卡键时用的是**选中卡**
+    (hand[0]); 匹配器给出的SC标签是"某卡被使用"(所有SC共享按键形态)
+    — 此处按手牌选中位解析到sc_target==该卡ID的宏。
+    返回具体宏idx; 无匹配返回None(该行丢弃 — 空表优于错表)。
+    sc_tgts: {宏名: 目标卡ID}(_parse_sc_targets产物);
+    idx_by_name: {宏名: idx}。"""
+    _ids, sel = _hand_ids(hand_bytes)
+    if sel is None:
+        return None
+    for name, t in sc_tgts.items():
+        if t == sel and name in idx_by_name:
+            return idx_by_name[name]
+    # 泛卡宏(tgt=-1, 用当前选中)兜底
+    for name, t in sc_tgts.items():
+        if t == -1 and name in idx_by_name:
+            return idx_by_name[name]
+    return None
+
+
 def build_shard(path):
     d = np.load(path, allow_pickle=True)
     meta = json.loads(str(d['meta']))
@@ -141,6 +169,10 @@ def build_rows(char_id, shards, log=print):
     name, lib = LIBS[char_id]
     matcher = StreamMatcher(lib, threshold=0.88)
     n_macros = len(lib)
+    # R61g(B1): SC具体卡解析表(宏名→目标卡ID / 宏名→idx)
+    from train_tm import _parse_sc_targets
+    _sc_tgts = _parse_sc_targets(lib)
+    _sc_idx_by_name = {m[0]: i for i, m in enumerate(lib)}
     fb = FeatureBuilder(n_macros)
     # R39(第十轮审计P1-2): 技能等级230-233/手牌技能可用性234-237由
     # _char_name驱动 — 原漏设 → BC行8维恒零, 与在线分布失配
@@ -205,6 +237,19 @@ def build_rows(char_id, shards, log=print):
             hits = matcher.walk(u16, facings)
             hits = [h for h in hits if h[2] >= CONF_MIN and h[0] >= 2
                     and h[0] < len(fr)]
+            # R61g(B1): SC通用标签→具体卡宏(按当帧手牌选中位解析;
+            # 解析失败的SC行直接丢 — SC标签占比>0靠具体卡命中)
+            _fixed = []
+            for h in hits:
+                _mname = lib[h[1]][0]
+                if _mname in _sc_tgts:
+                    _ri = resolve_sc_label(
+                        _sc_tgts, _sc_idx_by_name, fr[h[0]][0]['hand'])
+                    if _ri is None:
+                        continue          # 无法定位具体卡 — 丢弃
+                    h = (h[0], _ri, h[2])
+                _fixed.append(h)
+            hits = _fixed
             if not hits:
                 continue
             fb.reset_match()

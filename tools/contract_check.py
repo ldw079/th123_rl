@@ -1448,6 +1448,15 @@ chk("if len(deck) > 20:" in src("deck_sampler.py"),
 chk("stats记的是**模型**对每个对手的胜率" in src("league.py"),
     "R61f: league docstring方向修正(原与实现相反)")
 
+# ---- R61g(B1): BC匹配器SC词汇(M2组件) ----
+chk("SC_PRESS_F = 3" in src("bc_match.py")
+    and "def sc_press_bits(" in src("bc_match.py"),
+    "R61g: sc:步展开为SC按压词汇(原结构性排除=SC标签恒0%)")
+chk("bool(inp.get(\"SC\")), bool(inp.get(\"SW\"))" in src("bc_match.py"),
+    "R61g: 匹配器8元组含SC/SW位(AandB→SC经battle_to_trainer)")
+chk("def resolve_sc_label(" in src("bc_build.py"),
+    "R61g: BC具体卡解析(手牌选中位→sc_target匹配宏, 无匹配丢行)")
+
 # ---- R61(用户2026-10-05"d+快速胜利")奖励经济学 ----
 chk("def graze_low_rate(f):" in tt60
     and "GRAZE_SAT_F = 6000.0" in tt60,
@@ -1507,6 +1516,9 @@ _BEHAVIOR_TESTS = [
     # R61d: A3裁决的帧级事件边沿(F-12/F-13)
     ("test_frame_edges_r61d.py",
      "R61d(A3): 正防150-157入GUARDSTUN沿+真倒地7枚WAKEUP沿(行为钉)"),
+    # R61g: SC词汇(B1/M2)
+    ("test_sc_vocab_r61g.py",
+     "R61g(B1): SC按压匹配+expert_bits 8元组+具体卡解析"),
 ]
 for _tname, _tdesc in _BEHAVIOR_TESTS:
     _tp = os.path.join(ROOT, _tname)
