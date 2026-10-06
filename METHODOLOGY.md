@@ -1639,3 +1639,49 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     bits 8元组/具体卡解析四路); 门禁507/0(+3断言); 变异+2
     (R61g标签, 146+1全拦截); 沙箱FILES补bc_match/bc_build/card_
     tables(SC断言载体)。
+- 2.55 (2026-10-06, 从零审计#2(full_review_from_zero_2)修复波 —
+  3×P0+8×P1+P2批量; 共性病根"单元测试绿、集成缝全断"):
+  - **P0三修**: (A)learner维度推断过期(hardcode 308→CORE_DIMS派生+
+    宽度断言+ppo_gpu严格加载拒错形 — fleet静默零学习链终结);
+    (B)train_tm入队丢字符串步载荷(→macro_executor.enqueue_script单源,
+    branch/link/ender在训练侧从不可用变为可用); (C)eval_matrix/
+    branch_demo双工具从未能运行(死行last_state/__wrapped__/len(闭包)/
+    吞异常 — 全矩阵战报曾是对零矩阵的排名)。
+  - **P1八修**: ender调用方接线(菜单掩码复用B2机制, 单次消费);
+    teach三重修复(3元组解包/FeatureBuilder构造消灭硬编码偏移/
+    batch_explain双轴); episode先删后更→update成功后删+failed/
+    隔离区; supervisor自毁(reap前置+本PID入活集)+STORE未定义;
+    c6 CID表11/17错位(tm_env.CHAR单源)+重名清理+TM宏规范化入生成器
+    (git还原222ce6f重生成64条); habit双死探测器(起身观察窗+对手压力
+    位); bc_match mirror只翻H轴(V轴翻=换边空中宏标签错配);
+    frame_events前缀匹配精确名优先(pick/mask单源对称)。
+  - **numpy↔GPU一步等价**(§6-3条款落地): 四语义差修复(sum-vs-mean
+    归约/rstd先更后除/pi-vf分组5.0裁剪/bc_targets=None不吃BC)+
+    NaN梯度与参数守卫+ep_lens断言+统计字典12键对齐+KL复检同掩码
+    每更新一次。探针test_gpu_onestep常驻门禁: 同权重同批同种子各走
+    一步→max rel 0.28%/策略头1e-5/KL逐位相等。顺手抓numpy侧
+    bc_mask=None+bc_targets给定的AttributeError。
+  - **fleet P2六修**: disk_guard三病(角色过滤/数值序/真False路径);
+    池快照路径接线(actor读fleet池 — league对手冻结终结); COM难度档
+    按actor隔离; 快照版本单调地板; 首局deck入构造参数(_start_first
+    在__init__内即发包, 原构造后赋值=首局恒系统卡~15-20%局);
+    _remake_env放行fleet段车道。
+  - **执行器细部**: 分支门结算窗(受击态50-98持续~20帧=状态式证据,
+    替代单帧瞬时d_deal — R5教训继承到新门); R34守备豁免评估侧对称
+    (原set()); 帧级事件清队补dec_name清(误记空挥); 守卫ID集第三
+    副本单源化(macro_executor从frame_events导入)。
+  - **trialmode转换器死路径**(38% token错译): 精确匹配优先于前缀
+    剥离(j5a×1302全族复活, 原退化地面版); 运动记法[1-9]全数字+尾姿
+    映射(214/d214b族); hj全方向/小键盘全向/66a-c冲刺攻击/j{dir}d
+    空中dash/l·ud·s·u前缀族归一; 被拒token 3000+→~35(0.3%)。
+  - **治理**: gate_selftest复活(FILES+macro_executor/difficulty/
+    habit_detector — 沙箱缺件=全部变异失效的病根; 死变异8条迁移/
+    退役+cpp沙箱外路径6条删除+重复3组去重; 本轮新增变异钉8条);
+    贯通集成测试制度化(test_executor_integration入C15行为套件 —
+    "新模块+新调用方成对落地必附贯通测试"条款); 常量横扫SOP(改
+    CORE_DIMS/N_*后grep全库旧值 — 审查者锚定第四次教训)。
+  - **验证**: 门禁515 PASS/0 FAIL(新增test_executor_integration/
+    test_gpu_onestep两套件); test_fleet_protocol 21 PASS(含B5严格
+    加载/B6派生/C5失败批不删+隔离/I1 disk_guard角色过滤);
+    test_executor_c1 21 PASS(R34中断/豁免/灵力门/空队安全);
+    增量变异自检本轮新钉逐个✓红。R61h-z各轮状态详见主计划。

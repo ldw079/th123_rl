@@ -124,13 +124,14 @@ NORMALIZED_AFFECTED_YOUMU = {n for (n, s0), (_, s1) in
                             zip(_RAW_YOUMU, MACROS_YOUMU) if s0 != s1}
 
 # ==== R61j(C6): Trialmode连段完整集成 ====
-MACROS_YOUMU.append(('TM·hj8_j2a_4_sc204', [(('up',), 6), ((), 13), (('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), (('left',), 6), ('sc:204', 0)]))
-MACROS_YOUMU.append(('TM·f2a_sc203', [(('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 22), ('sc:203', 0)]))
-MACROS_YOUMU.append(('TM·d623c_sc203', [(('right',), 3), (('down',), 3), (('down', 'right'), 3), (('C', 'down', 'right'), 10), ((), 2), ('confirm', 0), ('sc:203', 0)]))
-MACROS_YOUMU.append(('TM·d6_2c_hj8_j2a_sc20', [(('right',), 6), (('down',), 6), (('down', 'C'), 10), ((), 2), ('confirm', 0), ((), 18), (('up',), 6), (('down',), 6), (('down', 'A'), 10), ((), 9), ('sc:204', 0)]))
-YOUMU_COMBO_MACROS |= {'TM·hj8_j2a_4_sc204', 'TM·f2a_sc203', 'TM·d623c_sc203', 'TM·d6_2c_hj8_j2a_sc20'}
-# R61j: TM宏追加后同步names
+MACROS_YOUMU.append(('TM·hj8_j2a_4_sc204', _norm_presteps([(('down',), 4), (('up',), 8), ((), 13), (('up',), 6), (('down',), 2), (('down',), 4), (('down', 'A'), 10), ((), 2), ('confirm', 0), (('left',), 6), ('sc:204', 0)])))
+MACROS_YOUMU.append(('TM·f2a_sc203', _norm_presteps([(('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 22), ('sc:203', 0)])))
+MACROS_YOUMU.append(('TM·d22b/6c/d22c_sc204', _norm_presteps([(('down',), 3), (('down',), 3), (('B', 'down'), 10), ((), 2), ('confirm', 0), ('sc:204', 0)])))
+MACROS_YOUMU.append(('TM·d623c_sc203', _norm_presteps([(('right',), 3), (('down',), 3), (('down', 'right'), 3), (('C', 'down', 'right'), 10), ((), 2), ('confirm', 0), ('sc:203', 0)])))
+YOUMU_COMBO_MACROS |= {'TM·hj8_j2a_4_sc204', 'TM·f2a_sc203', 'TM·d22b/6c/d22c_sc204', 'TM·d623c_sc203'}
+# R61j: TM宏追加后同步names(含去重后缀)
 MACRO_NAMES_YOUMU = [m[0] for m in MACROS_YOUMU]
+N_MACROS_YOUMU = len(MACROS_YOUMU)
 # R61j: TM宏引用的SC卡耗费补入
-SC_COST_YOUMU[203] = 3
-SC_COST_YOUMU[204] = 1
+SC_COST_YOUMU[203] = 5
+SC_COST_YOUMU[204] = 4

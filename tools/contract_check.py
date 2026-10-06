@@ -1550,6 +1550,12 @@ _BEHAVIOR_TESTS = [
     # R61z: 进攻积极性
     ("test_aggression_r61z.py",
      "R61z: 距离势差(engage)+空中被动惩罚+telescoping"),
+    # 从零#2(方法论条款: 新模块+新调用方成对落地必附贯通测试)
+    ("test_executor_integration.py",
+     "从零#2: 入队载荷→执行器路由→ender拦截→决策消费全链贯通(P0-B/P1-A)"),
+    # 从零#2(方法论§6-3): numpy↔GPU一步更新等价探针常驻门禁
+    ("test_gpu_onestep.py",
+     "从零#2: 同权重同批同种子各走一步→权重/统计/KL逐键等价(四语义差钉)"),
 ]
 for _tname, _tdesc in _BEHAVIOR_TESTS:
     _tp = os.path.join(ROOT, _tname)

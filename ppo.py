@@ -755,6 +755,7 @@ class PPOTrainer:
         onehot[np.arange(N), A] = 1.0
 
         value_losses = []
+        pi_losses = []
         aux_losses = []
         aux_hits = 0
         aux_n = 0
@@ -775,6 +776,8 @@ class PPOTrainer:
                 surr1 = ratio * advb
                 surr2 = np.clip(ratio, 1 - self.CLIP, 1 + self.CLIP) * advb
                 active = (surr1 <= surr2)
+                # 从零#2(统计对齐): pi_loss仪表值(GPU版同键 — sum归约)
+                pi_losses.append(float(-np.minimum(surr1, surr2).sum()))
                 dz = (ab1 - P) * (advb * ratio * active)[:, None]
                 # P0-1修复: 熵梯度符号 — code曾产出-dH/dz, 现修正为+dH/dz
                 # dH/dz_i = -p_i*(log p_i + H), 取负号使maximize=True时最大化H
@@ -785,7 +788,10 @@ class PPOTrainer:
                     tgt = np.zeros((len(idx), self.N_OUT), dtype=np.float32)
                     tgt[np.arange(len(idx)), B[idx]] = 1.0
                     # P1-2修复: BC按当拍掩码; bc_mask可为(n_out,)或(N,n_out)
-                    _bm = bc_mask[idx] if bc_mask.ndim == 2 else bc_mask
+                    # 从零#2(等价探针发现): bc_mask=None+bc_targets给定
+                    # 时原直接.ndim即AttributeError — None=全行吃BC
+                    _bm = (bc_mask[idx] if bc_mask.ndim == 2
+                           else bc_mask) if bc_mask is not None else 1.0
                     dz -= self._bcw * (P - tgt) * _bm
                 # P1-2修复: dz按掩码归零(masked宏的logit不动)
                 if mb is not None:
@@ -958,6 +964,8 @@ class PPOTrainer:
         self._temp = max(0.5, self._temp * self.ENT_DECAY)  # 自审: 原下限1.0+初值1.0=退火死锁(熵3.0≈均匀), 放开到0.7让分布渐尖
         self._bcw = max(self.BC_W_MIN, self._bcw * self.ENT_DECAY)
         return {"return": float(ret.mean()), "entropy": ent, "kl": kl,
+                "pi_loss": (float(np.mean(pi_losses))
+                            if pi_losses else 0.0),
                 "value_loss": float(np.mean(value_losses)) if value_losses else 0.0,
                 "kl_stopped": stopped, "beta": self._beta, "temp": self._temp,
                 "bcw": self._bcw,

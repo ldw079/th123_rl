@@ -46,7 +46,13 @@ from __future__ import annotations
 import numpy as np
 
 # 分支条件评估需要的状态键
-GUARD_STUN_IDS = frozenset(range(150, 167)) - {158}
+# 从零#2(执行器P2): 守卫ID集单源化 — 原此处是第三副本(frame_events/
+# opp_model各一份), 漂移风险; 158=空防(非硬直边沿)不入集的语义见
+# frame_events._GUARD_STUN_IDS注释(R61d A3裁决)。
+from frame_events import _GUARD_STUN_IDS as GUARD_STUN_IDS  # noqa: E402
+# 受击态族(从零#2执行器细部): 50-98受击/倒地 + 100被投 + 143/145压溃
+# — hit判定的状态证据(持续~20帧, 天然结算窗)
+HITSTUN_IDS = frozenset(range(50, 99)) | {100, 143, 145}
 
 
 def evaluate_branch(branch_dict, left, right, d_deal, d_take):
@@ -56,10 +62,14 @@ def evaluate_branch(branch_dict, left, right, d_deal, d_take):
     left/right: 当前帧玩家状态dict
     d_deal: 自上次检查以来造成的伤害量
     d_take: 自上次检查以来承受的伤害量
+
+    R61-aa(从零#2): hit判定 = 瞬时d_deal OR 对手受击态。原纯d_deal>0
+    在confirm消费了命中帧后, branch所在帧读0 → 命中后误判whiff截断
+    (R5"结算窗"教训未继承到新门; 受击态50-98持续~20帧=状态式结算窗)。
     """
-    if d_deal > 0:
-        return branch_dict.get("hit")
     opp_a = right.get("action", 0)
+    if d_deal > 0 or opp_a in HITSTUN_IDS:
+        return branch_dict.get("hit")
     if opp_a in GUARD_STUN_IDS:
         return branch_dict.get("blocked")
     if right.get("airBorne", False):
@@ -240,6 +250,19 @@ def advance_queue(macro_queue, gate_frames, left, right, d_deal, d_take,
 def make_branch_step(branch_dict):
     """构造分支门步骤元组."""
     return ("branch", branch_dict)
+
+
+def enqueue_script(queue, script):
+    """脚本入队(单源) — P0-B(从零#2): 字符串步必须保留载荷fr
+    (branch字典/link元组/ender列表都存在fr位), 键步转tuple。
+    train_tm与side_driver共同调用(原train_tm侧(ks,0)丢载荷=
+    训练/评估最大偏斜源)。"""
+    for ks, fr in script:
+        if isinstance(ks, str):
+            queue.append((ks, fr))
+        else:
+            queue.append((tuple(ks), fr))
+    return queue
 
 
 # ---- 预制分支宏模板(供宏库追加用) ----

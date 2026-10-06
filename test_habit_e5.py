@@ -20,6 +20,11 @@ def check(name, cond, detail=''):
     print('[%s] %s %s' % ('PASS' if cond else 'FAIL', name, detail))
 
 
+def _rate(seq, key):
+    """直接取某习惯的检测率(不经过阈值过滤)。"""
+    return HABITS[key]['detect'](seq)
+
+
 def main():
     # 1. 五种习惯定义完整
     check('五种习惯', len(HABITS) == 5,
@@ -80,6 +85,28 @@ def main():
 
     # 8. 未知习惯→空列表
     check('未知习惯空', punishment_macros(lib, 'unknown') == [])
+
+    # 9. 从零#2 P1-F: 起身直入防御硬直态必须入样本(原act<50漏防)
+    seq_g = []
+    for i in range(100):
+        if i % 25 < 10:
+            seq_g.append((i, 97, 1000))          # 倒地
+        elif i % 25 < 20:
+            seq_g.append((i, 152, 1000))         # 起身→立防(硬直态)
+        else:
+            seq_g.append((i, 0, 1000))
+    rate_g = _rate(seq_g, 'wakeup_stand_guard')
+    check('起身立防可测(硬直态入样)', rate_g >= 0.7,
+          'rate=%.2f' % rate_g)
+
+    # 10. 从零#2 P1-F: 受压后跳检测(需4元组对手位; 3元组退化0)
+    seq_p = [(i, 8 if 10 <= i % 40 < 18 else 0, 1000,
+              400 if i % 40 < 10 else 0) for i in range(200)]
+    rate_p = _rate(seq_p, 'pressure_backjump')
+    check('受压后跳可测(对手位)', rate_p >= 0.5, 'rate=%.2f' % rate_p)
+    seq_p3 = [(i, a, s) for i, a, s, _o in seq_p]
+    rate_p3 = _rate(seq_p3, 'pressure_backjump')
+    check('3元组退化不误报', rate_p3 == 0.0, 'rate=%.2f' % rate_p3)
 
     print('\n==== %d PASS / %d FAIL ====' % (len(PASS), len(FAIL)))
     if FAIL:

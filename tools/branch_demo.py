@@ -86,7 +86,9 @@ def run_branch(env, scen, macro_script, frames=120):
     traj = []
     my_hp0, opp_hp0 = None, None
     for f in range(frames):
-        inp = macro_script(f) if f < len(macro_script) * 20 else {}
+        # P0-C(从零#2): 原对macro_script(闭包函数)取len()→首帧TypeError
+        # 进程即死 — mk_input已自带越界回退(f≥脚本长返回{})
+        inp = macro_script(f)
         try:
             r = env.step(inp or {}, dict(NEUTRAL))
         except Exception:

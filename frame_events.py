@@ -230,6 +230,22 @@ class FrameEventDetector:
                 del self.event_cooldown[k]
 
 
+def _match_macro(name_pattern, macro_names):
+    """反应宏名解析(从零#2 P1-H): 精确名 > 前缀 > 子串。
+    原"首个startswith命中即break"使'2A'恒命中库序在前的'2A确认'
+    (时间关键的防御反应实际插入带门连段; suika只是碰巧库序在尾)。
+    pick_reaction与reaction_mask共用本函数 — 两处对称。"""
+    if name_pattern in macro_names:
+        return macro_names.index(name_pattern)
+    for i, mn in enumerate(macro_names):
+        if mn.startswith(name_pattern):
+            return i
+    for i, mn in enumerate(macro_names):
+        if name_pattern in mn:
+            return i
+    return -1
+
+
 def pick_reaction(event: int, left: dict, right: dict,
                   macro_names: list, base_mask,
                   rng) -> int:
@@ -273,17 +289,16 @@ def pick_reaction(event: int, left: dict, right: dict,
             return dx < 300
         return False
 
-    # 过滤候选
+    # 过滤候选(从零#2 P1-H: 精确名优先 — 原首个前缀命中即break)
     candidates = []
     for name_prefix, cond, priority in REACTION_TABLE[event]:
-        # 前缀匹配宏名(兼容"结界2"vs"结界4"等)
-        for i, mn in enumerate(macro_names):
-            if mn.startswith(name_prefix) or name_prefix in mn:
-                if base_mask is not None and not base_mask[i]:
-                    continue
-                if cond_ok(cond):
-                    candidates.append((i, priority))
-                break
+        i = _match_macro(name_prefix, macro_names)
+        if i < 0:
+            continue
+        if base_mask is not None and not base_mask[i]:
+            continue
+        if cond_ok(cond):
+            candidates.append((i, priority))
 
     if not candidates:
         return -1
@@ -340,11 +355,12 @@ def reaction_mask(event: int, left: dict, right: dict,
 
     out = np.zeros(len(macro_names), dtype=bool)
     for name_prefix, cond, _priority in REACTION_TABLE[event]:
-        for i, mn in enumerate(macro_names):
-            if mn.startswith(name_prefix) or name_prefix in mn:
-                if base_mask is not None and not base_mask[i]:
-                    break
-                if cond_ok(cond):
-                    out[i] = True
-                break
+        # 从零#2 P1-H: 与pick_reaction同源解析(原两处continue/break不对称)
+        i = _match_macro(name_prefix, macro_names)
+        if i < 0:
+            continue
+        if base_mask is not None and not base_mask[i]:
+            continue
+        if cond_ok(cond):
+            out[i] = True
     return out if out.any() else None

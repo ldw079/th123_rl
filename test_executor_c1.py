@@ -99,6 +99,36 @@ def main():
         GUARD_PREP, GUARD_IDS, fake_sc, noop)
     check("受击中止", len(q2) == 0 and dn2 is None)
 
+    # 8b. R34中断(从零#2迁移变异#74的承接断言): 对手攻击+我方硬直
+    # +近距+非防御预备 → 清队交还控制
+    l34, r34 = st(my_a=50, opp_a=400)
+    q = [(("A",), 10)]
+    q2, _, dn2, _ = advance_queue(
+        q, 0, l34, r34, 0, 0, False, 1000, 100, "连段A",
+        GUARD_PREP, GUARD_IDS, fake_sc, noop)
+    check("R34中断(硬直遇攻)", len(q2) == 0 and dn2 is None)
+    # R34豁免: 防御预备宏不清队(立防启动窗口)
+    q = [(("A",), 10)]
+    q2, _, _, _ = advance_queue(
+        q, 0, l34, r34, 0, 0, False, 1000, 100, "立防",
+        GUARD_PREP, GUARD_IDS, fake_sc, noop)
+    check("R34豁免(防御预备)", len(q2) == 1)
+
+    # 8c. 灵力门(迁移变异#75承接): 空灵力+下一含攻击键 → 清队
+    l35, r35 = st(my_a=0, opp_a=0, spirit=50)
+    q = [(("A",), 10)]
+    q2, _, _, _ = advance_queue(
+        q, 0, l35, r35, 0, 0, False, 50, 100, "5A",
+        GUARD_PREP, GUARD_IDS, fake_sc, noop)
+    check("灵力门(空灵力清队)", len(q2) == 0)
+
+    # 8d. 空队安全(迁移变异#76语义承继): 清队路径全部立即return,
+    # 空队列推进不得异常且不发输入
+    q4, _, _, inp4 = advance_queue(
+        [], 0, l, r, 0, 0, False, 1000, 100, None,
+        GUARD_PREP, GUARD_IDS, fake_sc, noop)
+    check("空队安全", q4 == [] and inp4 is None)
+
     # 9. confirm门: 命中通过
     q = [("confirm", 0), (("A",), 5)]
     q2, gf, _, _ = advance_queue(

@@ -84,6 +84,11 @@ def run_actor(char, actor_id, port, tps=480, episodes=1000,
     tr.macro_counts_path = os.path.join(scratch, 'macro_counts.npy')
     tr.pi_path = os.path.join(scratch, 'model_pi_unused.npz')
     tr.v_path = os.path.join(scratch, 'model_v_unused.npz')
+    # 从零#2(fleet P2): league对手池根注入 — 原恒读生产POOL_DIR,
+    # fleet learner的池快照(FLEET_DIR/pool)actor读不到=对手冻结
+    tr._pool_root = os.path.join(FLEET_DIR, 'pool')
+    # 从零#2(fleet P2): COM难度档按actor隔离(原共享文件多写者互踩)
+    tr._com_diff_path = os.path.join(scratch, 'com_difficulty.json')
     tr._snapshot_pool = lambda: None      # 池快照=learner职责
     tr._save_distill = lambda rows: None  # 蒸馏行随episode npz走
 

@@ -69,17 +69,43 @@ HABITS = {
 }
 
 
-def _detect_wakeup_guard(seq, guard_type):
-    """起身行为检测. seq = [(帧, 自身action, 灵力), ...]"""
-    wakeups = []
+def _wakeup_samples(seq, win=10):
+    """起身观察窗采样(从零#2 P1-F修复).
+    原版只录起身转帧的act<50 — 防御硬直态(150-166)永不入样本,
+    "起身蹲防/立防"两检测器实际只能测"起身蹲着待机"。
+    修: 起身后win帧内取最强意图 — 防御态优先(150-166), 否则首个
+    非待机行为。seq元素: (帧, 自身action, ...)。"""
+    downs = {88, 89, 97, 98, 100, 143, 145}
+    windows = []
+    win_buf = None
     prev_down = False
-    for f, act, spirit in seq:
-        is_down = act in (88, 89, 97, 98, 100, 143, 145)
-        is_guard = (150 <= act <= 157 or 159 <= act <= 166)
-        if prev_down and not is_down and act < 50:
-            # 起身帧
-            wakeups.append(act)
+    for row in seq:
+        act = row[1]
+        is_down = act in downs
+        if prev_down and not is_down:
+            win_buf = [act]        # 起身帧起开窗
+        elif win_buf is not None:
+            win_buf.append(act)
+            if len(win_buf) >= win:
+                windows.append(win_buf)
+                win_buf = None
         prev_down = is_down
+    if win_buf is not None:
+        windows.append(win_buf)
+    out = []
+    for wb in windows:
+        guard_a = next((a for a in wb if 150 <= a <= 166), None)
+        if guard_a is not None:
+            out.append(guard_a)
+        else:
+            first_a = next((a for a in wb if a > 0), 0)
+            out.append(first_a)
+    return out
+
+
+def _detect_wakeup_guard(seq, guard_type):
+    """起身行为检测(分类见HABITS). seq = [(帧, 自身action, ...), ...]"""
+    wakeups = _wakeup_samples(seq)
     if not wakeups:
         return 0.0
     if guard_type == 'crouch':
@@ -93,14 +119,22 @@ def _detect_wakeup_guard(seq, guard_type):
     return crouch / len(wakeups)
 
 
-def _detect_pressure_response(seq, resp_type):
-    """被压行为检测."""
+def _detect_pressure_response(seq, resp_type, hot=12):
+    """被压行为检测(从零#2 P1-F修复).
+    原版opp_attacking初始化False后从未置真 — 恒返回0.0(死检测器)。
+    修: seq元素含对手action(第4位, 3元组向后兼容=无对手数据时退化为
+    不检测), 对手攻击(300-598)后hot帧为受压窗, 窗内自身非攻击动作
+    =受压应对。"""
     responses = []
-    opp_attacking = False
-    for f, act, spirit in seq:
-        if opp_attacking and act > 0:
+    opp_hot = 0
+    for row in seq:
+        act = row[1]
+        opp_a = row[3] if len(row) > 3 else 0
+        if 300 <= opp_a <= 598:
+            opp_hot = hot
+        if opp_hot > 0 and act > 3 and not (300 <= act <= 598):
             responses.append(act)
-        opp_attacking = False   # 简化: 需要对手action才准确
+        opp_hot = max(0, opp_hot - 1)
     if not responses:
         return 0.0
     if resp_type == 'backjump':
@@ -136,7 +170,9 @@ def _detect_empty_spirit(seq):
 def detect_habits(action_seq, top=3):
     """从动作序列检测坏习惯.
 
-    action_seq: [(帧, 自身action, 灵力), ...]
+    action_seq: [(帧, 自身action, 灵力[, 对手action]), ...]
+    (从零#2 P1-F: 第4位对手action供被压检测 — 3元组向后兼容,
+    此时pressure_backjump退化为0)
     返回: [(习惯key, 习惯dict, 检测率), ...] 按严重度排序
     """
     results = []

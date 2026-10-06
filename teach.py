@@ -79,6 +79,10 @@ def value_rank(ppo, char, dx, spirit, opp_air, opp_corner,
     方法: 构造侧向量(情境参数+各宏one-hot), 视觉置零(中性基线),
     逐宏计算V(s, macro_i) → 排名. 不需要真实视觉(侧向信号已含
     位置/灵力/对手状态等关键决策信息).
+    P1-B(从零#2): (a)原`_, V =`双解包_v_forward的3元组→异常被吞
+    →V≡0→排名退化为宏序号; (b)core偏移原硬编码且错位(spirit→
+    角落位6/own_hp→opp_hp位/opp_air→gauge位12). 修: core区用真实
+    FeatureBuilder.build构造(偏移永远与布局同源), 解包取3元组中段.
 
     返回: [(宏名, V值, 排名), ...] top_k条, V值降序.
     """
@@ -87,24 +91,32 @@ def value_rank(ppo, char, dx, spirit, opp_air, opp_corner,
     from feat_builder import FeatureBuilder
     lib = CHAR_LIBS[char]
     n = len(lib['macros'])
-    names = lib['names']
 
-    # 构造基础侧向量(情境参数, 宏one-hot=0)
+    # 局面构造(真实builder — dx/灵力/空中/版边全走正式归一化路径)
     fb = FeatureBuilder(n)
+    ox = 1200.0 if opp_corner else 700.0
+    own = {"position.x": ox - dx, "position.y": 0.0, "direction": 1,
+           "action": 0, "spirit": float(spirit), "hp": 10000,
+           "airBorne": False, "untech": 0, "cardGauge": 0, "score": 0,
+           "comboDamage": 0, "hitStop": 0, "timeStop": 0,
+           "hand": b'\xff' * 10}
+    opp = {"position.x": ox, "position.y": 200.0 if opp_air else 0.0,
+           "direction": -1, "action": 0, "spirit": 2000.0, "hp": 10000,
+           "airBorne": bool(opp_air), "untech": 0, "cardGauge": 0,
+           "score": 0, "comboDamage": 0, "hitStop": 0, "timeStop": 0,
+           "hand": b'\xff' * 10}
+    core = fb.build(own, opp, {"active": 0}, [])
+
     n_side = 5 * n + fb.CORE_DIMS
     side = np.zeros(n_side, dtype=np.float32)
-    # 填充core区(简化: 只填关键维度)
-    core_off = 2 * n
-    side[core_off + 2] = np.clip(dx / 600.0, -1, 1)   # dx
-    side[core_off + 4] = np.clip(dx / 600.0, 0, 1)     # adx
-    side[core_off + 6] = spirit / 2000.0                 # spirit
-    side[core_off + 8] = 1.0                              # own_hp(full)
-    side[core_off + 9] = 1.0                              # opp_hp(full)
-    side[core_off + 12] = 1.0 if opp_air else 0.0       # opp_airborne
-    side[core_off + 13] = 1.0 if opp_corner else 0.0    # opp_corner
+    side[2 * n:2 * n + fb.CORE_DIMS] = core
 
-    # 视觉置零(14400 = 3×80×60)
+    # 视觉置零(14400 = 3×80×60) — trunk只算一次(所有宏共享)
     feat = np.zeros(14400, dtype=np.uint8)
+    try:
+        Xn = ppo._trunk_fwd_chunked(feat.reshape(1, -1))
+    except Exception:
+        return [(lib['names'][i], 0.0, i) for i in range(min(top_k, n))]
 
     # 逐宏评估: 替换one-hot → V(s, macro)
     results = []
@@ -112,12 +124,11 @@ def value_rank(ppo, char, dx, spirit, opp_air, opp_corner,
         s = side.copy()
         s[i] = 1.0    # 当前宏one-hot
         try:
-            Xn = ppo._trunk_fwd_chunked(feat.reshape(1, -1))
-            _, V = ppo._v_forward(Xn, s.reshape(1, -1))
-            v = float(V.ravel()[0])
+            _, V, _ = ppo._v_forward(Xn, s.reshape(1, -1))
+            v = float(np.ravel(V)[0])
         except Exception:
             v = 0.0
-        results.append((names[i], v, i))
+        results.append((lib['names'][i], v, i))
     results.sort(key=lambda x: -x[1])
     return results[:top_k]
 
@@ -241,15 +252,19 @@ def batch_explain(distill_path: str, char: str,
     X = d['X'] if 'X' in d.files else d[d.files[0]]
     # distill 11列: dx, spirit, close, macro_id, frame, dy,
     #              opp_air, bullet_near, we_left, tti, opp_corner
-    dx = X[:, 0] * 1000       # 归一化还原
+    # P1-B(从零#2): dx原×1000(该列本就是原始像素, 只有spirit是/1000
+    # 归一化存储); macro_id=-1原经lib['macros'][-1]恒报最后一个宏。
+    dx = X[:, 0]
     spirit = X[:, 1] * 1000
     macro_id = X[:, 3].astype(int)
     opp_air = X[:, 6] > 0.5
     opp_corner = X[:, 10] > 0.5
     out = []
+    n_macros = len(lib['macros'])
     for i in range(min(limit, len(X))):
         mid = macro_id[i]
-        choice = lib['macros'][mid][0] if mid < len(lib['macros']) else '?'
+        choice = (lib['macros'][mid][0]
+                  if 0 <= mid < n_macros else '未知(%d)' % mid)
         txt = explain_situation(char, dx[i], bool(opp_air[i]),
                                 bool(opp_corner[i]), spirit[i], choice)
         out.append(txt)

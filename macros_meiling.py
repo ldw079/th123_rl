@@ -124,11 +124,13 @@ NORMALIZED_AFFECTED_MEILING = {n for (n, s0), (_, s1) in
                             zip(_RAW_MEILING, MACROS_MEILING) if s0 != s1}
 
 # ==== R61j(C6): Trialmode连段完整集成 ====
-MACROS_MEILING.append(('TM·d6_5a_5aa_5aaa_d62', [(('right',), 6), (('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('B', 'down', 'right'), 10), ((), 4), ('sc:204', 0), ((), 30), (('right',), 6), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('C', 'down', 'right'), 10)]))
-MACROS_MEILING.append(('TM·5a_5aa_5aaa_2b_5c_', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 3), (('down',), 6), (('down', 'B'), 10), (('C',), 12), (('up',), 6), (('A',), 8), ((), 8), (('up',), 6), (('up',), 2), (('up', 'A'), 12)]))
-MACROS_MEILING.append(('TM·f5a_3a_6c_d623c', [(('A',), 10), ((), 2), ('confirm', 0), (('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 14), ((), 3), (('right',), 6), (('right', 'C'), 12), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('C', 'down', 'right'), 10)]))
-MEILING_COMBO_MACROS |= {'TM·d6_5a_5aa_5aaa_d62', 'TM·5a_5aa_5aaa_2b_5c_', 'TM·f5a_3a_6c_d623c'}
-# R61j: TM宏追加后同步names
+MACROS_MEILING.append(('TM·a222c_a222b_j5a_j6c_sc209', _norm_presteps([(('down',), 3), (('down',), 3), (('C', 'down'), 10), ((), 2), ('confirm', 0), ((), 30), (('down',), 3), (('down',), 3), (('B', 'down'), 10), (('up',), 6), (('up',), 2), (('A',), 10), (('right',), 6), (('right', 'C'), 12), ((), 10), ('sc:209', 0)])))
+MACROS_MEILING.append(('TM·a2214b_sc202_f5a_6c_d623c', _norm_presteps([(('down',), 3), (('down', 'left'), 3), (('left',), 3), (('B', 'left'), 10), ((), 2), ('confirm', 0), ('sc:202', 0), ((), 30), (('A',), 10), (('right',), 6), (('right', 'C'), 12), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('C', 'down', 'right'), 10)])))
+MACROS_MEILING.append(('TM·a2214b_sc202_f5a_6c_d623c#2', _norm_presteps([(('down',), 3), (('down', 'left'), 3), (('left',), 3), (('B', 'left'), 10), ((), 2), ('confirm', 0), ('sc:202', 0), ((), 30), (('A',), 10), (('right',), 6), (('right', 'C'), 12), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('C', 'down', 'right'), 10)])))
+MACROS_MEILING.append(('TM·2a_2a_2a_2a_2a_sc203_d6_a2214b', _norm_presteps([(('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 14), (('down',), 6), (('down', 'A'), 10), (('down',), 6), (('down', 'A'), 10), (('down',), 6), (('down', 'A'), 10), (('down',), 6), (('down', 'A'), 10), ('sc:203', 0), ((), 30), (('right', 'D'), 6), (('down',), 3), (('down', 'left'), 3), (('left',), 3), (('B', 'left'), 10)])))
+MEILING_COMBO_MACROS |= {'TM·a222c_a222b_j5a_j6c_sc209', 'TM·a2214b_sc202_f5a_6c_d623c', 'TM·a2214b_sc202_f5a_6c_d623c#2', 'TM·2a_2a_2a_2a_2a_sc203_d6_a2214b'}
+# R61j: TM宏追加后同步names(含去重后缀)
 MACRO_NAMES_MEILING = [m[0] for m in MACROS_MEILING]
+N_MACROS_MEILING = len(MACROS_MEILING)
 # R61j: TM宏引用的SC卡耗费补入
-SC_COST_MEILING[204] = 4
+SC_COST_MEILING[203] = 5

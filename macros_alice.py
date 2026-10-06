@@ -124,12 +124,11 @@ NORMALIZED_AFFECTED_ALICE = {n for (n, s0), (_, s1) in
                             zip(_RAW_ALICE, MACROS_ALICE) if s0 != s1}
 
 # ==== R61j(C6): Trialmode连段完整集成 ====
-MACROS_ALICE.append(('TM·8_j6a', [(('up',), 6), (('right',), 6), (('right', 'A'), 10), ((), 2), ('confirm', 0)]))
-MACROS_ALICE.append(('TM·8_j6a_j6a_6a', [(('up',), 6), (('right',), 6), (('right', 'A'), 10), ((), 2), ('confirm', 0), ((), 30), (('right',), 6), (('right', 'A'), 12), (('right',), 6), (('right', 'A'), 12)]))
-MACROS_ALICE.append(('TM·d236b_sc200_sc203', [(('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10), ((), 2), ('confirm', 0), ('sc:200', 0), ((), 30), ('sc:203', 0)]))
-MACROS_ALICE.append(('TM·2a_3a_dskill1b_hj9', [(('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 18), (('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 14), ((), 5), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10), (('down',), 4), (('up', 'right'), 8), (('right',), 6), (('right', 'B'), 10), ((), 28), (('right', 'D'), 8), (('right',), 6), (('right', 'A'), 12)]))
-ALICE_COMBO_MACROS |= {'TM·8_j6a', 'TM·8_j6a_j6a_6a', 'TM·d236b_sc200_sc203', 'TM·2a_3a_dskill1b_hj9'}
-# R61j: TM宏追加后同步names
+MACROS_ALICE.append(('TM·66c_2b_hj9/hj8/hj7_j5a_j6a', _norm_presteps([(('right', 'D'), 8), ((), 2), (('C',), 10), ((), 2), ('confirm', 0), (('down',), 6), (('down', 'B'), 10), (('down',), 4), (('up', 'right'), 8), (('up',), 6), (('up',), 2), (('A',), 10), ((), 9), (('up',), 6), (('right',), 2), (('right',), 4), (('right', 'A'), 12)])))
+MACROS_ALICE.append(('TM·8_j6a', _norm_presteps([(('up',), 6), (('up',), 6), (('right',), 2), (('right',), 4), (('right', 'A'), 10), ((), 2), ('confirm', 0)])))
+MACROS_ALICE.append(('TM·66c_6a_2b', _norm_presteps([(('right', 'D'), 8), ((), 2), (('C',), 10), ((), 2), ('confirm', 0), (('right',), 6), (('right', 'A'), 12), (('down',), 6), (('down', 'B'), 10)])))
+MACROS_ALICE.append(('TM·8_j6a_j6a_6a', _norm_presteps([(('up',), 6), (('up',), 6), (('right',), 2), (('right',), 4), (('right', 'A'), 10), ((), 2), ('confirm', 0), ((), 30), (('up',), 6), (('right',), 2), (('right',), 4), (('right', 'A'), 12), (('right',), 6), (('right', 'A'), 12)])))
+ALICE_COMBO_MACROS |= {'TM·66c_2b_hj9/hj8/hj7_j5a_j6a', 'TM·8_j6a', 'TM·66c_6a_2b', 'TM·8_j6a_j6a_6a'}
+# R61j: TM宏追加后同步names(含去重后缀)
 MACRO_NAMES_ALICE = [m[0] for m in MACROS_ALICE]
-# R61j: TM宏引用的SC卡耗费补入
-SC_COST_ALICE[203] = 3
+N_MACROS_ALICE = len(MACROS_ALICE)

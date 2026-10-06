@@ -234,10 +234,16 @@ if HAS_TORCH:
                     "ppo_gpu暂不支持ep_first(截断bootstrap) — "
                     "生产路径未使用, 如需启用请先实现值头V(s_end)")
             N = len(acts)
-            Rn = rewards / (self._rstd + 1e-6)
-            if float(rewards.std()) > 1e-6:
-                self._rstd = 0.8 * self._rstd + 0.2 * float(
-                    rewards.std())
+            # 从零#2(等价修复6): 奖励-动作错位结构性断言(numpy版同款)
+            assert sum(ep_lens) == N, (
+                "ep_lens总和%d != acts长度%d (奖励-动作错位!)"
+                % (sum(ep_lens), N))
+            # 从零#2(等价修复2): rstd先更后除 — 原先除后更(用旧rstd归一
+            # 本批)与numpy语义差一个EMA步, 探针抓出的四个语义差之一
+            sd = float(np.asarray(rewards).std())
+            if sd > 1e-6:
+                self._rstd = 0.8 * self._rstd + 0.2 * sd
+            Rn = np.asarray(rewards) / (self._rstd + 1e-6)
 
             X = torch.from_numpy(
                 np.asarray(feats).reshape(-1, 3, CONV_H, CONV_W)
@@ -383,11 +389,20 @@ if HAS_TORCH:
                 logp_old).float().to(DEVICE)
             # R56(fleet): bc_targets须转Tensor(原numpy直用 → BC分支
             # cross_entropy收numpy target即TypeError — bcw>0时必炸)
+            # 从零#2(等价修复4): None时Bt=None — 原回退A=幽灵自模仿
+            # (调用方没给BC目标也吃自模仿梯度, 探针C: b2 25%符号翻转)
             Bt = (torch.from_numpy(np.asarray(bc_targets)).long()
-                  .to(DEVICE) if bc_targets is not None else A)
+                  .to(DEVICE) if bc_targets is not None else None)
 
             # 训练循环
+            # 从零#2(等价修复1): 归约约定对齐numpy — 策略/熵/BC=sum
+            # (numpy的dz逐行无1/B缩放), 值=mean(dv=(V-ret)/B), 辅助=
+            # mean-over-valid(AUX_W/nq)。"前向等价≠更新等价"的根因之一。
             losses = []
+            v_losses = []
+            aux_losses = []
+            aux_hits = 0
+            aux_n = 0
             kl_val = 0.0
             for _epoch in range(self.EPOCHS):
                 perm = self.rng.permutation(N)
@@ -397,7 +412,7 @@ if HAS_TORCH:
                     xb = X[idx_t]
                     sb = S[idx_t]
                     ab = A[idx_t]
-                    bb = Bt[idx_t]
+                    bb = Bt[idx_t] if Bt is not None else None
                     mb = Mt[idx_t] if Mt is not None else None
                     advb = adv_t[idx_t]
                     retb = ret_t[idx_t]
@@ -410,14 +425,16 @@ if HAS_TORCH:
                     surr1 = ratio * advb
                     surr2 = torch.clamp(ratio, 1 - self.CLIP,
                                         1 + self.CLIP) * advb
-                    pi_loss = -torch.min(surr1, surr2).mean()
+                    pi_loss = -torch.min(surr1, surr2).sum()
                     v_loss = F.mse_loss(V, retb)
                     ent = -(F.softmax(logits, dim=1)
-                            * logp_new).sum(1).mean()
+                            * logp_new).sum(1).sum()
 
                     # BC损失 (R55: 接入bc_mask逐行权重)
+                    # 从零#2(等价修复4): Bt=None不吃BC(幽灵自模仿);
+                    # numpy语义=(P-tgt)*bm逐行无均值= sum归约
                     bc_loss = torch.tensor(0.0, device=DEVICE)
-                    if self._bcw > 0:
+                    if self._bcw > 0 and bb is not None:
                         _ce = F.cross_entropy(logits, bb,
                                               reduction='none')
                         if bc_mask is not None:
@@ -427,11 +444,11 @@ if HAS_TORCH:
                             if _bm.ndim == 1:
                                 _bm = _bm.unsqueeze(1)
                             bc_loss = (_ce.unsqueeze(1) * _bm
-                                       ).mean() * self._bcw
+                                       ).sum() * self._bcw
                         else:
-                            bc_loss = _ce.mean() * self._bcw
+                            bc_loss = _ce.sum() * self._bcw
 
-                    # aux损失(R54: 预测头监督)
+                    # aux损失(R54: 预测头监督; mean-over-valid同numpy)
                     aux_loss = torch.tensor(0.0, device=DEVICE)
                     if opp_next is not None:
                         q_t = torch.from_numpy(
@@ -441,42 +458,80 @@ if HAS_TORCH:
                         if qv.any():
                             aux_loss = F.cross_entropy(
                                 Q[qv], q_t[qv]) * self.AUX_W
+                            aux_losses.append(
+                                float(aux_loss.item() / self.AUX_W))
+                            aux_hits += int((Q[qv].argmax(1)
+                                             == q_t[qv]).sum())
+                            aux_n += int(qv.sum())
 
                     loss = (pi_loss + 0.5 * v_loss
                             - self._beta * ent + bc_loss + aux_loss)
 
+                    # 从零#2(鲁棒修复1): NaN守卫 — 非有限损失跳批
+                    # (原一坏批→内存网永久NaN→僵尸learner)
+                    if not torch.isfinite(loss):
+                        print('[GPU update] 损失非有限(%s) — 跳过该批'
+                              % (float(loss),))
+                        self.pi_opt.zero_grad()
+                        self.vf_opt.zero_grad()
+                        continue
                     self.pi_opt.zero_grad()
                     self.vf_opt.zero_grad()
                     loss.backward()
+                    # 从零#2(等价修复3): 裁剪对齐numpy — pi/vf各自独立
+                    # 5.0(numpy有效值: 手动10.0+_Adam.GRAD_CLIP=5.0;
+                    # 原联合5.0共享预算=值头梯度挤占策略头)
+                    _vf_pref = ('W1v', 'b1v', 'W2v', 'b2v', 'W3v', 'b3v')
                     nn.utils.clip_grad_norm_(
-                        self.net.parameters(), 5.0)
+                        [p for n, p in self.net.named_parameters()
+                         if not n.startswith(_vf_pref)], 5.0)
+                    nn.utils.clip_grad_norm_(
+                        [p for n, p in self.net.named_parameters()
+                         if n.startswith(_vf_pref)], 5.0)
                     self.pi_opt.step()
                     self.vf_opt.step()
-                    losses.append(pi_loss.item())
+                    losses.append(float(pi_loss.item()))
+                    v_losses.append(float(v_loss.item()))
 
-                    # KL检测(自适应LR)
-                    with torch.no_grad():
-                        kl = float(torch.abs(
-                            logp_act - lpb).mean())
-                    kl_val = kl
-                    if kl > self.TARGET_KL * 1.5:
-                        self._adaptive_lr_scale = max(0.3,
-                            self._adaptive_lr_scale / 1.5)
-                        for g in self.pi_opt.param_groups:
-                            g['lr'] = (self.PI_LR
-                                       * self._adaptive_lr_scale)
-                    elif kl < self.TARGET_KL:
-                        self._adaptive_lr_scale = min(3.0,
-                            self._adaptive_lr_scale * 1.2)
-                        for g in self.pi_opt.param_groups:
-                            g['lr'] = (self.PI_LR
-                                       * self._adaptive_lr_scale)
+            # ---- KL复检+自适应LR(从零#2等价修复5) ----
+            # numpy语义(ppo.py:926-946): 每更新一次(非每minibatch),
+            # 采样≤500行**同掩码**前向 |Δlogp| 均值; 过阈值缩LR并标停。
+            _kidx = self.rng.choice(N, size=min(500, N), replace=False)
+            _kt = torch.from_numpy(_kidx).long().to(DEVICE)
+            with torch.no_grad():
+                _lk, _, _ = self.net(X[_kt], S[_kt], temp,
+                                     Mt[_kt] if Mt is not None else None)
+                _lpk = F.log_softmax(_lk, dim=1)[
+                    torch.arange(len(_kidx)), A[_kt]]
+                kl_val = float(torch.abs(_lpk - lp_old_t[_kt]).mean())
+                # 熵诊断(同掩码 — numpy R18 P0同源)
+                _Pk = F.softmax(_lk, dim=1).clamp(1e-8, 1.0)
+                ent_diag = float((-(_Pk * _Pk.log()).sum(1)).mean())
+            stopped = False
+            if kl_val > self.TARGET_KL * 1.5:
+                self._adaptive_lr_scale = max(0.3,
+                    self._adaptive_lr_scale / 1.5)
+            elif kl_val < self.TARGET_KL:
+                self._adaptive_lr_scale = min(3.0,
+                    self._adaptive_lr_scale * 1.2)
+            for g in self.pi_opt.param_groups:
+                g['lr'] = self.PI_LR * self._adaptive_lr_scale
+            if kl_val > self.TARGET_KL:
+                stopped = True
 
             self._updates += 1
             self._bcw = max(self.BC_W_MIN, self._bcw * self.ENT_DECAY)
             self._beta = max(self.BETA_ENT_MIN,
                              self._beta * self.ENT_DECAY)
             self._temp = max(0.5, self._temp * self.ENT_DECAY)
+
+            # 从零#2(鲁棒修复2): 更新后参数有限性守卫 — 拒绝让NaN网
+            # 继续留在内存(learner捕获→隔离批; save守卫是最后防线)
+            for _pn, _p in self.net.named_parameters():
+                if not torch.isfinite(_p).all():
+                    raise ValueError(
+                        '更新后参数非有限(%s) — 梯度爆炸/上游数据异常'
+                        % _pn)
 
             # R55: 回放池保存 — 高优势样本(|adv|>1)按|adv|降序取前cap
             # (仅episode行N0内, 防回放行反复入池; 池8元组含mask+logp_old)
@@ -489,10 +544,22 @@ if HAS_TORCH:
                     X_cpu[_ord], S_cpu[_ord], A_cpu[_ord], Rn[_ord],
                     adv[_ord], ret[_ord], _Mo, logp_old[_ord])
 
+            # 从零#2(等价修复7): 统计字典与numpy版逐键对齐(原4键缩水
+            # → 仪表/诊断消费方读不到return/kl_stopped/退火值等)
             return {'pi_loss': float(np.mean(losses)) if losses else 0,
-                    'value_loss': v_loss.item(),
-                    'entropy': ent.item(),
-                    'kl': kl_val}
+                    'return': float(np.mean(ret)),
+                    'entropy': ent_diag,
+                    'kl': kl_val,
+                    'value_loss': (float(np.mean(v_losses))
+                                   if v_losses else 0.0),
+                    'kl_stopped': stopped,
+                    'beta': self._beta, 'temp': self._temp,
+                    'bcw': self._bcw,
+                    'aux_loss': (float(np.mean(aux_losses))
+                                 if aux_losses else None),
+                    'aux_acc': (aux_hits / aux_n if aux_n > 0 else None),
+                    'adv_abs': float(np.abs(adv).mean()),
+                    'kl_abs': abs(kl_val)}
 
         def _gae(self, V, R, ep_lens, ep_terms):
             N = len(R)
@@ -613,11 +680,13 @@ if HAS_TORCH:
                 if param is not None and param.shape == a.shape:
                     return tname, torch.from_numpy(a)
                 if param is not None:
-                    # R56(fleet): 形状不符原静默丢键 → 随机权重无声混入
-                    # (快照维度错配=全批垃圾梯度) — 响亮失败(R37哲学)
-                    print('[GPU load] 形状不符: %s 文件%s≠网络%s '
-                          '— 该参数保持随机初始化!' % (
-                              nname, a.shape, tuple(param.shape)))
+                    # P0-A(从零#2共犯): 形状不符原只打印继续 → 随机权重
+                    # 无声混入被发布(fleet静默零学习的链条一环)。
+                    # 修: 响亮拒载(learner/supervisor接管重启, 好于腐坏发布)
+                    raise ValueError(
+                        '[GPU load] 形状不符: %s 文件%s≠网络%s — 拒绝加载'
+                        ' (维度推断过期或档损坏)' % (
+                            nname, a.shape, tuple(param.shape)))
                 return None
 
             _CONV_MAP = [

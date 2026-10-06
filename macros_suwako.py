@@ -124,12 +124,13 @@ NORMALIZED_AFFECTED_SUWAKO = {n for (n, s0), (_, s1) in
                             zip(_RAW_SUWAKO, MACROS_SUWAKO) if s0 != s1}
 
 # ==== R61j(C6): Trialmode连段完整集成 ====
-MACROS_SUWAKO.append(('TM·8_j8a_sc208', [(('up',), 6), (('up',), 6), (('up',), 2), (('up', 'A'), 10), ((), 2), ('confirm', 0), ((), 30), ('sc:208', 0)]))
-MACROS_SUWAKO.append(('TM·f5a_sc208', [(('A',), 10), ((), 2), ('confirm', 0), ('sc:208', 0)]))
-MACROS_SUWAKO.append(('TM·5a_5aa_5aaa_j5b_j6', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 30), (('B',), 10), (('right',), 6), (('right', 'C'), 12), ((), 14), (('left', 'D'), 8), ('sc:209', 0)]))
-MACROS_SUWAKO.append(('TM·5a_5aa_5aaa_5aaaa', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 30), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6)]))
-SUWAKO_COMBO_MACROS |= {'TM·8_j8a_sc208', 'TM·f5a_sc208', 'TM·5a_5aa_5aaa_j5b_j6', 'TM·5a_5aa_5aaa_5aaaa'}
-# R61j: TM宏追加后同步names
+MACROS_SUWAKO.append(('TM·8_j8a_sc208', _norm_presteps([(('up',), 6), (('up',), 6), (('up',), 2), (('up', 'A'), 10), ((), 2), ('confirm', 0), ((), 30), ('sc:208', 0)])))
+MACROS_SUWAKO.append(('TM·f5a_sc208', _norm_presteps([(('A',), 10), ((), 2), ('confirm', 0), ('sc:208', 0)])))
+MACROS_SUWAKO.append(('TM·5a_5aa_5aaa_j5b_j6c_j44_jsc209', _norm_presteps([(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 30), (('up',), 6), (('up',), 2), (('B',), 14), (('right',), 6), (('right', 'C'), 12), ((), 14), (('left', 'D'), 8), ('sc:209', 0)])))
+MACROS_SUWAKO.append(('TM·5a_5aa_5aaa_5aaaa', _norm_presteps([(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 30), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6)])))
+SUWAKO_COMBO_MACROS |= {'TM·8_j8a_sc208', 'TM·f5a_sc208', 'TM·5a_5aa_5aaa_j5b_j6c_j44_jsc209', 'TM·5a_5aa_5aaa_5aaaa'}
+# R61j: TM宏追加后同步names(含去重后缀)
 MACRO_NAMES_SUWAKO = [m[0] for m in MACROS_SUWAKO]
+N_MACROS_SUWAKO = len(MACROS_SUWAKO)
 # R61j: TM宏引用的SC卡耗费补入
-SC_COST_SUWAKO[209] = 1
+SC_COST_SUWAKO[209] = 4

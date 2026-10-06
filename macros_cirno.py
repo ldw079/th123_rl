@@ -124,10 +124,13 @@ NORMALIZED_AFFECTED_CIRNO = {n for (n, s0), (_, s1) in
                             zip(_RAW_CIRNO, MACROS_CIRNO) if s0 != s1}
 
 # ==== R61j(C6): Trialmode连段完整集成 ====
-MACROS_CIRNO.append(('TM·5a_5aa_5aaa_5c_sc2', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 16), (('C',), 12), ('sc:208', 0)]))
-MACROS_CIRNO.append(('TM·5a_5aa_5aaa_5c_d62', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 16), (('C',), 12), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('B', 'down', 'right'), 10)]))
-MACROS_CIRNO.append(('TM·hj9_j5a_j6a_j5c_j6', [(('down',), 4), (('up', 'right'), 8), (('A',), 8), ((), 2), ('confirm', 0), ((), 8), (('right',), 6), (('right', 'A'), 12), ((), 6), (('C',), 12), (('right', 'D'), 8), (('A',), 8), ((), 6), (('right',), 6), (('right', 'A'), 12)]))
-MACROS_CIRNO.append(('TM·hj9_j5a_j5c_j66_j5', [(('down',), 4), (('up', 'right'), 8), (('A',), 8), ((), 2), ('confirm', 0), ((), 8), (('C',), 12), ((), 6), (('right', 'D'), 8), (('A',), 8), ((), 7), (('C',), 12)]))
-CIRNO_COMBO_MACROS |= {'TM·5a_5aa_5aaa_5c_sc2', 'TM·5a_5aa_5aaa_5c_d62', 'TM·hj9_j5a_j6a_j5c_j6', 'TM·hj9_j5a_j5c_j66_j5'}
-# R61j: TM宏追加后同步names
+MACROS_CIRNO.append(('TM·5a_5aa_5aaa_5c_sc208', _norm_presteps([(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 16), (('C',), 12), ('sc:208', 0)])))
+MACROS_CIRNO.append(('TM·5a_5aa_5aaa_5c_d623b', _norm_presteps([(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 16), (('C',), 12), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('B', 'down', 'right'), 10)])))
+MACROS_CIRNO.append(('TM·66b_sc207', _norm_presteps([(('right', 'D'), 8), ((), 2), (('B',), 10), ((), 2), ('confirm', 0), ('sc:207', 0)])))
+MACROS_CIRNO.append(('TM·5a_5aa_5aaa_5c_d236b_hj9/hj8_j6a_j5c', _norm_presteps([(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 26), (('C',), 12), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10), ((), 20), (('down',), 4), (('up', 'right'), 8), (('up',), 6), (('right',), 2), (('right',), 4), (('right', 'A'), 12), ((), 14), (('up',), 6), (('up',), 2), (('C',), 14)])))
+CIRNO_COMBO_MACROS |= {'TM·5a_5aa_5aaa_5c_sc208', 'TM·5a_5aa_5aaa_5c_d623b', 'TM·66b_sc207', 'TM·5a_5aa_5aaa_5c_d236b_hj9/hj8_j6a_j5c'}
+# R61j: TM宏追加后同步names(含去重后缀)
 MACRO_NAMES_CIRNO = [m[0] for m in MACROS_CIRNO]
+N_MACROS_CIRNO = len(MACROS_CIRNO)
+# R61j: TM宏引用的SC卡耗费补入
+SC_COST_CIRNO[207] = 3

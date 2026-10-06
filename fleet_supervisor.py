@@ -23,11 +23,11 @@ CG = getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PY = sys.executable
-LOCK = os.path.join(os.environ.get('TH123_STORE',
-                                  r'D:\temp\th123_models'), 'fleet.lock')
-SUPERVISION_LOG = os.path.join(
-    os.environ.get('TH123_STORE', r'D:\temp\th123_models'),
-    'fleet_supervision.log')
+# P1-D(从零#2): STORE原未定义 — 监督循环首个league周期(3600s)引用
+# 即NameError杀死监督器(全部子进程成孤儿)。统一模块级定义。
+STORE = os.environ.get('TH123_STORE', r'D:\temp\th123_models')
+LOCK = os.path.join(STORE, 'fleet.lock')
+SUPERVISION_LOG = os.path.join(STORE, 'fleet_supervision.log')
 
 CHARS = ('reimu', 'marisa', 'suika')
 STAGGER_S = 20
@@ -101,8 +101,8 @@ def reap_orphans():
          "| Where-Object { $_.CommandLine -match 'actor_worker|learner_hub' } "
          "| ForEach-Object { '{0}|{1}' -f $_.ProcessId, $_.ParentProcessId }"],
         capture_output=True, text=True, timeout=30)
-    live = set()
-    workers = []
+    live = {os.getpid()}   # P1-D belt-and-braces: 本进程入存活集 —
+    workers = []           # 即便reap被误置于boot后, 车队之父(本进程)也算活
     for line in (out.stdout or '').strip().splitlines():
         try:
             pid_s, ppid_s = line.strip().split('|')
@@ -151,6 +151,17 @@ def main():
     os.write(fd, str(os.getpid()).encode())
     os.close(fd)
 
+    # P1-D(从零#2): 孤儿回收必须**先于boot** — 原放在boot之后, WMI匹配
+    # 不到supervisor自身(命令行是fleet_supervisor不在存活集) → 新拉起的
+    # actor/learner的父(=本进程)被判死 → 启动后杀光自己的车队。
+    # 前置后: 回收时本进程尚无子进程, 只清上次强杀的残留。
+    try:
+        _orphans = reap_orphans()
+        if _orphans:
+            log('启动前回收孤儿%d个' % _orphans)
+    except Exception as e:
+        log('孤儿回收异常(%s) — 继续boot(锁与单实例锁兜底)' % e)
+
     try:
         # league分配
         alloc = league_alloc(n_actors)
@@ -190,10 +201,6 @@ def main():
                 actor_id += 1
                 time.sleep(STAGGER_S)
 
-        # R61f: 上次强杀残留的孤儿回收(在boot前 — 释放游戏实例/端口)
-        _orphans = reap_orphans()
-        if _orphans:
-            log('启动前回收孤儿%d个' % _orphans)
         log('全部启动 — 监督模式')
 
         # 监督循环

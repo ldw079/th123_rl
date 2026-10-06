@@ -179,7 +179,8 @@ def _wait_match_free(timeout_s=600.0):
 class TMEnv:
     def __init__(self, port, char_left="reimu", char_right="reimu",
                  vs_com=False, tps=None, deck=None, launch=True, render=False,
-                 com_difficulty=None, lane=None):
+                 com_difficulty=None, lane=None, deck_left=None,
+                 deck_right=None):
         self.base_port = port
         self.port = port
         # R19(审查2026-10-02): 车道锚定 — 原 base+(x+1)%10 的行走假设
@@ -198,9 +199,12 @@ class TMEnv:
         self.vs_com = vs_com
         # R47(可行性报告天花板2): deck采样 — 原恒系统卡1-20(技能卡/SC
         # 永不入手→整套技能子系统死跑)。现由外部传入或自动采样。
+        # 从零#2(fleet P2): deck_left/right入构造参数 — _start_first在
+        # __init__内即发包, 构造后才赋值=首局恒系统卡(R53只修了续局,
+        # ~15-20%局无技能/SC)。
         self.deck = deck if deck is not None else list(range(1, 21))
-        self.deck_left = None    # R47: P1侧独立deck(可异于P2)
-        self.deck_right = None
+        self.deck_left = deck_left     # R47: P1侧独立deck(可异于P2)
+        self.deck_right = deck_right
         self.tps = tps
         self.render = render
         self.com_difficulty = com_difficulty

@@ -124,13 +124,15 @@ NORMALIZED_AFFECTED_KOMACHI = {n for (n, s0), (_, s1) in
                             zip(_RAW_KOMACHI, MACROS_KOMACHI) if s0 != s1}
 
 # ==== R61j(C6): Trialmode连段完整集成 ====
-MACROS_KOMACHI.append(('TM·5a_5aa_5aaa_5aaaa_', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), ((), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 4), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 8), ('sc:201', 0)]))
-MACROS_KOMACHI.append(('TM·f5a_6c_sc206', [(('A',), 10), ((), 2), ('confirm', 0), (('right',), 6), (('right', 'C'), 12), ((), 30), ('sc:206', 0)]))
-MACROS_KOMACHI.append(('TM·f5a_6c_sc206', [(('A',), 10), ((), 2), ('confirm', 0), (('right',), 6), (('right', 'C'), 12), ((), 10), ('sc:206', 0)]))
-MACROS_KOMACHI.append(('TM·hj8_j66_j2a_sc203', [(('up',), 6), ((), 27), (('right', 'D'), 8), (('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 21), ('sc:203', 0)]))
-KOMACHI_COMBO_MACROS |= {'TM·5a_5aa_5aaa_5aaaa_', 'TM·f5a_6c_sc206', 'TM·f5a_6c_sc206', 'TM·hj8_j66_j2a_sc203'}
-# R61j: TM宏追加后同步names
+MACROS_KOMACHI.append(('TM·a222b_66c_sc201', _norm_presteps([(('down',), 3), (('down',), 3), (('B', 'down'), 10), ((), 2), ('confirm', 0), ((), 30), (('right', 'D'), 8), ((), 2), (('C',), 12), ('sc:201', 0)])))
+MACROS_KOMACHI.append(('TM·5a_5aa_5aaa_5aaaa_sc201', _norm_presteps([(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), ((), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 4), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 8), ('sc:201', 0)])))
+MACROS_KOMACHI.append(('TM·5a_5aa_5b/6b_sc207_d6_2c', _norm_presteps([(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), ((), 6), (('B',), 10), ('sc:207', 0), ((), 30), (('right', 'D'), 6), (('down',), 6), (('down', 'C'), 12)])))
+MACROS_KOMACHI.append(('TM·f5a_6c_sc206', _norm_presteps([(('A',), 10), ((), 2), ('confirm', 0), (('right',), 6), (('right', 'C'), 12), ((), 30), ('sc:206', 0)])))
+KOMACHI_COMBO_MACROS |= {'TM·a222b_66c_sc201', 'TM·5a_5aa_5aaa_5aaaa_sc201', 'TM·5a_5aa_5b/6b_sc207_d6_2c', 'TM·f5a_6c_sc206'}
+# R61j: TM宏追加后同步names(含去重后缀)
 MACRO_NAMES_KOMACHI = [m[0] for m in MACROS_KOMACHI]
+N_MACROS_KOMACHI = len(MACROS_KOMACHI)
 # R61j: TM宏引用的SC卡耗费补入
 SC_COST_KOMACHI[201] = 5
 SC_COST_KOMACHI[206] = 4
+SC_COST_KOMACHI[207] = 4

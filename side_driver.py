@@ -23,7 +23,8 @@ from opp_model import GUARD_ALL_IDS  # noqa: E402 (R34中断判定 — 第九轮
 from ppo import PPOTrainer  # noqa: E402
 from soku_client2 import GameEnded  # noqa: E402
 from tm_env import TMEnv  # noqa: E402
-from train_tm import (CHAR_LIBS, keys_to_input, _parse_sc_targets)  # noqa: E402
+from train_tm import (CHAR_LIBS, keys_to_input, _parse_sc_targets,  # noqa: E402
+                      GUARD_PREP_MACROS)  # noqa: E402
 
 
 class EvalEnv(TMEnv):
@@ -130,6 +131,7 @@ class SideDriver:
         self.hp_own_prev = 10000
         self._opp_x_prev_f = None   # R19: 逐帧EMA基准
         self._opp_vx_ema_f = 0.0
+        self._ender_mask = None     # R61w(C5): ender菜单掩码(P1-A接线)
         self.feat_builder.reset_match()
         self._sc_reset()   # R16: 符卡状态机随局复位(训练同款)
 
@@ -216,6 +218,11 @@ class SideDriver:
                                      opp_vx=self._opp_vx_ema_f)
         side = self._side_feat(own, opp, weather, bullets)
         mask = self.base_mask.copy() | self._sc_usable_mask(own)
+        # R61w(C5): ender菜单交集(起手命中→从菜单选终结技; 单次有效)
+        _end_mask = getattr(self, '_ender_mask', None)
+        if _end_mask is not None:
+            mask = mask & _end_mask
+            self._ender_mask = None
         back_turned = ((1 if own["direction"] > 0 else -1) > 0) != \
                       (opp["position.x"] > own["position.x"])
         dx_abs = abs(opp["position.x"] - own["position.x"])
@@ -246,7 +253,8 @@ class SideDriver:
             if _outv.any():
                 mask = mask & ~_outv
         if not mask.any():
-            mask = self.base_mask
+            mask = (_end_mask if _end_mask is not None
+                    and _end_mask.any() else self.base_mask)
         mid = self.ppo.sample(feat, side, mask=mask,
                               temp=getattr(self.ppo, "_temp", 1.0))
         # R16: 温度跟随模型meta退火值(评估=训练行为策略; 原1.0冷静采样
@@ -261,9 +269,8 @@ class SideDriver:
         # R17②: 等级条件宏(与train_tm同源)
         from level_macros import adjust_script
         _script = adjust_script(self.macros[mid][1], self._skill_levels)
-        for ks, fr in _script:
-            self.macro_queue.append(
-                (ks if isinstance(ks, str) else tuple(ks), fr))
+        # P0-B(从零#2): 入队走单源(与train_tm同函数 — 载荷fr保留)
+        macro_executor.enqueue_script(self.macro_queue, _script)
 
     def _parse_hand(self, own):
         """TM包手牌10字节 → (ids, 选中id, 数量). 与train_tm同源。"""
@@ -386,10 +393,22 @@ class SideDriver:
                     frozen, own["spirit"],
                     abs(opp["position.x"] - own["position.x"]),
                     None,
-                    set(), GUARD_ALL_IDS,
+                    # 从零#2(执行器P2): R34守备豁免原传set()=不对称
+                    # (评估侧立防/蹲防启动窗被中断, 训练侧豁免 —
+                    # train_tm/评估行为偏斜)。与训练侧同集。
+                    set(GUARD_PREP_MACROS), GUARD_ALL_IDS,
                     self._sc_step, self._sc_reset))
             if _inp is not None:
-                self._sc_next_input = _inp
+                if (isinstance(_inp, tuple) and _inp[0] == "ender"):
+                    # R61w(C5, P1-A从零#2接线): ender元组原落入
+                    # _sc_next_input→后续SC帧dict()崩溃。转菜单掩码。
+                    _m = np.zeros(self.n_macros, dtype=bool)
+                    for _ei in _inp[1]:
+                        if 0 <= _ei < self.n_macros:
+                            _m[_ei] = True
+                    self._ender_mask = _m if _m.any() else None
+                else:
+                    self._sc_next_input = _inp
         if not self.macro_queue:
             self.decide(own, opp, weather, objs, bullets)
         if self.macro_queue:

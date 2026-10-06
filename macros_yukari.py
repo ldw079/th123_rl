@@ -124,13 +124,14 @@ NORMALIZED_AFFECTED_YUKARI = {n for (n, s0), (_, s1) in
                             zip(_RAW_YUKARI, MACROS_YUKARI) if s0 != s1}
 
 # ==== R61j(C6): Trialmode连段完整集成 ====
-MACROS_YUKARI.append(('TM·3a_sc215', [(('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 10), ((), 2), ('confirm', 0), ((), 30), ('sc:215', 0)]))
-MACROS_YUKARI.append(('TM·3a_sc208', [(('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 10), ((), 2), ('confirm', 0), ((), 8), ('sc:208', 0)]))
-MACROS_YUKARI.append(('TM·5a_5aa_5aaa_sc201_', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ('sc:201', 0), ((), 30), (('right',), 6), (('B',), 10), ((), 12), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('B', 'down', 'right'), 10)]))
-MACROS_YUKARI.append(('TM·5a_5aa_5aaa_5aaaa_', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 30), (('left',), 6), (('A',), 10), ((), 15), (('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 14), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10)]))
-YUKARI_COMBO_MACROS |= {'TM·3a_sc215', 'TM·3a_sc208', 'TM·5a_5aa_5aaa_sc201_', 'TM·5a_5aa_5aaa_5aaaa_'}
-# R61j: TM宏追加后同步names
+MACROS_YUKARI.append(('TM·3a_sc215', _norm_presteps([(('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 10), ((), 2), ('confirm', 0), ((), 30), ('sc:215', 0)])))
+MACROS_YUKARI.append(('TM·5a_5aa_5aaa_5aaaa_sc201_d421b_6', _norm_presteps([(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 11), ('sc:201', 0), (('down',), 3), (('down', 'left'), 3), (('left',), 3), (('B', 'left'), 10), (('right',), 6)])))
+MACROS_YUKARI.append(('TM·3a_sc208', _norm_presteps([(('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 10), ((), 2), ('confirm', 0), ((), 8), ('sc:208', 0)])))
+MACROS_YUKARI.append(('TM·66b_sc201_6_5b_d623b', _norm_presteps([(('right', 'D'), 8), ((), 2), (('B',), 10), ((), 2), ('confirm', 0), ((), 19), ('sc:201', 0), ((), 30), (('right',), 6), (('B',), 10), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('B', 'down', 'right'), 10)])))
+YUKARI_COMBO_MACROS |= {'TM·3a_sc215', 'TM·5a_5aa_5aaa_5aaaa_sc201_d421b_6', 'TM·3a_sc208', 'TM·66b_sc201_6_5b_d623b'}
+# R61j: TM宏追加后同步names(含去重后缀)
 MACRO_NAMES_YUKARI = [m[0] for m in MACROS_YUKARI]
+N_MACROS_YUKARI = len(MACROS_YUKARI)
 # R61j: TM宏引用的SC卡耗费补入
-SC_COST_YUKARI[201] = 2
-SC_COST_YUKARI[208] = 1
+SC_COST_YUKARI[201] = 3
+SC_COST_YUKARI[208] = 4

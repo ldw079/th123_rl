@@ -124,10 +124,13 @@ NORMALIZED_AFFECTED_TENSHI = {n for (n, s0), (_, s1) in
                             zip(_RAW_TENSHI, MACROS_TENSHI) if s0 != s1}
 
 # ==== R61j(C6): Trialmode连段完整集成 ====
-MACROS_TENSHI.append(('TM·hj9_j5a_j2c_jsc207', [(('down',), 4), (('up', 'right'), 8), ((), 12), (('A',), 8), ((), 2), ('confirm', 0), ((), 4), (('down',), 6), (('down', 'C'), 12), ('sc:207', 0)]))
-MACROS_TENSHI.append(('TM·6_d6_5a_5aa_2b_sc2', [(('right',), 6), (('right',), 6), (('A',), 8), ((), 2), ('confirm', 0), ((), 16), (('A',), 6), (('A',), 6), ((), 4), (('down',), 6), (('down', 'B'), 10), ('sc:207', 0)]))
-MACROS_TENSHI.append(('TM·d6_5a_5aa_2b_5c_d6', [(('right',), 6), (('A',), 8), ((), 2), ('confirm', 0), ((), 12), (('A',), 6), (('A',), 6), ((), 4), (('down',), 6), (('down', 'B'), 10), (('C',), 12), ((), 7), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('C', 'down', 'right'), 10)]))
-MACROS_TENSHI.append(('TM·6_6b_hj9_j5a_j2b_5', [(('right',), 6), (('right',), 6), (('right', 'B'), 10), ((), 2), ('confirm', 0), (('down',), 4), (('up', 'right'), 8), ((), 3), (('A',), 8), (('down',), 6), (('down', 'B'), 10), ((), 22), (('A',), 8), (('A',), 6), (('A',), 6), ((), 4), (('A',), 6), (('A',), 6), (('A',), 6)]))
-TENSHI_COMBO_MACROS |= {'TM·hj9_j5a_j2c_jsc207', 'TM·6_d6_5a_5aa_2b_sc2', 'TM·d6_5a_5aa_2b_5c_d6', 'TM·6_6b_hj9_j5a_j2b_5'}
-# R61j: TM宏追加后同步names
+MACROS_TENSHI.append(('TM·3a_sc205_d6_66c', _norm_presteps([(('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 10), ((), 2), ('confirm', 0), ((), 30), ('sc:205', 0), ((), 30), (('right', 'D'), 6), (('right', 'D'), 8), ((), 2), (('C',), 12)])))
+MACROS_TENSHI.append(('TM·hj9_j5a_j2c_jsc207', _norm_presteps([(('down',), 4), (('up', 'right'), 8), ((), 12), (('up',), 6), (('up',), 2), (('A',), 10), ((), 2), ('confirm', 0), ((), 4), (('up',), 6), (('down',), 2), (('down', 'C'), 14), ('sc:207', 0)])))
+MACROS_TENSHI.append(('TM·5a_5aa_2b_hj9_j2b_j3d_j5a_sc205', _norm_presteps([(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), ((), 5), (('down',), 6), (('down', 'B'), 10), ((), 9), (('down',), 4), (('up', 'right'), 8), (('up',), 6), (('down',), 2), (('down', 'B'), 14), ((), 23), (('down', 'right', 'D'), 6), (('up',), 6), (('up',), 2), (('A',), 10), ('sc:205', 0)])))
+MACROS_TENSHI.append(('TM·2c_hj9_j6d_j5a_j2c_jsc207', _norm_presteps([(('down',), 6), (('down', 'C'), 10), ((), 2), ('confirm', 0), ((), 30), (('down',), 4), (('up', 'right'), 8), (('right', 'D'), 6), (('up',), 6), (('up',), 2), (('A',), 10), (('up',), 6), (('down',), 2), (('down', 'C'), 14), ((), 9), ('sc:207', 0)])))
+TENSHI_COMBO_MACROS |= {'TM·3a_sc205_d6_66c', 'TM·hj9_j5a_j2c_jsc207', 'TM·5a_5aa_2b_hj9_j2b_j3d_j5a_sc205', 'TM·2c_hj9_j6d_j5a_j2c_jsc207'}
+# R61j: TM宏追加后同步names(含去重后缀)
 MACRO_NAMES_TENSHI = [m[0] for m in MACROS_TENSHI]
+N_MACROS_TENSHI = len(MACROS_TENSHI)
+# R61j: TM宏引用的SC卡耗费补入
+SC_COST_TENSHI[205] = 5

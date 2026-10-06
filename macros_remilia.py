@@ -124,13 +124,14 @@ NORMALIZED_AFFECTED_REMILIA = {n for (n, s0), (_, s1) in
                             zip(_RAW_REMILIA, MACROS_REMILIA) if s0 != s1}
 
 # ==== R61j(C6): Trialmode连段完整集成 ====
-MACROS_REMILIA.append(('TM·5a_5aa_5aaa_5aaaa_', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 21), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ('sc:204', 0), ((), 30), (('down',), 4), (('up', 'right'), 8), (('up',), 6), (('up',), 2), (('up', 'A'), 12)]))
-MACROS_REMILIA.append(('TM·5a_5aa_5aaa_5aaaa_', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 21), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 17), (('right',), 6), (('right', 'A'), 12), (('C',), 12), ('sc:201', 0)]))
-MACROS_REMILIA.append(('TM·2a_sc206', [(('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ('sc:206', 0)]))
-MACROS_REMILIA.append(('TM·5a_5aa_5aaa_5aaaa_', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 22), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 16), (('right',), 6), (('right', 'A'), 12), (('C',), 12), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10)]))
-REMILIA_COMBO_MACROS |= {'TM·5a_5aa_5aaa_5aaaa_', 'TM·5a_5aa_5aaa_5aaaa_', 'TM·2a_sc206', 'TM·5a_5aa_5aaa_5aaaa_'}
-# R61j: TM宏追加后同步names
+MACROS_REMILIA.append(('TM·5a_5aa_5aaa_5aaaa_sc204_hj9_j8a', _norm_presteps([(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 21), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ('sc:204', 0), ((), 30), (('down',), 4), (('up', 'right'), 8), (('up',), 6), (('up',), 2), (('up', 'A'), 12)])))
+MACROS_REMILIA.append(('TM·a1214c_2a_sc203', _norm_presteps([(('down',), 3), (('down', 'left'), 3), (('left',), 3), (('C', 'left'), 10), ((), 2), ('confirm', 0), (('down',), 6), (('down', 'A'), 10), ('sc:203', 0)])))
+MACROS_REMILIA.append(('TM·d6_j2a_a2214b/a2214c_hj9_j5a_j2a/j5aa', _norm_presteps([(('right', 'D'), 6), (('up',), 6), (('down',), 2), (('down',), 4), (('down', 'A'), 10), ((), 2), ('confirm', 0), (('down',), 3), (('down', 'left'), 3), (('left',), 3), (('B', 'left'), 10), (('down',), 4), (('up', 'right'), 8), (('up',), 6), (('up',), 2), (('A',), 10), ((), 11), (('up',), 6), (('down',), 2), (('down',), 4), (('down', 'A'), 12)])))
+MACROS_REMILIA.append(('TM·2a/3a/6a_sc204_hj9_j8a', _norm_presteps([(('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 17), ('sc:204', 0), ((), 30), (('down',), 4), (('up', 'right'), 8), (('up',), 6), (('up',), 2), (('up', 'A'), 12)])))
+REMILIA_COMBO_MACROS |= {'TM·5a_5aa_5aaa_5aaaa_sc204_hj9_j8a', 'TM·a1214c_2a_sc203', 'TM·d6_j2a_a2214b/a2214c_hj9_j5a_j2a/j5aa', 'TM·2a/3a/6a_sc204_hj9_j8a'}
+# R61j: TM宏追加后同步names(含去重后缀)
 MACRO_NAMES_REMILIA = [m[0] for m in MACROS_REMILIA]
+N_MACROS_REMILIA = len(MACROS_REMILIA)
 # R61j: TM宏引用的SC卡耗费补入
+SC_COST_REMILIA[203] = 5
 SC_COST_REMILIA[204] = 4
-SC_COST_REMILIA[206] = 4

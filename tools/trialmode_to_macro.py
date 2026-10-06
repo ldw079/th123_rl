@@ -35,6 +35,10 @@ MOVE_SCRIPT = {
     '5b': [(("B",), 10)],
     '2b': [(("down",), 6), (("down", "B"), 10)],
     '6b': [(("right",), 6), (("right", "B"), 10)],
+    '4b': [(("left",), 6), (("left", "B"), 10)],
+    '4c': [(("left",), 6), (("left", "C"), 12)],
+    '1a': [(("down", "left"), 6), (("down", "left", "A"), 12)],
+    '5': [((), 6)],          # 中立微步(择一记法"5/x"首项)
     '5c': [(("C",), 12)],
     '2c': [(("down",), 6), (("down", "C"), 12)],
     '6c': [(("right",), 6), (("right", "C"), 12)],
@@ -47,13 +51,35 @@ MOVE_SCRIPT = {
     '44': [(("left", "D"), 8)],
     'hj8': [(("down",), 4), (("up",), 8)],
     'hj9': [(("down",), 4), (("up", "right"), 8)],
-    # 纯方向步(移动/高跳指示)
+    # 从零#2(产品面P2): hj全方向族(原只有8/9 — hj7等60+次被拒)
+    'hj7': [(("down",), 4), (("up", "left"), 8)],
+    'hj6': [(("down",), 4), (("up", "right"), 8)],
+    'hj4': [(("down",), 4), (("up", "left"), 8)],
+    'hj2': [(("down",), 4), (("down",), 8)],
+    # 纯方向步(移动/高跳指示) — 小键盘全方向(原缺1/3/7/9)
     '6': [(("right",), 6)],
     '4': [(("left",), 6)],
     '8': [(("up",), 6)],
     '2': [(("down",), 6)],
+    '1': [(("down", "left"), 6)],
+    '3': [(("down", "right"), 6)],
+    '7': [(("up", "left"), 6)],
+    '9': [(("up", "right"), 6)],
     'd6': [(("right", "D"), 6)],
     'd4': [(("left", "D"), 6)],
+    # 冲刺攻击(66a/b/c = DA系 — 原171+次被拒)
+    '66a': [(("right", "D"), 8), ((), 2), (("A",), 10)],
+    '66b': [(("right", "D"), 8), ((), 2), (("B",), 10)],
+    '66c': [(("right", "D"), 8), ((), 2), (("C",), 12)],
+    # 空中冲刺(j{dir}d族 — 空中D+方向=飞行, 输入同地面冲刺)
+    'j2d': [(("down", "D"), 6)],
+    'j3d': [(("down", "right", "D"), 6)],
+    'j6d': [(("right", "D"), 6)],
+    'j9d': [(("up", "right", "D"), 6)],
+    'j7d': [(("up", "left", "D"), 6)],
+    'j4d': [(("left", "D"), 6)],
+    'j1d': [(("down", "left", "D"), 6)],
+    'j8d': [(("up", "D"), 6)],
     # f前缀远距离版(与近版同输入, 距离自动替换)
     'f5a': [(("A",), 10)],
     'f2a': [(("down",), 6), (("down", "A"), 10)],
@@ -61,20 +87,38 @@ MOVE_SCRIPT = {
 
 
 def move_keys(token):
-    """记法令牌→键步列表; None=无法转换。"""
-    raw = token.lower()
+    """记法令牌→键步列表; None=无法转换。
+    从零#2(产品面P2)三修:
+    (a) 精确匹配必须先于前缀剥离 — 原循环先剥'j'再查表, j5a/j6a/
+        j2a/j8a/j5b/j2b/j5c/j2c全部退化为地面版(占全token约30%,
+        空中连段整体错键), d6/d4被d-strip抢走退化成走路;
+    (b) 择一记法"x/y"取首项(原replace('/','')拼成乱码必拒);
+    (c) 运动记法字符类[2236]不含1/4 → 214系(d214b/a1236b等)
+        全拒 — 放宽到[1-9]按尾姿映射。
+    """
+    raw = token.lower().split('/')[0]     # 择一记法取首项
+    # 从零#2: 罕见前缀族归一化(l=面向左变体/ud=取消/hjd9=高跳dash/
+    # j6d2=空中dash复合 — 各数十次, 归一到基础记法近似)
+    raw = re.sub(r'^ud(?=[1-9])', '', raw)
+    raw = re.sub(r'^l(?=[1-9hjs])', '', raw)
+    raw = re.sub(r'^u(?=sc)', '', raw)           # usc202 → sc202
+    raw = re.sub(r'^[su](?=[1-9])', '', raw)     # s/u取消前缀(护住sc:)
+    if raw.startswith('hjd') and ('hj' + raw[3:]) in MOVE_SCRIPT:
+        raw = 'hj' + raw[3:]
+    raw = re.sub(r'^(j[1-9]d)[1-9]$', r'\1', raw)
     # scN → "sc:N" 步(符卡状态机)
     m_sc = re.match(r'^(?:j)?sc(\d+)$', raw)
     if m_sc:
         return [("sc:%s" % m_sc.group(1), 0)]
     # dskillNb/c → 必杀技N(装配相关, 转为对应236/623/214指令)
-    m_sk = re.match(r'^d?(?:j)?skill(\d)([bc])$', raw)
+    m_sk = re.match(r'^d?(?:j)?skill(\d)([bc])$', raw) \
+        or re.match(r'^(?:[adj]{0,2})[1-9]?skill([1-9])([bc])$', raw)
     if m_sk:
         n, btn = int(m_sk.group(1)), m_sk.group(2).upper()
         dirs = {1: '236', 2: '623', 3: '214', 4: '214', 5: '22'}.get(n, '236')
         seq = {'236': ['down', 'down+right', 'right'],
                '623': ['right', 'down', 'down+right'],
-               '214': ['left', 'down', 'left'],
+               '214': ['down', 'down+left', 'left'],
                '22': ['down', 'down']}[dirs]
         steps = []
         for d in seq:
@@ -83,24 +127,26 @@ def move_keys(token):
         steps.append((last, 10))
         return steps
     m = raw.replace('/', '')
-    m = re.sub(r'^d(?=[a-z2-9])', '', m)   # d前缀=冲刺取消(暂不模拟)
+    # 精确匹配优先(死路径修复(a)) — j5a/hj8/d6等全条目复活
+    if m in MOVE_SCRIPT:
+        return list(MOVE_SCRIPT[m])
+    m = re.sub(r'^d(?=[a-z2-9])', '', m)   # d前缀=冲刺取消(精确条目之后)
     # 逐级匹配: 精确→前缀剥离
     for prefix in ('hj', 'j', ''):
         body = m[len(prefix):] if m.startswith(prefix) else None
         if body and body in MOVE_SCRIPT:
             return list(MOVE_SCRIPT[body])
-    # 5aa系(连段后续段=再按A)
-    if re.match(r'^5a{2,5}$', m):
-        n_a = len(m) - 1
+    # 5aa系(连段后续段=再按A; 含空中j5aa — 剥j后匹配)
+    _body5 = m[1:] if m.startswith('j') else m
+    if re.match(r'^5a{2,5}$', _body5):
+        n_a = len(_body5) - 1
         return [(("A",), 6)] * n_a
-    # 必杀指令
-    skill = re.match(r'^([2236]+)([bc])$', m)
+    # 必杀指令 — 从零#2(c): [1-9]全数字+按尾姿映射(214系复活);
+    # 容许复合前缀(a=取消/j=空中/d=冲刺: a1236b/ja1236b族)
+    skill = re.match(r'^(?:[adj]{0,2})([1-9]{2,8})([bc])$', m)
     if skill:
         dirs_str, btn = skill.group(1), skill.group(2).upper()
-        seq = {'236': ['down', 'down+right', 'right'],
-               '623': ['right', 'down', 'down+right'],
-               '214': ['left', 'down', 'left'],
-               '22': ['down', 'down']}.get(dirs_str)
+        seq = _motion_seq(dirs_str)
         if seq is None:
             return None
         steps = []
@@ -109,6 +155,29 @@ def move_keys(token):
         last = tuple(sorted(set(seq[-1].split('+')) | {btn}))
         steps.append((last, 10))
         return steps
+    return None
+
+
+def _motion_seq(dirs_str):
+    """运动记法→姿态序列(从零#2: 未知长运动按尾姿近似映射)。"""
+    known = {'236': ['down', 'down+right', 'right'],
+             '623': ['right', 'down', 'down+right'],
+             '214': ['down', 'down+left', 'left'],
+             '421': ['down', 'down+left', 'left'],
+             '22': ['down', 'down']}
+    if dirs_str in known:
+        return known[dirs_str]
+    tail = dirs_str[-3:] if len(dirs_str) >= 3 else dirs_str
+    if tail in known:
+        return known[tail]
+    # 尾姿近似: 末位定终点(6=前, 4/1=后, 2=下)
+    last_d = dirs_str[-1]
+    if last_d in ('6', '3'):
+        return known['236']
+    if last_d in ('4', '1', '7'):
+        return known['214']
+    if last_d == '2':
+        return known['22']
     return None
 
 

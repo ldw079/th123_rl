@@ -43,7 +43,10 @@ LIBS = {0: ('reimu', M_REIMU), 1: ('marisa', MACROS_MARISA),
 IDLE_KEEP = 0.15      # 待机标签保留比例(其决策含量低)
 CONF_MIN = 0.92       # BC行置信度门槛(比匹配器门槛更严)
 ALIGN_PASS_MIN = 0.5  # 对齐复检窗通过率下限(低于=整片拒收)
-LAYOUT = '5N+308:v2'  # 侧向量布局版本(repad守卫用)
+# 从零#2(产品面P2): 布局串从CORE_DIMS派生 — 原硬编码'5N+308:v2',
+# R61t扩维316后过期(repad守卫按旧宽判断=误动作)
+from feat_builder import FeatureBuilder as _FB
+LAYOUT = '5N+%d:v2' % _FB.CORE_DIMS  # 侧向量布局版本(repad守卫用)
 
 
 def _hand_flat(p):

@@ -86,14 +86,22 @@ class DifficultyController:
         return max(0.3, min(4.0, t))
 
     def apply_mask(self, base_mask, char_lib) -> np.ndarray:
-        """在基础掩码上叠加难度限制(禁SC/技能等)."""
+        """在基础掩码上叠加难度限制(禁SC/技能等).
+        从零#2(产品面P2): ban_sc原只按lib['sc']名集禁SC宏 — 脚本含
+        sc:步的TM连段漏禁; easy/normal牌组无SC卡, 选中它=符卡状态机
+        空转整局(自毁式宏而非禁用)。修: 脚本含sc:步者一并掩掉。"""
         mask = base_mask.copy()
         if self.preset['ban_sc']:
-            for name in char_lib.get('sc', set()):
-                idx = char_lib['names'].index(name) \
-                    if name in char_lib['names'] else -1
-                if idx >= 0:
-                    mask[idx] = False
+            _sc_names = set(char_lib.get('sc', set()))
+            for i, (name, script) in enumerate(char_lib['macros']):
+                if i >= len(mask):
+                    break
+                if name in _sc_names:
+                    mask[i] = False
+                    continue
+                if any(isinstance(k, str) and k.startswith('sc:')
+                       for k, _f in script):
+                    mask[i] = False
         if self.preset['ban_skill']:
             for name in char_lib.get('skill', set()):
                 idx = char_lib['names'].index(name) \

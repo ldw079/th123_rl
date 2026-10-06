@@ -98,8 +98,16 @@ def main():
 
     d = np.load(MODEL_PI)
     n_out = int(d['W2'].shape[1])
-    n_side = 5 * n_out + 308   # 与learner_hub同式(勿从W_side推 — 存储布局非n_side)
+    # P0-A(从零#2): 原硬编码`5*n_out+308`与learner_hub同病 — R61t扩维
+    # 316后此式过期658≠666, 严格加载当场拒载(测试抓的就是自己)。
+    # 修: 与learner_hub同源从FeatureBuilder.CORE_DIMS派生。
+    from feat_builder import FeatureBuilder
+    n_side = 5 * n_out + FeatureBuilder.CORE_DIMS
+    # 宽度与模型档一致(learner启动断言的同款检查)
+    _f_side = int(d['W_side'].shape[0])
     d.close()
+    assert _f_side == n_side, (
+        '模型侧宽%d≠派生%d — 布局变更未同步' % (_f_side, n_side))
     print('模型维度: n_out=%d n_side=%d' % (n_out, n_side))
 
     # ---- B: 快照发布 → actor(numpy)加载 ----
@@ -138,6 +146,43 @@ def main():
     diff = float(np.abs(P_np - P_gpu).max())
     check('B4前向等价', diff < 1e-3, '|ΔP|max=%.2e' % diff)
 
+    # ---- B5: 严格加载(从零#2 P0-A共犯修复的行为钉) ----
+    # 维度过期/错配时load必须响亮拒载 — 原只打印继续→随机权重被发布
+    from ppo_gpu import PPOTrainerGPU as _G
+    _bad = _G(n_side=n_side - 8, n_out=n_out)
+    try:
+        _bad.load(MODEL_PI, MODEL_V)
+        check('B5严格加载拒错形', False, '错维度load未拒载!')
+    except ValueError as e:
+        check('B5严格加载拒错形', '形状不符' in str(e),
+              'ValueError(形状不符)')
+
+    # ---- B6: learner维度派生(从零#2 P0-A) — 不许回归hardcode 308 ----
+    import inspect
+    import learner_hub as _lh
+    _lh_src = inspect.getsource(_lh.run_learner)
+    check('B6learner CORE_DIMS派生',
+          'FeatureBuilder.CORE_DIMS' in _lh_src and '+ 308' not in _lh_src,
+          'n_side=5*n_out+CORE_DIMS')
+
+    # ---- I: disk_guard清理行为(从零#2 fleet P2: 角色过滤+数值序) ----
+    from learner_hub import _dg_cleanup
+    _ep2 = os.path.join(tmp, 'ep_dg')
+    os.makedirs(_ep2, exist_ok=True)
+    for i in range(6):
+        _p = os.path.join(_ep2, 'ep_reimu_0_%d.npz' % i)
+        open(_p, 'wb').write(b'x')     # 清理只按文件名/mtime, 不解析
+        os.utime(_p, (1000 + i, 1000 + i))
+    _p_other = os.path.join(_ep2, 'ep_marisa_0_9.npz')
+    open(_p_other, 'wb').write(b'x')
+    _dg_cleanup(_ep2, snap_dir, char='reimu')
+    _left_r = [f for f in os.listdir(_ep2) if 'reimu' in f]
+    _left_m = [f for f in os.listdir(_ep2) if 'marisa' in f]
+    check('I1 disk_guard角色过滤',
+          len(_left_r) == 4 and len(_left_m) == 1,
+          'reimu余%d marisa余%d(他角色局不动)' % (len(_left_r),
+                                                  len(_left_m)))
+
     # ---- A/F/C/D: episode往返+摸批+更新 ----
     ep_rng = np.random.default_rng(42)
     lens = [37, 51, 44]
@@ -155,6 +200,26 @@ def main():
     got = collect_episodes(ep_dir, 'reimu', 3)
     check('F1角色过滤', all('reimu' in os.path.basename(p)
                           for p in got) and len(got) == 3)
+
+    # ---- C5: 更新失败episode不丢(P1-C从零#2: 原消费即删=整批永久丢失) ----
+    from learner_hub import quarantine as _quar
+    _poison = save_episode_npz(
+        ep_dir, 'reimu', 9, 9, synth_episode(act_tr, 2, 9, 8, ep_rng),
+        episode_meta('reimu', 9, 9, 2, 99, 8))
+    _bad_tr = _G(n_side=n_side - 8, n_out=n_out)   # 维度错配→update必炸
+    try:
+        update_from_episodes(_bad_tr, [_poison], 'reimu', '_t',
+                             n_out, np.zeros(n_out, dtype=np.int64))
+        check('C5失败批不删', False, '未抛异常?')
+    except Exception:
+        check('C5失败批不删', os.path.exists(_poison),
+              '更新抛错后文件保留(%s)'
+              % ('在' if os.path.exists(_poison) else '丢了!'))
+    _qn = _quar([_poison])
+    check('C5隔离区', _qn == 1
+          and os.path.exists(os.path.join(ep_dir, 'failed',
+                                          os.path.basename(_poison))),
+          '移入failed/防无限崩溃循环')
 
     arr_b, meta_b = load_episode_npz(paths[0])
     check('A1键齐全', all(k in arr_b for k in

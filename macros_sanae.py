@@ -124,12 +124,14 @@ NORMALIZED_AFFECTED_SANAE = {n for (n, s0), (_, s1) in
                             zip(_RAW_SANAE, MACROS_SANAE) if s0 != s1}
 
 # ==== R61j(C6): Trialmode连段完整集成 ====
-MACROS_SANAE.append(('TM·2a_3a_2c_sc205', [(('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 16), (('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 14), ((), 8), (('down',), 6), (('down', 'C'), 12), ('sc:205', 0)]))
-MACROS_SANAE.append(('TM·5a_5aa_5aaa_5aaaa_', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 3), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 7), ('sc:205', 0)]))
-MACROS_SANAE.append(('TM·2a_3a_5c_sc205', [(('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 15), (('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 14), ((), 8), (('C',), 12), ((), 5), ('sc:205', 0)]))
-MACROS_SANAE.append(('TM·5a_5aa_5aaa_2b_sc2', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 3), (('down',), 6), (('down', 'B'), 10), ('sc:201', 0), ((), 30), (('left',), 6), (('right',), 6), (('right', 'A'), 12), (('right',), 6), (('right', 'B'), 10)]))
-SANAE_COMBO_MACROS |= {'TM·2a_3a_2c_sc205', 'TM·5a_5aa_5aaa_5aaaa_', 'TM·2a_3a_5c_sc205', 'TM·5a_5aa_5aaa_2b_sc2'}
-# R61j: TM宏追加后同步names
+MACROS_SANAE.append(('TM·2a_3a_2c_sc205', _norm_presteps([(('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 16), (('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 14), ((), 8), (('down',), 6), (('down', 'C'), 12), ('sc:205', 0)])))
+MACROS_SANAE.append(('TM·5a_5aa_5aaa_5aaaa_sc205', _norm_presteps([(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 3), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 7), ('sc:205', 0)])))
+MACROS_SANAE.append(('TM·2a_3a_5c_sc205', _norm_presteps([(('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 15), (('down',), 6), (('down', 'right'), 2), (('down', 'right', 'A'), 14), ((), 8), (('C',), 12), ((), 5), ('sc:205', 0)])))
+MACROS_SANAE.append(('TM·5a_5aa_5aaa_sc204_9/8/hj9/hj8_j5c_j6d/j9d_j8a/j6a', _norm_presteps([(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), (('A',), 6), ((), 3), ('sc:204', 0), ((), 30), (('up', 'right'), 6), (('up',), 6), (('up',), 2), (('C',), 14), ((), 16), (('right', 'D'), 6), (('up',), 6), (('up',), 2), (('up', 'A'), 12)])))
+SANAE_COMBO_MACROS |= {'TM·2a_3a_2c_sc205', 'TM·5a_5aa_5aaa_5aaaa_sc205', 'TM·2a_3a_5c_sc205', 'TM·5a_5aa_5aaa_sc204_9/8/hj9/hj8_j5c_j6d/j9d_j8a/j6a'}
+# R61j: TM宏追加后同步names(含去重后缀)
 MACRO_NAMES_SANAE = [m[0] for m in MACROS_SANAE]
+N_MACROS_SANAE = len(MACROS_SANAE)
 # R61j: TM宏引用的SC卡耗费补入
-SC_COST_SANAE[205] = 3
+SC_COST_SANAE[204] = 3
+SC_COST_SANAE[205] = 5

@@ -124,12 +124,11 @@ NORMALIZED_AFFECTED_YUYUKO = {n for (n, s0), (_, s1) in
                             zip(_RAW_YUYUKO, MACROS_YUYUKO) if s0 != s1}
 
 # ==== R61j(C6): Trialmode连段完整集成 ====
-MACROS_YUYUKO.append(('TM·2a_6a_6c_dskill4b', [(('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 15), (('right',), 6), (('right', 'A'), 12), ((), 9), (('right',), 6), (('right', 'C'), 12), (('left',), 3), (('down',), 3), (('left',), 3), (('B', 'left'), 10)]))
-MACROS_YUYUKO.append(('TM·5a_5aa_5aaa_sc203_', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), ((), 5), (('A',), 6), (('A',), 6), (('A',), 6), ('sc:203', 0), ((), 30), (('down',), 4), (('up', 'right'), 8), (('up',), 6), (('up',), 2), (('up', 'A'), 12)]))
-MACROS_YUYUKO.append(('TM·hj9_j2a_2a_2b_6c_h', [(('down',), 4), (('up', 'right'), 8), ((), 22), (('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 28), (('down',), 6), (('down', 'A'), 10), (('down',), 6), (('down', 'B'), 10), ((), 8), (('right',), 6), (('right', 'C'), 12), ((), 15), (('down',), 4), (('up', 'right'), 8), (('A',), 8), ((), 13), (('up',), 6), (('up',), 2), (('up', 'A'), 12)]))
-MACROS_YUYUKO.append(('TM·5a_5aa_5aaa_f5a_6a', [(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), ((), 5), (('A',), 6), (('A',), 6), (('A',), 6), ((), 30), (('A',), 10), (('right',), 6), (('right', 'A'), 12), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('B', 'down', 'right'), 10)]))
-YUYUKO_COMBO_MACROS |= {'TM·2a_6a_6c_dskill4b', 'TM·5a_5aa_5aaa_sc203_', 'TM·hj9_j2a_2a_2b_6c_h', 'TM·5a_5aa_5aaa_f5a_6a'}
-# R61j: TM宏追加后同步names
+MACROS_YUYUKO.append(('TM·5a_5aa_2b_d421c_sc209', _norm_presteps([(('A',), 8), ((), 2), ('confirm', 0), (('A',), 6), (('A',), 6), ((), 5), (('down',), 6), (('down', 'B'), 10), ((), 4), (('down',), 3), (('down', 'left'), 3), (('left',), 3), (('C', 'left'), 10), ((), 11), ('sc:209', 0)])))
+MACROS_YUYUKO.append(('TM·4a/2a_2b_2c_j66_j2a_5a_5aa_5aaa', _norm_presteps([(('left',), 6), (('left', 'A'), 10), ((), 2), ('confirm', 0), ((), 15), (('down',), 6), (('down', 'B'), 10), ((), 8), (('down',), 6), (('down', 'C'), 12), ((), 14), (('right', 'D'), 8), (('up',), 6), (('down',), 2), (('down',), 4), (('down', 'A'), 12), ((), 30), (('A',), 8), (('A',), 6), (('A',), 6), ((), 5), (('A',), 6), (('A',), 6), (('A',), 6)])))
+MACROS_YUYUKO.append(('TM·hj7_j66_j2a_5a_5aa_5aaa_2b_d623b', _norm_presteps([(('down',), 4), (('up', 'left'), 8), ((), 8), (('right', 'D'), 8), (('up',), 6), (('down',), 2), (('down',), 4), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 30), (('A',), 8), (('A',), 6), (('A',), 6), ((), 5), (('A',), 6), (('A',), 6), (('A',), 6), ((), 30), (('down',), 6), (('down', 'B'), 10), (('right',), 3), (('down',), 3), (('down', 'right'), 3), (('B', 'down', 'right'), 10)])))
+MACROS_YUYUKO.append(('TM·2a_6a_6c_dskill4b', _norm_presteps([(('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 15), (('right',), 6), (('right', 'A'), 12), ((), 9), (('right',), 6), (('right', 'C'), 12), (('down',), 3), (('down', 'left'), 3), (('left',), 3), (('B', 'left'), 10)])))
+YUYUKO_COMBO_MACROS |= {'TM·5a_5aa_2b_d421c_sc209', 'TM·4a/2a_2b_2c_j66_j2a_5a_5aa_5aaa', 'TM·hj7_j66_j2a_5a_5aa_5aaa_2b_d623b', 'TM·2a_6a_6c_dskill4b'}
+# R61j: TM宏追加后同步names(含去重后缀)
 MACRO_NAMES_YUYUKO = [m[0] for m in MACROS_YUYUKO]
-# R61j: TM宏引用的SC卡耗费补入
-SC_COST_YUYUKO[203] = 4
+N_MACROS_YUYUKO = len(MACROS_YUYUKO)

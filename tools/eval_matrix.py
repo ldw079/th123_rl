@@ -52,60 +52,50 @@ def run_matchup(char_a, char_b, port, games=2, tps=480):
     """一对角色的评估对局(A=模型驱动, B=模型驱动).
 
     返回: {'a_wins': x, 'b_wins': y, 'games': n}
+    P0-C(从零#2): 原三病 — (a)死行引用未定义last_state+frame_input
+    .__wrapped__(不存在)双双被except:pass吞 → 每场0-0(全矩阵是对
+    零矩阵的排名); (b)用TMEnv而非EvalEnv → last_match恒None;
+    (c)每循环step两次=输入隔帧送达(宏帧计时 减半)。修: EvalEnv+
+    上一拍输入保持的单步节律(与训练循环同构)+异常显式计数。
     """
-    from tm_env import TMEnv
-    from train_tm import CHAR_LIBS, keys_to_input
-    from side_driver import SideDriver
+    from train_tm import CHAR_LIBS  # noqa: F401 (lib检查)
+    from side_driver import SideDriver, EvalEnv
 
     # 双方都用SideDriver(确定性评估)
-    lib_a = CHAR_LIBS[char_a]
-    lib_b = CHAR_LIBS[char_b]
     driver_a = SideDriver(char_a, 'L')
     driver_b = SideDriver(char_b, 'R')
-    driver_a.load(os.path.join(STORE, 'model_ppo_%s.npz' % char_a),
-                  os.path.join(STORE, 'model_ppo_%s_v.npz' % char_a))
-    driver_b.load(os.path.join(STORE, 'model_ppo_%s.npz' % char_b),
-                  os.path.join(STORE, 'model_ppo_%s_v.npz' % char_b))
+    driver_a.load(os.path.join(STORE, 'model_ppo_%s.npz' % char_a))
+    driver_b.load(os.path.join(STORE, 'model_ppo_%s.npz' % char_b))
 
     a_wins = 0
     b_wins = 0
     for g in range(games):
-        env = TMEnv(port, char_left=char_a, char_right=char_b,
-                    vs_com=False, tps=tps)
-        # 跑一局
+        env = EvalEnv(port, char_left=char_a, char_right=char_b,
+                      vs_com=False, tps=tps)
+        inp_a, inp_b = {}, {}
         try:
-            frames = 0
-            while frames < 12000:   # ~4分钟上限
-                inp_a = driver_a.frame_input.__wrapped__(driver_a, *last_state) \
-                    if frames > 60 else {}
-                r = env.step({}, {})
+            for frames in range(12000):   # ~4分钟上限
+                r = env.step(inp_a, inp_b)
                 if r is None:
                     break
                 left, right, weather, objs = r
-                # SideDriver评估
-                inp_a = driver_a.frame_input(left, right, weather,
-                                             objs, [])
-                inp_b = driver_b.frame_input(right, left, weather,
-                                             objs, [])
-                # 应用输入
-                if inp_a or inp_b:
-                    r2 = env.step(inp_a, inp_b)
-                    if r2 is None:
-                        break
-                    left, right = r2[0], r2[1]
-                # 检查终局
-                lm = getattr(env, 'last_match', None)
-                if lm:
-                    _w, ls, rs = lm
+                if env.last_match:
+                    _w, ls, rs = env.last_match
                     if ls > rs:
                         a_wins += 1
                     else:
                         b_wins += 1
                     env.last_match = None
                     break
-                frames += 1
-        except Exception:
-            pass
+                if frames < 60:      # intro排水
+                    continue
+                inp_a = driver_a.frame_input(left, right, weather,
+                                             objs, [])
+                inp_b = driver_b.frame_input(right, left, weather,
+                                             objs, [])
+        except Exception as e:
+            print('  [eval] %s vs %s 第%d局异常(%s: %s) — 该局不计'
+                  % (char_a, char_b, g + 1, type(e).__name__, e))
         finally:
             try:
                 env.close()

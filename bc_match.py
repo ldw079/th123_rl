@@ -22,6 +22,9 @@ import sys
 sys.path.insert(0, r'D:\temp\soku_arch')
 from soku_arch.input_codec import BattleInput, battle_to_trainer
 
+# 键→位映射。V极性约定(P1-G从零#2文档化): up=V:-1 / down=V:+1 —
+# 与train_tm.keys_to_input及macro_executor按键步**同极性**(同名表
+# 反义的复制陷阱: 各自内部都对, 改任一处必须三处同步)。
 KEY_TO_BIT = {
     "right": ("H", 1), "left": ("H", -1),
     "up": ("V", -1), "down": ("V", 1),
@@ -34,11 +37,14 @@ SC_PRESS_F = 3   # R61g: 规范SC按压时长(专家实测卡键按压2-6帧, 3�
 
 
 def keys_to_input(keys, mirror=False):
+    """P1-G(从零#2): mirror只翻H轴 — 原连V(up/down)一起翻, 而专家流
+    (BattleInput)从不翻V → 换边段的空中宏(up/down攻击)标签静默
+    丢失/错配。格斗游戏镜像是左右翻转, 上下方向语义不变。"""
     inp = {}
     for k in keys:
         if k in KEY_TO_BIT:
             axis, val = KEY_TO_BIT[k]
-            if axis in ("H", "V") and mirror:
+            if axis == "H" and mirror:
                 val = -val
             inp[axis] = val
     return inp

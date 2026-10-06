@@ -124,11 +124,11 @@ NORMALIZED_AFFECTED_AYA = {n for (n, s0), (_, s1) in
                             zip(_RAW_AYA, MACROS_AYA) if s0 != s1}
 
 # ==== R61j(C6): Trialmode连段完整集成 ====
-MACROS_AYA.append(('TM·6_d236b_sc206', [(('right',), 6), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10), ((), 2), ('confirm', 0), ('sc:206', 0)]))
-MACROS_AYA.append(('TM·2a_2a_sc206', [(('down',), 6), (('down', 'A'), 10), ((), 2), ('confirm', 0), ((), 14), (('down',), 6), (('down', 'A'), 10), ('sc:206', 0)]))
-MACROS_AYA.append(('TM·hj9_j5a_j5b_j66_j5', [(('down',), 4), (('up', 'right'), 8), (('A',), 8), ((), 2), ('confirm', 0), ((), 3), (('B',), 10), (('right', 'D'), 8), (('A',), 8), (('right',), 6), (('right', 'A'), 12), ((), 5), ('sc:203', 0), ((), 30), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10)]))
-AYA_COMBO_MACROS |= {'TM·6_d236b_sc206', 'TM·2a_2a_sc206', 'TM·hj9_j5a_j5b_j66_j5'}
-# R61j: TM宏追加后同步names
+MACROS_AYA.append(('TM·d236b_d236b_hj9_jd236b', _norm_presteps([(('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10), ((), 2), ('confirm', 0), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10), (('down',), 4), (('up', 'right'), 8), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10)])))
+MACROS_AYA.append(('TM·d236b_d236b_hj9_j5a_j2b/j5b/j6b_j66_j5a_j8a/j6a', _norm_presteps([(('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10), ((), 2), ('confirm', 0), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10), (('down',), 4), (('up', 'right'), 8), (('up',), 6), (('up',), 2), (('A',), 10), ((), 11), (('up',), 6), (('down',), 2), (('down', 'B'), 14), (('right', 'D'), 8), (('up',), 6), (('up',), 2), (('A',), 10), ((), 5), (('up',), 6), (('up',), 2), (('up', 'A'), 12)])))
+MACROS_AYA.append(('TM·d236b_d236b_hj9_j5a_j2b/j5b/j6b_jd236b', _norm_presteps([(('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10), ((), 2), ('confirm', 0), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10), (('down',), 4), (('up', 'right'), 8), (('up',), 6), (('up',), 2), (('A',), 10), ((), 11), (('up',), 6), (('down',), 2), (('down', 'B'), 14), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10)])))
+MACROS_AYA.append(('TM·6_d236b_sc206', _norm_presteps([(('right',), 6), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('B', 'right'), 10), ((), 2), ('confirm', 0), ('sc:206', 0)])))
+AYA_COMBO_MACROS |= {'TM·d236b_d236b_hj9_jd236b', 'TM·d236b_d236b_hj9_j5a_j2b/j5b/j6b_j66_j5a_j8a/j6a', 'TM·d236b_d236b_hj9_j5a_j2b/j5b/j6b_jd236b', 'TM·6_d236b_sc206'}
+# R61j: TM宏追加后同步names(含去重后缀)
 MACRO_NAMES_AYA = [m[0] for m in MACROS_AYA]
-# R61j: TM宏引用的SC卡耗费补入
-SC_COST_AYA[203] = 3
+N_MACROS_AYA = len(MACROS_AYA)

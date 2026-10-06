@@ -344,10 +344,13 @@ class TMTrainer:
         self.com_difficulty = com_difficulty
         # R61e(B6): 起读持久化难度 — 有存档则覆盖启动参数(重启不再回
         # Easy反复爬梯); --com-difficulty仅作无存档时的起点
+        # 从零#2(fleet P2): 路径入属性(actor模式按actor隔离 — 原共享
+        # 文件多写者=同角色多actor的阶梯状态互踩)
+        self._com_diff_path = os.path.join(
+            STORE_DIR, "com_difficulty_%s%s.json" % (char, suffix))
         try:
             import json as _json
-            _cd = os.path.join(
-                STORE_DIR, "com_difficulty_%s%s.json" % (char, suffix))
+            _cd = self._com_diff_path
             if os.path.exists(_cd):
                 _d = _json.load(open(_cd, encoding="utf8"))["difficulty"]
                 if 0 <= int(_d) <= 3:
@@ -754,14 +757,16 @@ class TMTrainer:
         if self.opp_cycle and self.opp is not None:
             env = EvalEnv(port, char_left=self.char,
                           char_right=self.opp.char, vs_com=False,
-                          tps=self.tps, render=self.render, lane=lane)
+                          tps=self.tps, render=self.render, lane=lane,
+                          deck_left=_my_deck, deck_right=_opp_deck)
         else:
             env = EvalEnv(port, char_left=self.char,
                           char_right=self.char, vs_com=True,
                           tps=self.tps, render=self.render,
                           com_difficulty=getattr(self, 'com_difficulty',
-                                                 None), lane=lane)
-        env.deck_left = _my_deck
+                                                 None), lane=lane,
+                          deck_left=_my_deck, deck_right=_opp_deck)
+        env.deck_left = _my_deck   # 双保险(续局/重建路径消费)
         env.deck_right = _opp_deck
         return env
 
@@ -806,9 +811,13 @@ class TMTrainer:
     def _resolve_pool(self, ch):
         """R43方案A: 角色对手的池路径动态解析。
         R48: League加权 — 原纯轮转指针改为胜率加权选择(强敌更多采样,
-        已碾压对手降权; fictitious play标准形式, 可行性报告天花板5)。"""
-        from outer_loop import OpponentPool as _OP
-        cands = _OP().latest(ch, k=POOL_K)
+        已碾压对手降权; fictitious play标准形式, 可行性报告天花板5)。
+        从零#2(fleet P2): 池根路径可注入(self._pool_root) — 原恒读生产
+        POOL_DIR, fleet learner的池快照写FLEET_DIR/pool但actor读不到
+        =league对手冻结在生产快照。actor模式注入fleet池根。"""
+        from outer_loop import OpponentPool as _OP, POOL_DIR as _PD
+        _root = getattr(self, '_pool_root', None) or _PD
+        cands = _OP(root=_root).latest(ch, k=POOL_K)
         if not cands:
             return None
         # R48: League胜率加权(替代R43纯轮转)
@@ -876,7 +885,7 @@ class TMTrainer:
                      self.com_difficulty, _names[self.com_difficulty]))
         if self.com_difficulty != _old_d:
             import json as _json
-            _p = os.path.join(
+            _p = getattr(self, '_com_diff_path', None) or os.path.join(
                 STORE_DIR,
                 "com_difficulty_%s%s.json" % (self.char, self.suffix))
             _t = _p + ".tmp"
@@ -935,11 +944,17 @@ class TMTrainer:
         base_port是rebuild车道**中段口**, 无lane时tm_env行走(p,p+9)越入
         相邻slot的12宽车道(僵尸口探测使其成为响亮失败, 代价=丢局churn)。
         主车道base=车道起点, 保持原生无lane行为。
+        从零#2(fleet P2): fleet段口同样入lane — 原只认train_rebuild段,
+        fleet actor的重建(rebuild_port补丁返回车道内ep偏移口)拿不到lane
+        →行走(p,p+9)越入相邻actor车道。actor_worker已补丁rebuild_lane
+        返回fleet车道, 此处放行fleet段即可。
         _next_port死代码已删(TMEnv:176恒定义base_port)。"""
         from portmap import SEGMENTS, rebuild_lane
         p = self.env.base_port
         lo, hi = SEGMENTS["train_rebuild"]
-        lane = rebuild_lane(self.slot) if lo <= p <= hi else None
+        flo, fhi = SEGMENTS["fleet"]
+        lane = (rebuild_lane(self.slot)
+                if (lo <= p <= hi or flo <= p <= fhi) else None)
         return self._make_env(p, lane=lane)
 
     def _rotate_opp(self, ep):
@@ -1100,6 +1115,7 @@ class TMTrainer:
         self._seiran_gauge = None            # R61c(B5): 晴岚gauge冻结值
         self._last_gauge = 0                 # R61c: 进入晴岚前的真实gauge
         self._frame_event_mask = None        # R61l(B2): 事件反应掩码
+        self._ender_mask = None              # R61w(C5): ender菜单掩码
         self._in_frame_reaction = False      # R61l: 事件反应模式标记
         self._frame_ev_count = 0            # R61l: 帧级事件触发计数
         self.frame_event_count = 0          # R61l: 日志计数
@@ -1199,6 +1215,8 @@ class TMTrainer:
                 if _rmask is not None:
                     macro_queue = []
                     gate_frames = 0
+                    dec_name = None   # 从零#2(执行器P2): 清队不清名=
+                    # 误记空挥(下决策窗把被打断的宏记作空挥扣分)
                     self._sc_reset()
                     self._frame_event_mask = _rmask
                     self._in_frame_reaction = True
@@ -1366,7 +1384,20 @@ class TMTrainer:
                         GUARD_PREP_MACROS, GUARD_ALL_IDS,
                         self._sc_step, self._sc_reset))
                 if _cur_inp is not None:
-                    self._sc_next_input = _cur_inp
+                    if (isinstance(_cur_inp, tuple)
+                            and _cur_inp[0] == "ender"):
+                        # R61w(C5, P1-A从零#2接线): ender菜单信号 — 原
+                        # 元组落入_sc_next_input→后续SC帧dict()崩溃且
+                        # 菜单掩码从未实施。修: 转成ender掩码(下一决策
+                        # 点策略从菜单中选终结技, 复用B2事件掩码机制)。
+                        _m = np.zeros(self.n_macros, dtype=bool)
+                        for _ei in _cur_inp[1]:
+                            if 0 <= _ei < self.n_macros:
+                                _m[_ei] = True
+                        self._ender_mask = _m if _m.any() else None
+                        _cur_inp = None
+                    else:
+                        self._sc_next_input = _cur_inp
 
             # ---- 决策点(队列空) ----
             # R61l(B2): 事件反应期间产生**策略条件化决策点** —
@@ -1374,6 +1405,7 @@ class TMTrainer:
             # (R51旧版: 反应期间不产生决策=守式不入轨迹 — 已废,
             #  B2让反应决策成为真实训练数据)
             _ev_mask = getattr(self, '_frame_event_mask', None)
+            _end_mask = getattr(self, '_ender_mask', None)
             if not macro_queue:
                 # 虚拟视觉(包渲染, 内部维护3帧栈)
                 vf = self._visual_feat(left, right, objs)  # 栈由_push_frame维护
@@ -1390,6 +1422,10 @@ class TMTrainer:
                     # R61l(B2): 事件反应掩码交集(策略从事件约束中选)
                     if _ev_mask is not None:
                         mask = mask & _ev_mask
+                    # R61w(C5): ender菜单掩码交集(起手命中→策略从
+                    # 终结技菜单中选 — 分层连段的二次决策快路径)
+                    if _end_mask is not None:
+                        mask = mask & _end_mask
                     dx_abs = abs(right["position.x"] - left["position.x"])
                     if back_turned:
                         mask = mask & ~self.dir_attack
@@ -1422,7 +1458,12 @@ class TMTrainer:
                         if _outv.any():
                             mask = mask & ~_outv
                     if not mask.any():
-                        mask = self.base_mask   # 兜底: 全禁时回退基础掩码
+                        # 兜底: 全禁时优先保约束语义(ender菜单/事件反应
+                        # 比回退基础掩码更忠实于触发源), 都无约束才回退
+                        mask = (_end_mask if _end_mask is not None
+                                and _end_mask.any() else
+                                _ev_mask if _ev_mask is not None
+                                and _ev_mask.any() else self.base_mask)
                     # v2配额探索: 新宏(计数<150)12%探针覆盖 + 乐观先验
                     # R50(体检A4): 原子宏配额延长 — 零初始化迁移的logit
                     # 需要梯度才能>0, 但150次配额跑完后策略层不选零logit宏
@@ -1495,6 +1536,9 @@ class TMTrainer:
                     if _ev_mask is not None:
                         self._frame_event_mask = None
                         self._in_frame_reaction = False
+                    # R61w(C5): ender菜单单次有效 — 决策完成即消费
+                    if _end_mask is not None:
+                        self._ender_mask = None
                     # R56(fleet): actor模式logP记录(在mid最终确定后 —
                     # newbie探针/采样/价值引导重选三条路径统一于此记
                     # log π_snapshot(a_final|mask,bias))
@@ -1564,11 +1608,9 @@ class TMTrainer:
                     from level_macros import adjust_script
                     script = adjust_script(self.macros[mid][1],
                                            self.feat_builder._skill_levels)
-                    for ks, fr in script:
-                        if isinstance(ks, str):
-                            macro_queue.append((ks, 0))
-                        else:
-                            macro_queue.append((tuple(ks), fr))
+                    # P0-B(从零#2): 入队走macro_executor.enqueue_script单源
+                    # — 原内联(ks,0)丢字符串步载荷(branch/link/ender)
+                    macro_executor.enqueue_script(macro_queue, script)
 
         # ---- episode结束 → 异步PPO更新(与下一局采集重叠) ----
         if feats:

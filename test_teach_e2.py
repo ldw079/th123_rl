@@ -50,11 +50,19 @@ def main():
     check('V值有限', all(abs(v) < 100 for _, v, _ in ranked))
 
     # 2. 不同情境 → 不同排名(中距vs远距)
+    # P1-B(从零#2): 原断言hardcoded True — 现实体化: V必须随dx变化
+    # (值头对位置有响应=排名机制真活, 非解包被吞后V≡0的退化形态)
     ranked_mid = value_rank(t, 'reimu', 250, 1500, False, False, 3)
     ranked_far = value_rank(t, 'reimu', 500, 1500, False, False, 3)
     mid_top = ranked_mid[0][0]
     far_top = ranked_far[0][0]
-    check('情境敏感', True, '中距top=%s 远距top=%s' % (mid_top, far_top))
+    v_mid = sum(v for _, v, _ in ranked_mid) / len(ranked_mid)
+    v_far = sum(v for _, v, _ in ranked_far) / len(ranked_far)
+    check('V非全零', any(abs(v) > 1e-6 for _, v, _ in ranked_mid),
+          'V_mid=%s' % [round(v, 4) for _, v, _ in ranked_mid])
+    check('情境敏感(V随dx变)', abs(v_mid - v_far) > 1e-4,
+          '中距均V%.4f 远距均V%.4f (top: %s vs %s)'
+          % (v_mid, v_far, mid_top, far_top))
 
     # 3. explain_with_value: 完整讲解文本
     txt = explain_with_value('reimu', 300, 1500, False, False,
