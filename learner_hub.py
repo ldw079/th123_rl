@@ -427,11 +427,14 @@ def run_learner(char, batch_k=BATCH_K, suffix='_fleet'):
             os.replace(_mc_tmp, counts_path)
             continue
         ver = publish_snapshot(snap_dir, gpu_tr)
+        # aux读数(诊断2026-10-06: 日志行原未带 — 统计字典有)
+        _aux = stats.get('aux_acc')
+        _aux_s = (' aux命中%.0f%%' % (_aux * 100)) if _aux else ''
         print('[learner] %s 批%d局/%d决策 %.1fs v%d |KL|%.4f 熵%.2f '
-              '值损%.4f 陈旧%d' % (
-                  char, n_eps, N, dt, ver,
+              '值损%.4f 陈旧%d%s'
+              % (char, n_eps, N, dt, ver,
                   stats.get('kl', 0), stats.get('entropy', 0),
-                  stats.get('value_loss', 0), ver - max_ver))
+                  stats.get('value_loss', 0), ver - max_ver, _aux_s))
 
         # 宏计数原子落盘
         _mc_tmp = counts_path + '.tmp.npy'

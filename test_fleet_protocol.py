@@ -183,6 +183,19 @@ def main():
           'reimu余%d marisa余%d(他角色局不动)' % (len(_left_r),
                                                   len(_left_m)))
 
+    # ---- J: 池快照维度守卫(fleet首跑缺陷③: 木桩根因=陈旧宏数快照) ----
+    from train_tm import _pool_snapshot_ok
+    _d0 = np.load(MODEL_PI)
+    _n0 = int(_d0['W2'].shape[1])
+    _d0.close()
+    check('J1维度守卫: 匹配宏数放行',
+          _pool_snapshot_ok(MODEL_PI, _n0) is True)
+    check('J2维度守卫: 陈旧宏数拒载',
+          _pool_snapshot_ok(MODEL_PI, _n0 - 7) is False,
+          '%d宏快照 vs %d宏库 → 拒(木桩防线)' % (_n0, _n0 - 7))
+    check('J3维度守卫: 损坏/缺档拒载',
+          _pool_snapshot_ok(os.path.join(tmp, 'nope.npz'), _n0) is False)
+
     # ---- A/F/C/D: episode往返+摸批+更新 ----
     ep_rng = np.random.default_rng(42)
     lens = [37, 51, 44]

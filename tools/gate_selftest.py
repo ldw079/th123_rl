@@ -397,6 +397,9 @@ MUTATIONS = [
     ("train_tm.py", "return 0.0 if round_won else MICRO_TAX_LOSS * micro_bank",
      "return 0.0",
      "R62胜负挂钩回退(败不追扣=负相关复活) → 奖励经济学测试必须红"),
+    ("train_tm.py", "ok = int(d['W2'].shape[1]) == int(n_macros)",
+     "ok = True",
+     "fleet缺陷③回归: 池快照维度守卫失效(陈旧快照=木桩对手) → fleet协议J2必须红"),
 ]
 
 

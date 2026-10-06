@@ -341,6 +341,20 @@ def mir_keys(keys, mirror):
     return tuple(out)
 
 
+def _pool_snapshot_ok(path, n_macros):
+    """fleet首跑缺陷③(2026-10-26木桩根因): 池快照维度守卫 —
+    陈旧快照(宏数不符)装入当前SideDriver=近死对手(整局输出100),
+    对局数据静默污染。拒载而非装坏(与learner宽度断言同哲学)。"""
+    import numpy as _np
+    try:
+        d = _np.load(path)
+        ok = int(d['W2'].shape[1]) == int(n_macros)
+        d.close()
+        return ok
+    except Exception:
+        return False
+
+
 class TMTrainer:
     def __init__(self, char, port, tps=60, episodes=100, ep_timeout=300,
                  slot=None, render=False, opp=None, suffix="", com_difficulty=1):
@@ -830,6 +844,9 @@ class TMTrainer:
         from outer_loop import OpponentPool as _OP, POOL_DIR as _PD
         _root = getattr(self, '_pool_root', None) or _PD
         cands = _OP(root=_root).latest(ch, k=POOL_K)
+        # 维度守卫: 滤掉陈旧宏数快照(fleet池混入旧试验残留的木桩根因)
+        _n = len(CHAR_LIBS[ch]['macros'])
+        cands = [c for c in cands if _pool_snapshot_ok(c, _n)]
         if not cands:
             return None
         # R48: League胜率加权(替代R43纯轮转)
