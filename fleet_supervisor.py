@@ -22,6 +22,10 @@ import time
 CG = getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# 首跑缺陷(2026-10-06点火): 本机解释器safe-path模式(sys.path[0]=
+# python312.zip而非脚本目录) — actor_worker/learner_hub均有此自救,
+# 唯supervisor缺(从未真实跑过的集成缝)。局部import portmap即炸。
+sys.path.insert(0, HERE)
 PY = sys.executable
 # P1-D(从零#2): STORE原未定义 — 监督循环首个league周期(3600s)引用
 # 即NameError杀死监督器(全部子进程成孤儿)。统一模块级定义。
