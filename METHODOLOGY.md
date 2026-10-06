@@ -1737,3 +1737,22 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     窗口执行; 门禁legacy标签WARN提示)。教训: PowerShell管道改文件
     =GBK读+UTF8写的编码坑, 门禁/源码补丁一律走Python io。
   - **验证**: 门禁531/0(gap块检查切片修正后仍非零✓)。
+- 2.59 (2026-10-06深夜, **fleet首次真实点火**(U-1/D1'半程, 用户授权
+  停训练腾CPU)):
+  - **点火序列**: 停单实例(4进程)→BC标签迁移→fleet隔离模式(_fleet
+    后缀, 生产档不动)6 actor点火。
+  - **首跑缺陷两枚(如期出现, 皆集成缝)**: ①supervisor缺sys.path
+    自救 — 本机解释器safe-path模式(sys.path[0]=python312.zip非脚本
+    目录), actor/learner均有insert(0,HERE)唯supervisor没有(从未
+    真跑过), 局部import portmap即炸; ②reimu的_fleet续档是10-05
+    旧试验残留(63宏623宽) — R61t宽度断言按设计响亮拦截(死循环重启
+    而非静默腐坏), 备份.stale63后重启循环30s自愈。
+  - **BC标签迁移完成**: 三库'5N+308:v2'→'5N+316:v2'(门禁532/0/0
+    首次全绿); 途中两教训: np.load惰性句柄自锁(迁移工具d.close())
+    + cmd跨盘cd需/d。
+  - **容量初标定(D2'首个数据点)**: 6actor+3learner CPU 88→100%饱和,
+    learner饿死(首批1264s, 队列积压59) → 手册条款降4actor → 稳态
+    三learner批循环(最优批19.7s≈单实例34s量级, 高峰188-314s),
+    积压59→12, 快照滚动reimu v26/marisa v6/suika v7。
+  - **观察项**: KL 0.1-0.26(首日多actor并行采样偏高, 观察); 吞吐
+    对照需小时级累积; CPU 100%为4游戏+3learner满负荷(正常)。
