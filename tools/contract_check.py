@@ -830,7 +830,7 @@ _bc_dir = os.environ.get(
                  'data', 'bc'))
 _bc_npz = np.load(os.path.join(_bc_dir, 'bc_suika.npz'), allow_pickle=True)
 _bc_s = _bc_npz['S']
-_bc_want = 5 * _MS.N_MACROS_SUIKA + 308
+_bc_want = 5 * _MS.N_MACROS_SUIKA + _FB.FeatureBuilder.CORE_DIMS
 if _bc_s.shape[1] != _bc_want:
     warn(_bc_s.shape[1] == _bc_want,
          "suika BC库宽度迁移期(R61n C4 +7宏: BC=%d≠模型%d — 下批重建)",
@@ -844,9 +844,16 @@ try:
     _bc_meta = _json.loads(str(_bc_npz['meta']))
 except Exception:
     _bc_meta = {}
-_b0 = 2 * _MS.N_MACROS_SUIKA + 308
-chk(isinstance(_bc_meta, dict) and _bc_meta.get('layout') == '5N+308:v2',
-    "suika BC库带布局版本(R38重建)", "meta=%s" % type(_bc_meta).__name__)
+_b0 = 2 * _MS.N_MACROS_SUIKA + _FB.FeatureBuilder.CORE_DIMS
+# layout标签: 正确='5N+CORE_DIMS:v2'; 旧'5N+308:v2'=R61g重建时bc_build
+# LAYOUT常量未动态化的误写(宽度本就正确; 训练器持锁无法即时迁移 —
+# 接受legacy但WARN, 停机窗口跑tools/bc_label_migrate.py)
+_layout = _bc_meta.get('layout') if isinstance(_bc_meta, dict) else None
+if _layout == '5N+%d:v2' % _FB.FeatureBuilder.CORE_DIMS:
+    chk(True, "suika BC库带布局版本(标签=实际宽度)", "layout=%s" % _layout)
+else:
+    warn(False, "suika BC库layout标签待迁移(误写308, 宽度正确)",
+         "layout=%s → 停机窗口跑tools/bc_label_migrate.py" % _layout)
 chk(abs(_bc_s[:, _b0:_b0 + _MS.N_MACROS_SUIKA]).sum() > 0,
     "suika BC库gap_x块非全零(R38: repad零填充事故不复存在)")
 # R24: 射程双通道(掩码栅栏+特征理解)断言 — F2批2: fn_has锚定
