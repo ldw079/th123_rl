@@ -1685,3 +1685,25 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     加载/B6派生/C5失败批不删+隔离/I1 disk_guard角色过滤);
     test_executor_c1 21 PASS(R34中断/豁免/灵力门/空队安全);
     增量变异自检本轮新钉逐个✓红。R61h-z各轮状态详见主计划。
+- 2.56 (2026-10-06, F2批1+F4残尾 — 主计划F工作流收尾批):
+  - **F2批1(AST锚定22条)**: contract_check新增fn_has(f, fn, needle)
+    — needle必须出现在指定函数**体内**(ast.get_source_segment), 替代
+    全文件裸子串钉。转换覆盖ppo.py(save/update内6条)/ppo_gpu.py
+    (update内4条)/learner_hub.py(publish_snapshot/collect_episodes/
+    disk_guard 3条)/actor_worker(run_actor 1条)/skill_levels/
+    deck_sampler/train_tm(_run_episode/_build_side/_make_env/audit_tree/
+    train 9条)。锚定更强即证: 转换当日抓出2处函数名错锚(双区one-hot
+    实在_build_side非_build_opp_side; char None实在cid_to_slot) —
+    裸子串永远发现不了这种"钉错位置但文本碰巧在别处"的假覆盖。
+    纯子串钉155/323(48%)→~133。
+  - **F4残尾(根目录卫生)**: 104个零引用遗留脚本(scan_*探针族/
+    test_v6-v9时代/mem_drive系列/hp_*/bench_*/wm_*天气模型实验/
+    policy_bc/policy_rl旧训练器等) git mv入_archive/legacy_20261006/
+    (保历史); frames/探针截图61MB与wm_transitions*.npz同入; 会话
+    临时脚本8个删除。508MB孤帆确认已于前批入_archive。门禁514/0
+    验证零引用判定正确。
+  - **distill锁重试(诊断2026-10-06)**: save_distill_rows的os.replace
+    遇PermissionError(外部进程瞬时锁, 疑360/索引)短重试3次×1s —
+    原直接炸局触发环境重建(suika当日两次, 自动恢复但丢局churn)。
+  - **验证**: 门禁514 PASS/0 FAIL; F2转换涉及的14条既有变异钉
+    增量自检验证仍全拦截(见该轮SELFTEST输出)。

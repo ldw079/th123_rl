@@ -65,6 +65,22 @@ def lines(f):
     return src(f).splitlines()
 
 
+def fn_has(f, fn_name, needle):
+    """F2(从零#2起批): AST锚定断言 — needle必须出现在**函数fn_name体内**
+    (替代全文件裸子串钉: 不受无害移动/注释/文档字符串误伤, 断言可证伪
+    性更强)。找不到函数=FAIL。"""
+    try:
+        tree = ast.parse(src(f))
+    except SyntaxError:
+        return False
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) \
+                and node.name == fn_name:
+            seg = ast.get_source_segment(src(f), node)
+            return bool(seg and needle in seg)
+    return False
+
+
 # ============ C1 62fps教义 ============
 print("=== C1 62fps教义(用户2026-09-21明令; R10只管逻辑帧率, tps协议参数豁免) ===")
 import threat
@@ -260,15 +276,18 @@ chk(_m60 is not None and len(_vals60) == len(set(_vals60)) == 20
     and set(_vals60) <= _legal60,
     "池序映射: 20角色全唯一无重复(R61t F5: 前12走段11+后8走扩展区)",
     str(sorted(_vals60)))
-chk("core[227 + opp_id] = 1.0" in tt
-    and "core[self._EXT_OPP_OFF + (opp_id - 20)] = 1.0" in tt,
-    "对手one-hot双区写入(R61t F5: 段11+扩展区)")
+# F2批1(从零#2): 裸子串→AST锚定(needle限定函数体内)
+chk(fn_has("train_tm.py", "_build_side", "core[227 + opp_id] = 1.0")
+    and fn_has("train_tm.py", "_build_side",
+               "core[self._EXT_OPP_OFF + (opp_id - 20)] = 1.0"),
+    "对手one-hot双区写入(R61t F5: 段11+扩展区) [_build_side体内]")
 chk('_CHAR_POOL_IDX' in tt,
     "20角色池序映射在位(R47: 原R19三角色池序已扩容)")
 chk(tt.count('GUARD_ALL_IDS') >= 2,
     "train_tm防御判定用GUARD_ALL_IDS(R34中断/空挥)")
 # R39(P3-8): 原第三处断言钉已删的L2奖励代码 — 随死通道删除
-chk("core[33] = " in tt, "turn_recency写core[33](P0-2修复在位)")
+chk(fn_has("train_tm.py", "_build_side", "core[33] = "),
+    "turn_recency写core[33](P0-2修复在位) [_build_side体内]")
 fb_src_nospace = src("feat_builder.py").replace(" ", "")
 chk("s[33]" not in fb_src_nospace and "s[o+33" not in fb_src_nospace,
     "feat_builder不占core[33]槽")
@@ -350,12 +369,19 @@ _e1 = _ent(tr, _X, _S)
 chk(_e1 > _e0 + 0.01, "熵行为: 零优势+beta>0一次update后熵上升",
     "%.4f→%.4f" % (_e0, _e1))
 pp = src("ppo.py")
-chk("ent_grad = -P *" in pp, "熵梯度源码形: -P(logP+H)=+dH/dz(配maximize=True)")
-chk("maximize=True" in pp, "策略Adam为ascent(maximize=True)")
-chk("bc_mask[idx]" in pp, "bc_mask小批索引(P1-2)")
-chk("os.replace" in pp, "原子保存(P0-5)")
-chk("meta=np.array([self._temp" in pp, "退火/meta状态持久化")
-chk("W1v=self.W1v" in pp, "价值网键名W1v(断裂修复在位)")
+# F2批1(从零#2): 裸子串→AST锚定(needle限定在函数体内, 免无害重构误伤)
+chk(fn_has("ppo.py", "update", "ent_grad = -P *"),
+    "熵梯度源码形: -P(logP+H)=+dH/dz(配maximize=True) [update体内]")
+chk(fn_has("ppo.py", "update", "maximize=True"),
+    "策略Adam为ascent(maximize=True) [update调用点]")
+chk(fn_has("ppo.py", "update", "bc_mask[idx]"),
+    "bc_mask小批索引(P1-2) [update体内]")
+chk(fn_has("ppo.py", "save", "os.replace"),
+    "原子保存(P0-5) [save体内]")
+chk(fn_has("ppo.py", "save", "meta=np.array([self._temp"),
+    "退火/meta状态持久化 [save体内]")
+chk(fn_has("ppo.py", "save", "W1v=self.W1v"),
+    "价值网键名W1v(断裂修复在位) [save体内]")
 
 # R18(审查2026-10-02 P0): KL复检/熵采样必须与参考同掩码 —
 # PI_LR=0(参数零移动)+禁2宏掩码: KL读数须≈0(无掩码修复时, 被禁宏的
@@ -442,10 +468,13 @@ _dead = _rconst - _loads
 chk(not _dead, "奖励常量无死定义(AST)", "死:%s" % sorted(_dead))
 chk(tt.count("check_graze") >= 1, "擦弹通道接线(train_tm)")
 chk(tt.count("check_evasion") >= 1, "规避通道接线(train_tm)")
-chk("_whiff_cost(dec_name)" in tt, "空挥惩罚接线(P2-1, W_WHIFF)")
+chk(fn_has("train_tm.py", "_run_episode", "_whiff_cost(dec_name)"),
+    "空挥惩罚接线(P2-1, W_WHIFF) [_run_episode体内]")
 chk(not re.search(r"^WHIFF_[BCS]", tt, re.M), "死常量WHIFF_B/C/SKILL已清")
-chk("rews[-1] += seg_rew" in tt, "终局段奖励入账(KO不丢)")
-chk("opp_vx=opp_vx_ema" in tt, "opp_vx真接线(P1-4b, 差分EMA)")
+chk(fn_has("train_tm.py", "_run_episode", "rews[-1] += seg_rew"),
+    "终局段奖励入账(KO不丢) [_run_episode体内]")
+chk(fn_has("train_tm.py", "_run_episode", "opp_vx=opp_vx_ema"),
+    "opp_vx真接线(P1-4b, 差分EMA) [_run_episode体内]")
 chk("right[\"action\"] in HIT_ACT_IDS" in src("feat_builder.py"),
     "opp_down=受击动作集(P1-4a真)")
 _fb_src = src("feat_builder.py")
@@ -533,7 +562,8 @@ for ch, tree in standard_tree.TREES.items():
                  "%.0f%%" % (100 * hit.mean()))
         except Exception as e:   # 损坏档: 降WARN不崩(截断变异实测曾崩在此)
             warn(False, "distill可读@%s(覆盖诊断)" % ch, type(e).__name__)
-chk("TREES[self.char]" in tt, "audit_tree按角色路由(不再灵梦树打折)")
+chk(fn_has("train_tm.py", "audit_tree", "TREES[self.char]"),
+    "audit_tree按角色路由(不再灵梦树打折) [audit_tree体内]")
 
 # ============ C9 mod血统(引用即构建输入 — 第四轮审计核心教训) ============
 print("=== C9 mod血统(被引用源码必须是部署产物的构建输入) ===")
@@ -605,14 +635,17 @@ chk('matrix["%s>%s" % (a, b)]' in ol and "参考线55%" in ol,
 # 改由C15的test_side_driver_semantics.py行为断言(温度==_temp, 决策计数)
 chk('not f.endswith("_v.npz")' in ol, "池latest排除价值网快照(实测踩坑)")
 # 训练半环集成
-chk("self.env.step(inp, self._opp_inp)" in tt,
-    "双输入步进(对手侧输入接线)")
-chk("self.opp.frame_input(right, left, weather," in tt,
-    "P2对手驱动用(右,左)视角")
-chk("vs_com=False," in tt and "_make_env" in tt,
-    "对手模式=VS_PLAYER(_make_env)")
-chk("_settle_match()" in tt and "_rotate_opp(ep)" in tt,
-    "胜率结算+对手轮换入训练循环")
+chk(fn_has("train_tm.py", "_run_episode",
+           "self.env.step(inp, self._opp_inp)"),
+    "双输入步进(对手侧输入接线) [_run_episode体内]")
+chk(fn_has("train_tm.py", "_run_episode",
+           "self.opp.frame_input(right, left, weather,"),
+    "P2对手驱动用(右,左)视角 [_run_episode体内]")
+chk(fn_has("train_tm.py", "_make_env", "vs_com=False,"),
+    "对手模式=VS_PLAYER(_make_env体内)")
+chk(fn_has("train_tm.py", "train", "_settle_match()")
+    and fn_has("train_tm.py", "train", "_rotate_opp(ep)"),
+    "胜率结算+对手轮换入训练循环 [train体内]")
 chk('"macro_counts_%s%s.npy" % (char, suffix)' in tt,
     "suffix产物隔离(双训练器互斥)")
 # 行为: 三角色SideDriver构建+模型加载(维度链正确性)
@@ -1394,19 +1427,24 @@ gp60 = src("ppo_gpu.py")
 pp60 = src("ppo.py")
 chk('elif getattr(self, "_fleet_logp_rec", None) is not None:' in tt60,
     "R60-F1: actor模式每局刷新_ppo_act(原被_upd_thread门控=快照死链)")
-chk("key=lambda p: int(''.join(c for c in os.path.basename(p)" in lh,
-    "R60-F3: 快照滚动按版本号数值排序(原字典序v10<v2删最新)")
-chk("not f.endswith('.tmp.npz')" in lh,
-    "R60-F4: collect排除在途tmp件(原子写被glob击穿)")
-chk("-np.ones(_rp_n, dtype=np.int64)" in gp60
-    and "-np.ones(len(Ye_t), dtype=np.int64)" in gp60,
-    "R60-F5: opp_next回放/专家行补-1(原越界IndexError)")
-chk("ret = adv + V_np" in gp60
+# F2批1(从零#2): 裸子串→AST锚定
+chk(fn_has("learner_hub.py", "publish_snapshot",
+           "key=lambda p: int(''.join(c for c in os.path.basename(p)"),
+    "R60-F3: 快照滚动按版本号数值排序(原字典序v10<v2删最新) [publish_snapshot体内]")
+chk(fn_has("learner_hub.py", "collect_episodes",
+           "not f.endswith('.tmp.npz')"),
+    "R60-F4: collect排除在途tmp件(原子写被glob击穿) [collect_episodes体内;"
+    "锚完整过滤式非裸子串 — 注释里也含.tmp.npz, 裸锚会被注释自我逃逸]")
+chk(fn_has("ppo_gpu.py", "update", "-np.ones(_rp_n, dtype=np.int64)")
+    and fn_has("ppo_gpu.py", "update",
+               "-np.ones(len(Ye_t), dtype=np.int64)"),
+    "R60-F5: opp_next回放/专家行补-1(原越界IndexError) [update体内]")
+chk(fn_has("ppo_gpu.py", "update", "ret = adv + V_np")
     and gp60.index("ret = adv + V_np") < gp60.index(
         "adv = (adv - adv.mean())"),
-    "R60-F6: ret在归一化前算(critic目标=λ回报, 原z分数+V)")
-chk("logp_e = F.log_softmax" in gp60,
-    "R60-F7: 专家行logp_old=当前策略(原硬0→KL虚高钉LR下限)")
+    "R60-F6: ret在归一化前算(critic目标=λ回报, 原z分数+V) [update体内+顺序]")
+chk(fn_has("ppo_gpu.py", "update", "logp_e = F.log_softmax"),
+    "R60-F7: 专家行logp_old=当前策略(原硬0→KL虚高钉LR下限) [update体内]")
 chk("mask = mask & ~self.near_idx" in tt60
     and "mask = mask & ~self.near_idx" in sd60,
     "R60-F9: 330门只禁近战子集(原全攻击禁=远程立回不可学)")
@@ -1442,16 +1480,18 @@ chk("(float(m[5])\n                                           if len(m) >= 6 els
     "R61f: GPU旧档meta 5元素守卫(原m[5]越界IndexError)")
 chk("ep_first=None, bc_targets=None," in gp60,
     "R61f: GPU update签名对齐numpy参数序(原第7位语义不同=陷阱)")
-chk("def disk_guard(" in lh,
-    "R61f/D5: learner磁盘满降级(清旧episode+过期快照)")
+# F2批1: AST锚定(disk_guard须真调_dg_cleanup=I1行为测试的接线前提)
+chk(fn_has("learner_hub.py", "disk_guard", "_dg_cleanup"),
+    "R61f/D5: learner磁盘满降级(真调清理路径 — I1行为测试钉清理语义)")
 chk("def reap_orphans(" in src("fleet_supervisor.py"),
     "R61f/D5: supervisor孤儿回收(WMI父进程判定)")
-chk("_s = (_s * 0x85EBCA6B) & 0xFFFFFFFF" in aw,
-    "R61f: actor种子SplitMix32终混(原线性式理论可碰撞)")
-chk("or char is None:" in src("skill_levels.py"),
+chk(fn_has("actor_worker.py", "run_actor",
+           "_s = (_s * 0x85EBCA6B) & 0xFFFFFFFF"),
+    "R61f: actor种子SplitMix32终混(原线性式理论可碰撞) [run_actor体内]")
+chk(fn_has("skill_levels.py", "cid_to_slot", "or char is None:"),
     "R61f: cid_to_slot合并路径已删(cid102/106/108三角色歧义)")
-chk("if len(deck) > 20:" in src("deck_sampler.py"),
-    "R61f: deck抽样32张边界截断(技能段保序在前)")
+chk(fn_has("deck_sampler.py", "sample_deck", "if len(deck) > 20:"),
+    "R61f: deck抽样32张边界截断(技能段保序在前) [sample_deck体内]")
 chk("stats记的是**模型**对每个对手的胜率" in src("league.py"),
     "R61f: league docstring方向修正(原与实现相反)")
 

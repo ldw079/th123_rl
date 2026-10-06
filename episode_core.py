@@ -113,9 +113,20 @@ def save_distill_rows(store_dir, char, suffix, rows):
     if len(X) > 200000:   # 上限裁剪
         X, Y = X[-200000:], Y[-200000:]
     # P0-5修复(真): 临时文件+os.replace原子落盘(原裸np.savez中断=半档损坏源)
+    # 诊断2026-10-06: 外部进程(疑360/索引)瞬时锁目标档 → os.replace
+    # WinError 5 → 训练器重建环境(丢局churn)。短重试(3次×1s)消化瞬时锁。
     tmp = path + ".tmp.npz"
     np.savez(tmp, X=X, Y=Y)
-    os.replace(tmp, path)
+    for _try in range(3):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if _try == 2:
+                print("[distill] 目标档被锁3次 — 放弃本批合并(数据在"
+                      "%s, 下批重试)" % os.path.basename(tmp))
+                return
+            time.sleep(1.0)
 
 
 # ---- 快照版本文件IO(红线②: 局边界同步读version) ----
