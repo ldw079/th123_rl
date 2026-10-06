@@ -29,8 +29,17 @@ def main():
     if not os.path.exists(PI):
         print('跳过: 无模型')
         return
-    t = PPOTrainer(n_side=5 * 63 + 308, n_out=63)
+    # 动态获取模型维度(宏数随宏库扩展变化)
+    import numpy as _np
+    _d = _np.load(PI)
+    n_out = int(_d['W2'].shape[1])
+    _d.close()
+    from train_tm import CHAR_LIBS
+    n_macros = len(CHAR_LIBS['reimu']['macros'])
+    n_side = 5 * n_macros + 316
+    t = PPOTrainer(n_side=n_side, n_out=n_out)
     t.load(PI, VV)
+    print('模型: n_out=%d n_side=%d (宏库%d)' % (n_out, n_side, n_macros))
 
     # 1. value_rank: 中距+满灵力
     ranked = value_rank(t, 'reimu', 300, 1500, False, False, top_k=5)

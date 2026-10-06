@@ -255,8 +255,18 @@ POT_W = {
     'opp_corner': 0.003,  # 对手被角=好(映射R_CORNER_ADV)
     'own_corner': -0.003, # 我方被角=坏(映射R_WALL)
     'card_gauge': 0.001,  # 卡牌充能=好(长期资源)
+    # R61z(用户裁定"加进攻积极性奖励"): 距离势差 — 越近势越高,
+    # 后退/跳跃逃跑→势降→负奖励; 前进→势升→正奖励.
+    # 势函数telescoping保证不可刷分(往返净=0, 不同于事件奖励).
+    # 权重0.15: 300px撤退≈0.45势损 ≈ 90点承伤(适度威慑);
+    # 100px前进≈0.15势得 ≈ 30点伤害(温和激励).
+    'engage': 0.15,
 }
 GAMMA_POT = 0.999   # R61c(B5): 势函数γ(Ng式r'=γΦ(s')−Φ(s); 原γ=1)
+# R61z: 空中被动惩罚 — 空中>30帧且非攻击/非受击态 → 微负/帧
+# (跳跃逃逸的"零惩罚盲区"修复; 攻击中/受击中空中不罚)
+R_AIR_PASSIVE = 0.003
+AIR_PASSIVE_GRACE = 30   # 宽限帧数(跳跃弧线的合法滞空)
 
 
 def state_potential(left, right, card_gauge_val=None):
@@ -279,6 +289,11 @@ def state_potential(left, right, card_gauge_val=None):
     _cg = (left.get("cardGauge", 0) if card_gauge_val is None
            else card_gauge_val)
     p += POT_W['card_gauge'] * min(_cg, 2000)
+    # R61z: 距离势差 — 距对手越近势越高(600px内线性递减).
+    # 势函数差分性质: 后退→Φ降→负奖励; 前进→Φ升→正奖励;
+    # 往返(退→进)→净差=0(telescoping, 不可刷分).
+    _adx = abs(right["position.x"] - left["position.x"])
+    p += POT_W['engage'] * max(0.0, (600.0 - _adx) / 100.0)
     return p
 
 KEY_TO_BIT = {
@@ -1086,6 +1101,9 @@ class TMTrainer:
         self._last_gauge = 0                 # R61c: 进入晴岚前的真实gauge
         self._frame_event_mask = None        # R61l(B2): 事件反应掩码
         self._in_frame_reaction = False      # R61l: 事件反应模式标记
+        self._frame_ev_count = 0            # R61l: 帧级事件触发计数
+        self.frame_event_count = 0          # R61l: 日志计数
+        self._air_passive_f = 0             # R61z: 空中被动帧计数
         gate_frames = 0        # confirm门观察窗状态(hitstop晚结算容忍)
         # P2-1修复: 空挥判定状态(决策→决策窗口内的伤害/对手防御)
         dec_name, dec_dmg, dec_guarded = None, 0.0, False
@@ -1302,6 +1320,19 @@ class TMTrainer:
             # R35: 防御奖励已由势函数覆盖 — 格挡→HP不掉→势不降→等效正奖励
             # 旧L1/L2逐帧奖励是刷分根源(站防每帧+0.06=每秒+3.72), 已移除。
             # 防御的BC锚(expert_rec推荐立防)保留 — 引导但不直接付费。
+
+            # R61z: 空中被动惩罚 — 空中>宽限帧且非攻击/非受击态
+            # (跳跃逃逸的"零惩罚盲区"修复: 空中挂机不再免费)
+            if (left.get("airBorne", False)
+                    and not (300 <= left.get("action", 0) < 600)
+                    and not (left.get("untech", 0) or 0)):
+                self._air_passive_f += 1
+                if self._air_passive_f > AIR_PASSIVE_GRACE:
+                    seg_rew -= R_AIR_PASSIVE
+                    rew_mix["air_passive"] = rew_mix.get(
+                        "air_passive", 0.0) - R_AIR_PASSIVE
+            else:
+                self._air_passive_f = 0
 
             # ---- TTI估计: 最近弹距的接近速度 ----
             near_d = None
@@ -1548,10 +1579,11 @@ class TMTrainer:
                 # P1(§7.2): rews[0]是占位0, 丢弃使rews[i]对应acts[i]
             # R17仪表: 奖励成分(episode作用域 — 调参依据)
             print("[奖励成分] 伤害+%.1f 承伤%.1f KO%+.1f 擦弹+%.1f(%d帧) "
-                  "规避+%.1f 空挥%.1f 总和%.1f"
+                  "规避+%.1f 空挥%.1f 空中被动%.1f 总和%.1f"
                   % (rew_mix["dmg"], rew_mix["taken"], rew_mix["ko"],
                      rew_mix["graze"], graze_frames, rew_mix["evade"],
-                     rew_mix["whiff"], sum(rew_mix.values())))
+                     rew_mix["whiff"], rew_mix.get("air_passive", 0.0),
+                     sum(rew_mix.values())))
             # R17环境健全性断言(用户2026-09-29反思): 策略树审计只照模型
             # 不照环境 — 木桩时代(09-27~09-28)审计全程照常出矩阵、无人
             # 察觉对手零输出。此断言当天即可抓住假COM。

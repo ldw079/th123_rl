@@ -1547,6 +1547,9 @@ _BEHAVIOR_TESTS = [
     # R61w(C5): ender菜单
     ("test_ender_c5.py",
      "R61w(C5): ender信号+清队+起手/菜单生成+无效过滤"),
+    # R61z: 进攻积极性
+    ("test_aggression_r61z.py",
+     "R61z: 距离势差(engage)+空中被动惩罚+telescoping"),
 ]
 for _tname, _tdesc in _BEHAVIOR_TESTS:
     _tp = os.path.join(ROOT, _tname)
