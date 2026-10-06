@@ -73,11 +73,13 @@ def run_matchup(char_a, char_b, port, games=2, tps=480):
         env = EvalEnv(port, char_left=char_a, char_right=char_b,
                       vs_com=False, tps=tps)
         inp_a, inp_b = {}, {}
+        _sl = _sr = 0          # 回合比分追踪(顶时判定用)
         try:
             # F6缺口修复(2026-10-07): ①胜局检查必须在r is None break
             # **之前** — GameEnded被step吞掉返回None, 但EvalEnv._rec
             # 已记录last_match, 原顺序在读取前就退出(每对0W-0L根因);
-            # ②帧上限12000<一整场(3回合顶时≈18.4k+开销) — 提到45000
+            # ②帧上限12000<一整场(3回合顶时≈18.4k+开销) — 提到45000;
+            # ③顶时口径: 上限到时按回合比分判胜(比分同→HP差, 再同不计)
             for frames in range(45000):
                 r = env.step(inp_a, inp_b)
                 if env.last_match:
@@ -91,6 +93,7 @@ def run_matchup(char_a, char_b, port, games=2, tps=480):
                 if r is None:
                     break
                 left, right, weather, objs = r
+                _sl, _sr = left.get("score", 0), right.get("score", 0)
                 if frames < 60:      # intro排水
                     continue
                 inp_a = driver_a.frame_input(left, right, weather,
@@ -98,7 +101,20 @@ def run_matchup(char_a, char_b, port, games=2, tps=480):
                 inp_b = driver_b.frame_input(right, left, weather,
                                              objs, [])
             else:
-                print('  [eval] 帧上限到(顶时场) — 不计')
+                if _sl != _sr:
+                    if _sl > _sr:
+                        a_wins += 1
+                    else:
+                        b_wins += 1
+                    print('  [eval] 顶时判定: 回合比分%d-%d' % (_sl, _sr))
+                elif left.get("hp", 0) != right.get("hp", 0):
+                    if left["hp"] > right["hp"]:
+                        a_wins += 1
+                    else:
+                        b_wins += 1
+                    print('  [eval] 顶时判定: 比分平, HP差判')
+                else:
+                    print('  [eval] 顶时且无比分/HP差 — 不计')
         except Exception as e:
             print('  [eval] %s vs %s 第%d局异常(%s: %s) — 该局不计'
                   % (char_a, char_b, g + 1, type(e).__name__, e))
