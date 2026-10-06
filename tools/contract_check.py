@@ -955,12 +955,12 @@ chk(fn_has("ppo.py", "update", "M = np.concatenate([M, _rows[6]])"),
 chk(fn_has("train_tm.py", "_run_episode",
            "_Xn, side.reshape(1, -1)"),
     "价值引导宏选择在位(R35: critic评估Top-5) [_run_episode体内]")
-# R38(P0-5/P0-6): BC对齐+原生布局
-chk("from bc_align import estimate_lag_map, realign, post_validate"
-    in src("bc_build.py"),
-    "BC构建走对齐器(R38 P0-5: 状态↔输入错位+70~240帧, 原原始下标配对)")
-chk("5 * n_macros + fb.CORE_DIMS" in src("bc_build.py"),
-    "BC侧向量5N+308原生构建(R38 P0-6: 原4N+308+repad零填充)")
+# R38(P0-5/P0-6): BC对齐+原生布局 — F2批4: AST锚定(import在模块顶层
+# L30, 钉的是build_rows体内的**消费点**而非import行)
+chk(fn_has("bc_build.py", "build_rows", "estimate_lag_map(frames"),
+    "BC构建走对齐器(R38 P0-5: 状态↔输入错位+70~240帧, 原原始下标配对) [build_rows体内消费]")
+chk(fn_has("bc_build.py", "build_rows", "5 * n_macros + fb.CORE_DIMS"),
+    "BC侧向量5N+CORE_DIMS原生构建(R38 P0-6: 原4N+308+repad零填充) [build_rows体内]")
 # ============ R39(第十轮§4) 静态数据表门禁 — 宏库/数据表此前是门禁盲区 ============
 # ① 类别集合⊆宏名表(幽灵名=拼写静默剔除) ② sc:目标∈SC_COST(缺耗费=
 # 高估可用性→游戏内使用失败作废) ③ 原子/TM宏射程登记 ④ SKILL_MAP锚点
@@ -1005,10 +1005,11 @@ chk(_SL.CHAR_SKILL_MAPS["reimu"][102] == 3
     "SKILL_MAP三处错位修复在位(R39§4-4: 102亜空穴=22系/106 Torch=22系/108踏鞴=214系)")
 # ============ R40(第十一轮): INPUTLOG精确对齐通道 + mod源码M-1/M-2 ============
 ob_src = src("oracle_batch2.py")
-chk("'SOKUAI_INPUTLOG': '1'" in ob_src,
-    "oracle录制启用INPUTLOG通道(R40§6-1: mod同帧输入日志, 实测rep↔ilog匹配率1.0000)")
-chk("'SOKUAI_INPUTLOG_PATH': ilog_path" in ob_src,
-    "inputlog路径按shard隔离(R40: 并行车道不互写)")
+chk(fn_has("oracle_batch2.py", "run_one", "'SOKUAI_INPUTLOG': '1'"),
+    "oracle录制启用INPUTLOG通道(R40§6-1: mod同帧输入日志, 实测rep↔ilog匹配率1.0000) [run_one体内]")
+chk(fn_has("oracle_batch2.py", "run_one",
+           "'SOKUAI_INPUTLOG_PATH': ilog_path"),
+    "inputlog路径按shard隔离(R40: 并行车道不互写) [run_one体内]")
 bb_src2 = src("bc_build.py")
 chk("arr[:, 0].astype(np.uint16), arr[:, 2].astype(np.uint16)" in bb_src2,
     "bc_build精确对齐分支在位(R40: ilog存在时跳过互相关, 旧shard回退)")
