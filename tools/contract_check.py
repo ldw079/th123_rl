@@ -1283,6 +1283,27 @@ for fname, cls in [("train_tm.py", "TMTrainer"), ("tm_env.py", "TMEnv"),
         chk(not _mg, "self.X()调用全有定义@%s" % cls,
             "缺失: %s" % sorted(_mg) if _mg else "调用%d个全有定义" % len(_cs))
 
+# ============ C17 SC费用对表(U-3 round16: c6错CID表事故的行为化钉) ============
+print("=== C17 生成库SC_COST ⊆ card_tables真值(tm_env.CHAR单源) ===")
+import importlib as _il17
+from card_tables import CHAR_CARD_TABLES as _CCT
+from tm_env import CHAR as _CHAREN
+_NEW17 = ['yukari', 'komachi', 'meiling', 'sanae', 'youmu', 'yuyuko',
+          'tenshi', 'suwako', 'alice', 'cirno', 'aya', 'remilia',
+          'utsuho', 'sakuya', 'iku', 'patchouli', 'reisen']
+for _ch in _NEW17:
+    _truth = {int(i): (int(c) if str(c).isdigit() else 1)
+              for i, _n, c in _CCT[_CHAREN[_ch]]}
+    _mod = _il17.import_module('macros_%s' % _ch)
+    _cost = getattr(_mod, 'SC_COST_%s' % _ch.upper())
+    # 只对≥100的角色卡严格对表(0/1=系统卡槽位, 不在CHAR_CARD_TABLES)
+    _bad = {cid: (_cost[cid], _truth.get(cid))
+            for cid in _cost
+            if cid >= 100 and _truth.get(cid) != _cost[cid]}
+    chk(not _bad, "SC费用=真值表@%s" % _ch,
+        "错表: %s (c6曾因手抄CID错位取他角色费用)" % _bad if _bad
+        else "%d项全对" % len(_cost))
+
 # ============ C13 BC数据面(第九轮§6: 新数据面必须有质量断言) ============
 print("=== C13 BC数据面(覆盖率/占比/非常数列) ===")
 _bc_dir = os.path.join(os.path.dirname(HERE), "data", "bc")

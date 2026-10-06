@@ -122,3 +122,13 @@ _RAW_PATCHOULI = list(MACROS_PATCHOULI)
 MACROS_PATCHOULI = [(n, _norm_presteps(sc)) for n, sc in _RAW_PATCHOULI]
 NORMALIZED_AFFECTED_PATCHOULI = {n for (n, s0), (_, s1) in
                             zip(_RAW_PATCHOULI, MACROS_PATCHOULI) if s0 != s1}
+
+# ==== R61j(C6): Trialmode连段完整集成 ====
+MACROS_PATCHOULI.append(('TM·66b_x', _norm_presteps([(('right', 'D'), 8), ((), 2), (('B',), 10), ((), 2), ('confirm', 0)])))
+MACROS_PATCHOULI.append(('TM·5aa_2b_6c_hj9_j6c_jd236c/ja1214b', _norm_presteps([(('A',), 6), (('A',), 6), ((), 2), ('confirm', 0), (('down',), 6), (('down', 'B'), 10), (('right',), 6), (('right', 'C'), 12), (('down',), 4), (('up', 'right'), 8), (('right',), 6), (('right', 'C'), 12), ((), 19), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('C', 'right'), 10)])))
+MACROS_PATCHOULI.append(('TM·f5a_6c_hj9_j5a_j5b_j6c_jd236c', _norm_presteps([(('A',), 10), ((), 2), ('confirm', 0), (('right',), 6), (('right', 'C'), 12), (('down',), 4), (('up', 'right'), 8), (('up',), 6), (('up',), 2), (('A',), 10), (('up',), 6), (('up',), 2), (('B',), 14), (('right',), 6), (('right', 'C'), 12), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('C', 'right'), 10)])))
+MACROS_PATCHOULI.append(('TM·5aa_2b_6c_hj9_j2c_jd236c', _norm_presteps([(('A',), 6), (('A',), 6), ((), 2), ('confirm', 0), (('down',), 6), (('down', 'B'), 10), (('right',), 6), (('right', 'C'), 12), (('down',), 4), (('up', 'right'), 8), (('up',), 6), (('down',), 2), (('down', 'C'), 14), ((), 11), (('down',), 3), (('down', 'right'), 3), (('right',), 3), (('C', 'right'), 10)])))
+PATCHOULI_COMBO_MACROS |= {'TM·66b_x', 'TM·5aa_2b_6c_hj9_j6c_jd236c/ja1214b', 'TM·f5a_6c_hj9_j5a_j5b_j6c_jd236c', 'TM·5aa_2b_6c_hj9_j2c_jd236c'}
+# R61j: TM宏追加后同步names(含去重后缀)
+MACRO_NAMES_PATCHOULI = [m[0] for m in MACROS_PATCHOULI]
+N_MACROS_PATCHOULI = len(MACROS_PATCHOULI)

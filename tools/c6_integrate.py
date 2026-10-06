@@ -86,7 +86,7 @@ def main():
             # 必须含至少一个攻击步(纯移动如"4"不是连段)
             if first_attack_token(c['steps']) is None:
                 continue
-            moves = '_'.join(s['move'] for s in c['steps'])
+            moves = '_'.join(s.get('move') or 'x' for s in c['steps'])
             macro, bad = combo_to_macro(c['steps'], 'TM·%s' % moves)
             if macro:
                 ok.append((c, macro))

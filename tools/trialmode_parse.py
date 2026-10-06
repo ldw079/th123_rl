@@ -76,10 +76,21 @@ def load_pack(fn):
         return []
     out = []
     z = zipfile.ZipFile(p)
+    # U-2(round16): patchouli包的JSON在子目录且**全部带.json后缀**(其他包
+    # 是无扩展名正身+.json排重)。规则: 无扩展名条目=正身; .json条目仅在
+    # 无同目录无扩展名孪生时收录(否则双计)。
+    names = set(z.namelist())
     for n in z.namelist():
         base = n.split('/')[-1]
-        if not base or base.endswith(('.backup', '.gif', '.jpg', '.json')):
+        if not base or base.endswith(('.backup', '.gif', '.jpg')):
             continue
+        if base.endswith('.json'):
+            if '_errored' in base:
+                continue   # 概率连的errored变体(旧规则排除, 维持)
+            twin = n[:-5]
+            if any(k == twin or k.startswith(twin + '_')
+                   for k in names):
+                continue   # 有无扩展名孪生(或其_errored变体)=重复
         try:
             d = json.loads(z.read(n).decode('utf-8'))
         except Exception:

@@ -56,7 +56,7 @@ CHAR_MACRO_MOVES = {
     'suika': dict(_COMMON),
     # R44(2026-10-04): 六新角色 — 通用骨架表(生成器tools/gen_newchar_libs.py)
     'sakuya': dict(_COMMON, **{'TM·5aaaa_6_hj9_j5a_j6a_jd236b': (300,), 'TM·6a_2b/5b_d623b': (302,), 'TM·6a_2b/5b/6b_hj9/hj8_j6a': (302,), 'TM·6a_2c_hj9_j5a_j6a': (302,)}),
-    'patchouli': dict(_COMMON),
+    'patchouli': dict(_COMMON, **{'TM·66b_x': (305,), 'TM·5aa_2b_6c_hj9_j6c_jd236c/ja1214b': (300,), 'TM·f5a_6c_hj9_j5a_j5b_j6c_jd236c': (300,), 'TM·5aa_2b_6c_hj9_j2c_jd236c': (300,)}),
     'yuyuko': dict(_COMMON, **{'TM·5a_5aa_2b_d421c_sc209': (300,), 'TM·4a/2a_2b_2c_j66_j2a_5a_5aa_5aaa': (402,), 'TM·hj7_j66_j2a_5a_5aa_5aaa_2b_d623b': (305,), 'TM·2a_6a_6c_dskill4b': (303,)}),
     'reisen': dict(_COMMON, **{'TM·d236b_hj9_j5a_j2b_j66_j5a_j8a_j5c': (400,), 'TM·d236b_d236b_hj8_j2c_j66_j5a_j8a': (400,), 'TM·dskill1b_dskill1b_hj9_j5a_j2b_j66_j5a_j8a': (300,), 'TM·d6_2a_2a_2a_2a_a2skill3b': (303,)}),
     'komachi': dict(_COMMON, **{'TM·a222b_66c_sc201': (305,), 'TM·5a_5aa_5aaa_5aaaa_sc201': (300,), 'TM·5a_5aa_5b/6b_sc207_d6_2c': (300,), 'TM·f5a_6c_sc206': (300,)}),
