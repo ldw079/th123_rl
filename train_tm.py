@@ -240,6 +240,18 @@ W_WHIFF = 0.06        # 空挥基罚(×_whiff_cost倍率; P2-1清理: 死常量
 LOW_SPIRIT_PEN = 300.0  # 灵力不足阈值(满1000): 低于此值起手攻击宏且空挥
                       # → 罚×2(用户2026-09-29: "明知没灵还出招"与"打空了"
                       # 是两种过错; 直打suika灵力枯竭22B×23%红线)
+# R62(用户2026-10-06"把胜负和回报挂钩"): 败回合微收入追扣率。
+# 诊断实证: 回报-胜率相关性-0.52~-0.68(三角色齐报) — 拖时间擦弹的
+# 微收入(+21~49/局)碾压结果信号(KO摆动±5~13/回合), 输局反而高回报。
+# 修法: 微收入(擦弹+规避)在回合结算时与胜负挂钩 — 胜回合全额保留
+# (消耗战取胜是合法赢法), 败回合追扣70%。算术: 输局2回合≈KO-15
+# -0.7×35=-39.5 vs 赢局≈+16+35=+51 → 符号翻转, 结果信号重新主导。
+MICRO_TAX_LOSS = 0.7
+
+
+def micro_tax(micro_bank, round_won):
+    """R62: 回合末微收入追扣(胜负挂钩). 胜=0(全额保留), 败=MICRO_TAX_LOSS×bank."""
+    return 0.0 if round_won else MICRO_TAX_LOSS * micro_bank
 
 # ==== R35 势函数奖励塑形(差距#5, Ng et al. 1999) ====
 # 数学保证: 势函数塑形不改变最优策略 — 可刷分通道从根源消灭。
@@ -1112,6 +1124,7 @@ class TMTrainer:
         hp_l_prev, hp_r_prev = 10000, 10000
         score_l_prev, score_r_prev = 0, 0   # 回合胜场(包字段, KO奖励接线用)
         round_f0 = 0                         # R61: 本回合起始帧(快胜奖金计时)
+        micro_bank = 0.0                     # R62: 本回合微收入累计(胜负挂钩用)
         self._seiran_gauge = None            # R61c(B5): 晴岚gauge冻结值
         self._last_gauge = 0                 # R61c: 进入晴岚前的真实gauge
         self._frame_event_mask = None        # R61l(B2): 事件反应掩码
@@ -1298,16 +1311,23 @@ class TMTrainer:
                 _fw = fastwin_bonus(frames - round_f0, d_sl)
                 _ko = ko_round_reward(left["hp"], right["hp"],
                                       True) * d_sl + _fw
-                seg_rew += _ko
+                _tax = micro_tax(micro_bank, True)
+                seg_rew += _ko - _tax
                 rew_mix["ko"] += _ko
+                rew_mix["micro_tax"] = rew_mix.get("micro_tax", 0.0) - _tax
             if d_sr > 0:
                 # R61b: 败局按血量差分档(原恒-10: 惜败与被碾压同罚)
                 _ko = ko_round_reward(left["hp"], right["hp"],
                                       False) * d_sr
-                seg_rew += _ko
+                # R62(用户2026-10-06"把胜负和回报挂钩"): 败回合微收入
+                # 追扣 — 拖时间擦弹不再碾压结果信号(相关性-0.5~-0.68)
+                _tax = micro_tax(micro_bank, False)
+                seg_rew += _ko - _tax
                 rew_mix["ko"] += _ko
+                rew_mix["micro_tax"] = rew_mix.get("micro_tax", 0.0) - _tax
             if d_sl > 0 or d_sr > 0:
                 round_f0 = frames   # R61: 回合边界(快胜计时重置)
+                micro_bank = 0.0    # R62: 微收入银行随回合重置
             # R35: 保留伤害/承伤在rew_mix中用于诊断(但不再加到seg_rew
             # — 势函数已覆盖: HP变化自动反映在_pot差分中)
             rew_mix["dmg"] += d_deal * R_DMG
@@ -1328,6 +1348,7 @@ class TMTrainer:
                            else graze_low_rate(frames))
                 seg_rew += _g_rate
                 rew_mix["graze"] += _g_rate
+                micro_bank += _g_rate   # R62: 入银行(回合末胜负结算)
                 graze_frames += 1
             # 规避: TTI触发+位移脱离+零承伤(归因干净: 攻击宏蹭不到 —
             # 要求80px真实位移脱弹; R17 0.08→0.20 对冲"穿弹出招"吸引子)
@@ -1335,6 +1356,7 @@ class TMTrainer:
             if self.feat_builder.check_evasion(left, d_take):
                 seg_rew += R_EVADE
                 rew_mix["evade"] += R_EVADE
+                micro_bank += R_EVADE   # R62: 入银行(回合末胜负结算)
             # R35: 防御奖励已由势函数覆盖 — 格挡→HP不掉→势不降→等效正奖励
             # 旧L1/L2逐帧奖励是刷分根源(站防每帧+0.06=每秒+3.72), 已移除。
             # 防御的BC锚(expert_rec推荐立防)保留 — 引导但不直接付费。
@@ -1621,10 +1643,11 @@ class TMTrainer:
                 # P1(§7.2): rews[0]是占位0, 丢弃使rews[i]对应acts[i]
             # R17仪表: 奖励成分(episode作用域 — 调参依据)
             print("[奖励成分] 伤害+%.1f 承伤%.1f KO%+.1f 擦弹+%.1f(%d帧) "
-                  "规避+%.1f 空挥%.1f 空中被动%.1f 总和%.1f"
+                  "规避+%.1f 空挥%.1f 空中被动%.1f 微收追扣%.1f 总和%.1f"
                   % (rew_mix["dmg"], rew_mix["taken"], rew_mix["ko"],
                      rew_mix["graze"], graze_frames, rew_mix["evade"],
                      rew_mix["whiff"], rew_mix.get("air_passive", 0.0),
+                     rew_mix.get("micro_tax", 0.0),
                      sum(rew_mix.values())))
             # R17环境健全性断言(用户2026-09-29反思): 策略树审计只照模型
             # 不照环境 — 木桩时代(09-27~09-28)审计全程照常出矩阵、无人

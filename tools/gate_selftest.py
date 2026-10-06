@@ -394,6 +394,9 @@ MUTATIONS = [
     ("ppo_gpu.py", "sd = float(np.asarray(rewards).std())",
      "sd = 0.0",
      "等价修复2回归: rstd先除后更 → 一步等价探针必须红"),
+    ("train_tm.py", "return 0.0 if round_won else MICRO_TAX_LOSS * micro_bank",
+     "return 0.0",
+     "R62胜负挂钩回退(败不追扣=负相关复活) → 奖励经济学测试必须红"),
 ]
 
 

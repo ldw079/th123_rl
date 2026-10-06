@@ -17,7 +17,8 @@ except Exception:
 
 from train_tm import (graze_low_rate, fastwin_bonus,  # noqa: E402
                       ko_round_reward, R_KO_ROUND,
-                      GRAZE_LOW_RATE, GRAZE_SAT_F, R_FASTWIN)
+                      GRAZE_LOW_RATE, GRAZE_SAT_F, R_FASTWIN,
+                      micro_tax, MICRO_TAX_LOSS)  # noqa: E402 (R62)
 
 PASS, FAIL = [], []
 
@@ -85,6 +86,31 @@ def main():
     # 胜负经济学不倒挂: 最惨胜(+3)仍优于最惜败(-5)
     check("最惨胜>最惜败", ko_round_reward(0, 0, True) > ko_round_reward(
         10000, 9999, False))
+
+    # ---- R62(用户2026-10-06"把胜负和回报挂钩") ----
+    # 5. 追扣方向性: 胜不扣, 败按率扣
+    check("胜回合不追扣", micro_tax(35.0, True) == 0.0)
+    check("败回合按率追扣",
+          abs(micro_tax(35.0, False) - MICRO_TAX_LOSS * 35.0) < 1e-9,
+          "tax=%.1f" % micro_tax(35.0, False))
+    check("零银行零税", micro_tax(0.0, False) == 0.0)
+
+    # 6. 相关性修复算术(诊断实证: 输局擦弹+35 vs KO摆动 → 回报-胜率
+    #    相关性-0.52~-0.68): 挂钩后输局净回报必须低于赢局25以上
+    _micro_match = 35.0   # 诊断读数: 输局擦弹+规避典型值
+    _lose_ko = 2 * ko_round_reward(3000, 6000, False)      # 两回合惜败
+    _win_ko = 2 * ko_round_reward(6000, 3000, True)        # 两回合胜
+    _lose_net = _lose_ko - 2 * micro_tax(_micro_match / 2, False)
+    _win_net = _win_ko    # 胜侧全额保留
+    check("挂钩后输局净回报为负", _lose_net < 0,
+          "lose_net=%.1f (KO%.1f - tax%.1f)"
+          % (_lose_net, _lose_ko, 2 * micro_tax(_micro_match / 2, False)))
+    check("输局净<赢局净-25", _lose_net < _win_net - 25,
+          "lose=%.1f win=%.1f (挂钩前输≈+20>部分赢局=负相关根源)"
+          % (_lose_net, _win_net))
+    # 7. 追扣只影响败侧: 赢局回报与R61完全一致(不回退)
+    check("胜侧零改动", micro_tax(_micro_match, True) == 0.0
+          and _win_net == _win_ko)
 
     print("\n==== %d PASS / %d FAIL ====" % (len(PASS), len(FAIL)))
     if FAIL:
