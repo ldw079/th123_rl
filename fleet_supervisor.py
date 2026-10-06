@@ -279,14 +279,26 @@ def main():
         log('全部结束')
 
     except KeyboardInterrupt:
-        # 停机卫生: 先actor(CTRL_BREAK→优雅退出), 等待, 再learner(存档), 强杀兜底
-        log('中断 — 先停actor再停learner')
-        for p in list(actors.values()) + list(learners.values()):
+        # 停机卫生(D5从零#2收尾): 先actor(CTRL_BREAK→优雅退出)并等待其
+        # 真正退出(释放游戏实例/episode写盘), 再learner(存档后退出) —
+        # 原两批同时发信号, actor慢退出期间learner已可能重发布/竞争。
+        log('中断 — 先停actor等待退出, 再停learner')
+        for p in list(actors.values()):
             try:
                 p.send_signal(signal.CTRL_BREAK_EVENT)
             except OSError:
                 pass
-        for p in list(actors.values()) + list(learners.values()):
+        for p in list(actors.values()):
+            try:
+                p.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                p.kill()
+        for p in list(learners.values()):
+            try:
+                p.send_signal(signal.CTRL_BREAK_EVENT)
+            except OSError:
+                pass
+        for p in list(learners.values()):
             try:
                 p.wait(timeout=30)
             except subprocess.TimeoutExpired:

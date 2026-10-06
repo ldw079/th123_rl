@@ -327,9 +327,11 @@ _sc2_src = src("soku_client2.py")
 _ei = _sc2_src.find("if echo != hello:")
 _chk_echo = _ei >= 0 and "terminate" in _sc2_src[_ei:_ei + 700]
 chk(_chk_echo, "握手回声不匹配分支含清理(terminate)")
-chk("if _ok_n > 8:" in _sc2_src, "OK跳过循环8次上限(R19)")
-chk("_ok_n > 8:\n                raise ProtocolError" in _sc2_src,
-    "OK洪流按协议错处理(R19)")
+chk(fn_has("soku_client2.py", "recv_frame", "if _ok_n > 8:"),
+    "OK跳过循环8次上限(R19) [recv_frame体内]")
+chk(fn_has("soku_client2.py", "recv_frame",
+           "_ok_n > 8:\n                raise ProtocolError"),
+    "OK洪流按协议错处理(R19) [recv_frame体内]")
 _te_src = src("tm_env.py")
 _si = _te_src.find("self._start_first()")
 _chk_fail = _si >= 0 and "_monitor_stop.set()" in _te_src[_si:_si + 900] \
@@ -475,8 +477,9 @@ chk(fn_has("train_tm.py", "_run_episode", "rews[-1] += seg_rew"),
     "终局段奖励入账(KO不丢) [_run_episode体内]")
 chk(fn_has("train_tm.py", "_run_episode", "opp_vx=opp_vx_ema"),
     "opp_vx真接线(P1-4b, 差分EMA) [_run_episode体内]")
-chk("right[\"action\"] in HIT_ACT_IDS" in src("feat_builder.py"),
-    "opp_down=受击动作集(P1-4a真)")
+chk(fn_has("feat_builder.py", "update_opp",
+           'right["action"] in HIT_ACT_IDS'),
+    "opp_down=受击动作集(P1-4a真) [update_opp体内]")
 _fb_src = src("feat_builder.py")
 import feat_builder as _FB
 chk(214 not in _FB.HIT_ACT_IDS and 404 not in _FB.HIT_ACT_IDS
@@ -498,8 +501,9 @@ import macros
 chk(macros.whiff_cost("5C") == 1.0, "whiff_cost(5C)=1.0(62F/62)",
     "got %r" % macros.whiff_cost("5C"))
 chk(abs(macros.whiff_cost("5B") - 45.0 / 62.0) < 1e-9, "whiff_cost(5B)=45/62")
-chk("or (score_l_prev + score_r_prev) < 2)" in tt,
-    "truncated终止位(R39: 超时+比分<2的异常结束局均按截断bootstrap)")
+chk(fn_has("train_tm.py", "_run_episode",
+           "or (score_l_prev + score_r_prev) < 2)"),
+    "truncated终止位(R39: 超时+比分<2的异常结束局均按截断bootstrap) [_run_episode体内]")
 
 # ============ C7 信息对称(用户2026-09-22裁定) ============
 print("=== C7 信息对称(mod 0BD2A843起协议层遮蔽 + 客户端哨兵纵深) ===")
@@ -626,9 +630,11 @@ if os.path.exists(prov_path):
 print("=== C10 外环(双控评估/快照池/战报/自对弈训练半环) ===")
 ol = src("outer_loop.py")
 sd = src("side_driver.py")
-chk("_self.last_match = (e.winner, e.ls, e.rs)" in sd,
-    "GameEnded胜者被记录(父类step会吞掉)")
-chk("vs_com=False, tps=tps" in ol, "对局走VS_PLAYER双控通道")
+chk(fn_has("side_driver.py", "_rec",
+           "_self.last_match = (e.winner, e.ls, e.rs)"),
+    "GameEnded胜者被记录(父类step会吞掉) [EvalEnv._rec体内]")
+chk(fn_has("outer_loop.py", "run_match", "vs_com=False, tps=tps"),
+    "对局走VS_PLAYER双控通道 [run_match体内]")
 chk('matrix["%s>%s" % (a, b)]' in ol and "参考线55%" in ol,
     "战报含胜率矩阵+毕业门读数(2.4: 55%参考线, 重构待干净读数)")
 # R17(§3.1): 原文本断言"temp=1.0"在评估侧改为温度跟随模型meta后假红 —
@@ -753,8 +759,8 @@ chk(SEGMENTS["train_rebuild"] == (20850, 20899)
     and SEGMENTS["eval"][0] == 20900 and SEGMENTS["hitlab"][0] == 20920
     and SEGMENTS["exp"][0] == 20940, "段定义与文档一致",
     str({k: v for k, v in SEGMENTS.items()})[:90])
-chk("rebuild_port(self.slot, ep)" in tt,
-    "train_tm异常重建走portmap(原版base+100+ep跨段撞)")
+chk(fn_has("train_tm.py", "train", "rebuild_port(self.slot, ep)"),
+    "train_tm异常重建走portmap(原版base+100+ep跨段撞) [train体内]")
 # R57(第十八轮2.6): fleet车道枚举 — 16车道×10宽全在fleet段内且互不重叠
 import portmap as _PM12
 try:
@@ -777,9 +783,10 @@ chk("PORT = 20930" in src("tools/hitlab_probe.py"),
 chk("self.lsock.settimeout(accept_timeout)" in src("soku_client2.py")
     and "accept_timeout=120.0" in src("soku_client2.py"),
     "accept有超时(R16参数化: 默认120s, tm_env持锁期传90s)")
-# 外环加固(第六轮§7)
+# 外环加固(第六轮§7) — F2批2: run_match体内锚定
 ol2 = src("outer_loop.py")
-chk("env.close()" in ol2, "外环finally走env.close()(句柄/线程不泄漏)")
+chk(fn_has("outer_loop.py", "run_match", "env.close()"),
+    "外环finally走env.close()(句柄/线程不泄漏) [run_match体内]")
 chk('"aborted" += 1' in ol2 or 'res["aborted"] += 1' in ol2,
     "中断局计数(不静默丢弃)")
 chk("outer_loop.lock" in ol2 and "O_EXCL" in ol2, "外环单实例锁")
@@ -793,15 +800,19 @@ chk(_mirror_ok, "三角色对手首位=镜像(己方角色, R22)")
 chk("POOL_K = 3" in tt, "对手池深k=3(历史快照对抗, R22)")
 # R23(2026-10-02): 位置特化连段门控 — 架构文档声称有, 实际从未实现。
 # 断言锚定**操作行**(仅查标识符会被__init__构造行的同名骗过 — 变异
-# 自检实测漏网教训)
-chk("mask = mask & ~self.corner_combo_idx" in tt,
-    "版边连门控操作行在位(R23)")
-chk("mask = mask & ~self.air_combo_idx" in tt,
-    "空连门控操作行在位(R23)")
+# 自检实测漏网教训); F2批2: fn_has限定决策函数体内
+chk(fn_has("train_tm.py", "_run_episode",
+           "mask = mask & ~self.corner_combo_idx"),
+    "版边连门控操作行在位(R23) [_run_episode体内]")
+chk(fn_has("train_tm.py", "_run_episode",
+           "mask = mask & ~self.air_combo_idx"),
+    "空连门控操作行在位(R23) [_run_episode体内]")
 sd_src = src("side_driver.py")
-chk("mask = mask & ~self.corner_combo_idx" in sd_src
-    and "mask = mask & ~self.air_combo_idx" in sd_src,
-    "SideDriver同款位置门控(R23)")
+chk(fn_has("side_driver.py", "decide",
+           "mask = mask & ~self.corner_combo_idx")
+    and fn_has("side_driver.py", "decide",
+               "mask = mask & ~self.air_combo_idx"),
+    "SideDriver同款位置门控(R23) [decide体内]")
 # 新宏末位追加契约(本次差点中插错位全部下游)
 chk("新宏必须追加在列表末尾" in src("macros_suika.py")
     or "新宏必须追加在列表末尾" in src("macros.py"),
@@ -838,17 +849,22 @@ chk(isinstance(_bc_meta, dict) and _bc_meta.get('layout') == '5N+308:v2',
     "suika BC库带布局版本(R38重建)", "meta=%s" % type(_bc_meta).__name__)
 chk(abs(_bc_s[:, _b0:_b0 + _MS.N_MACROS_SUIKA]).sum() > 0,
     "suika BC库gap_x块非全零(R38: repad零填充事故不复存在)")
-# R24: 射程双通道(掩码栅栏+特征理解)断言
-chk("self.macro_reach, self.macro_reach_v = resolve_reach" in tt,
-    "train_tm二维射程解析在位(R24/R25)")
-chk("dx_abs > self.macro_reach + REACH_MARGIN" in tt,
-    "射程门控操作行在位(R24)")
-chk("(_adx - self.macro_reach) / 200.0" in tt,
-    "射程差特征块在位(R24)")
+# R24: 射程双通道(掩码栅栏+特征理解)断言 — F2批2: fn_has锚定
+chk(fn_has("train_tm.py", "__init__",
+           "self.macro_reach, self.macro_reach_v = resolve_reach"),
+    "train_tm二维射程解析在位(R24/R25) [__init__体内]")
+chk(fn_has("train_tm.py", "_run_episode",
+           "dx_abs > self.macro_reach + REACH_MARGIN"),
+    "射程门控操作行在位(R24) [_run_episode体内]")
+chk(fn_has("train_tm.py", "_build_side",
+           "(_adx - self.macro_reach) / 200.0"),
+    "射程差特征块在位(R24) [_build_side体内]")
 sd2 = src("side_driver.py")
-chk("(_adx - self.macro_reach) / 200.0" in sd2
-    and "dx_abs > self.macro_reach" in sd2,
-    "SideDriver射程双通道同构(R24)")
+chk(fn_has("side_driver.py", "_side_feat",
+           "(_adx - self.macro_reach) / 200.0")
+    and fn_has("side_driver.py", "decide",
+               "dx_abs > self.macro_reach"),
+    "SideDriver射程双通道同构(R24) [_side_feat+decide体内]")
 import reach_maps as _RM
 chk(_RM.CHAR_MACRO_MOVES['reimu']['5A'] == (300, 301)
     and _RM.CHAR_MACRO_MOVES['reimu']['2A'] == (303, 311)
@@ -856,31 +872,33 @@ chk(_RM.CHAR_MACRO_MOVES['reimu']['5A'] == (300, 301)
     "显式move表=SokuLib枚举(5A含f5A/DA=66A, R29)")
 chk("_starter_button" not in src("reach_maps.py"),
     "脚本签名推导已删(R29: 状态依赖招无法区分, 受身/4A同签名)")
-# R25(用户2026-10-02: 弹幕复杂化+判定二维): 运动学/地雷/追踪/纵向
+# R25(用户2026-10-02: 弹幕复杂化+判定二维): 运动学/地雷/追踪/纵向 — F2批2锚定
 fb_src = src("feat_builder.py")
-chk("self.bullet_kin = kin" in fb_src,
-    "bullet_kin并行表在位(加速度/转向/驻留/弹型, R25)")
-chk("0.5 * _ax * horizon * horizon" in fb_src,
-    "未来占据二次外推(变速弹, R25)")
-chk("_spd < 0.5 and _k[3] >= 10" in fb_src,
-    "地雷威胁判定(近零速+驻留, R25)")
-chk("_k[2] >= 0.08 and _spd > 1.0" in fb_src,
-    "追踪弹悲观TTI(转向率阈值, R25)")
-chk("_ady > self.macro_reach_v + REACH_MARGIN" in tt,
-    "纵向射程门控在位(R25)")
-chk("(_ady - self.macro_reach_v) / 200.0" in tt,
-    "纵向射程差特征块在位(R25)")
+chk(fn_has("feat_builder.py", "track_bullets", "self.bullet_kin = kin"),
+    "bullet_kin并行表在位(加速度/转向/驻留/弹型, R25) [track_bullets体内]")
+chk(fn_has("feat_builder.py", "build", "0.5 * _ax * horizon * horizon"),
+    "未来占据二次外推(变速弹, R25) [build体内]")
+chk(fn_has("feat_builder.py", "build", "_spd < 0.5 and _k[3] >= 10"),
+    "地雷威胁判定(近零速+驻留, R25) [build体内]")
+chk(fn_has("feat_builder.py", "build", "_k[2] >= 0.08 and _spd > 1.0"),
+    "追踪弹悲观TTI(转向率阈值, R25) [build体内]")
+chk(fn_has("train_tm.py", "_run_episode",
+           "_ady > self.macro_reach_v + REACH_MARGIN"),
+    "纵向射程门控在位(R25) [_run_episode体内]")
+chk(fn_has("train_tm.py", "_build_side",
+           "(_ady - self.macro_reach_v) / 200.0"),
+    "纵向射程差特征块在位(R25) [_build_side体内]")
 # R33(用户2026-10-02"防御刷分"): 格挡≠擦弹+防御递减+L1距离门
-chk('left.get("action", 0) in GUARD_ALL_IDS' in fb_src,
-    "check_graze排除防御态(R33: 格挡≠擦弹, 防刷分)")
+chk(fn_has("feat_builder.py", "check_graze",
+           'left.get("action", 0) in GUARD_ALL_IDS'),
+    "check_graze排除防御态(R33: 格挡≠擦弹, 防刷分) [check_graze体内]")
 # R39(P3-8): R_GUARD/R_GUARD_PREP死通道断言已随死代码删除
 # (R35势函数化后tracker零调用者, 门禁保护死代码=噪声)
 # R34(架构阶段1): 帧级防御中断+灵力门控+原子宏 — R61u(C1)已移至macro_executor
-_me = src("macro_executor.py")
-chk("300 <= opp_a < 600" in _me,
-    "帧级防御中断在位(R34, R61u C1移至macro_executor)")
-chk('spirit < 100' in _me,
-    "灵力门控在位(R34, R61u C1移至macro_executor)")
+chk(fn_has("macro_executor.py", "advance_queue", "300 <= opp_a < 600"),
+    "帧级防御中断在位(R34, R61u C1移至macro_executor) [advance_queue体内]")
+chk(fn_has("macro_executor.py", "advance_queue", "spirit < 100"),
+    "灵力门控在位(R34, R61u C1移至macro_executor) [advance_queue体内]")
 import macros_marisa as _MM
 chk(_MM.N_MACROS_MARISA == 76
     and [m[0] for m in _MM.MACROS_MARISA][-4:] ==
@@ -907,8 +925,11 @@ chk("_replay_buf" in src("ppo.py"),
 chk("_Xn, side.reshape(1, -1)" in tt,
     "价值引导宏选择在位(R35: critic评估Top-5)")
 # R38(第九轮审计P0-1..4): 三个现行bug+一个死特性的修复断言
-chk("if macro_queue:" in _me and "keys, fl = macro_queue[0]" in _me,
-    "队列推进带空守卫(R38 P0-1, R61u C1移至macro_executor)")
+_me = src("macro_executor.py")
+chk(fn_has("macro_executor.py", "advance_queue", "if macro_queue:")
+    and fn_has("macro_executor.py", "advance_queue",
+               "keys, fl = macro_queue[0]"),
+    "队列推进带空守卫(R38 P0-1, R61u C1移至macro_executor) [advance_queue体内]")
 chk("from opp_model import GUARD_ALL_IDS" in sd_src,
     "side_driver导入GUARD_ALL_IDS(R38 P0-2: 原遗漏→对手攻击+我方硬直时NameError)")
 chk("_V, = self._ppo_act._v_forward" not in tt
