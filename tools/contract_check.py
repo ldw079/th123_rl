@@ -1645,6 +1645,9 @@ _BEHAVIOR_TESTS = [
     # 从零#2(方法论§6-3): numpy↔GPU一步更新等价探针常驻门禁
     ("test_gpu_onestep.py",
      "从零#2: 同权重同批同种子各走一步→权重/统计/KL逐键等价(四语义差钉)"),
+    # D4(主规划): 剥削者位行为测试
+    ("test_exploiter_d4.py",
+     "D4: exploit_前缀/滚动保留分流/胜率仪表聚合/弱点判定"),
 ]
 for _tname, _tdesc in _BEHAVIOR_TESTS:
     _tp = os.path.join(ROOT, _tname)

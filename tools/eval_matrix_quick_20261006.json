@@ -1,0 +1,54 @@
+{
+ "chars": [
+  "reimu",
+  "marisa",
+  "suika"
+ ],
+ "matrix": {
+  "reimu|marisa": {
+   "a_wins": 0,
+   "b_wins": 0,
+   "games": 2
+  },
+  "reimu|suika": {
+   "a_wins": 0,
+   "b_wins": 0,
+   "games": 2
+  },
+  "marisa|suika": {
+   "a_wins": 0,
+   "b_wins": 0,
+   "games": 2
+  }
+ },
+ "report": {
+  "ranking": [
+   {
+    "char": "suika",
+    "avg_wr": 1.0,
+    "var": 0.0,
+    "games": 2
+   },
+   {
+    "char": "marisa",
+    "avg_wr": 0.5,
+    "var": 0.25,
+    "games": 2
+   },
+   {
+    "char": "reimu",
+    "avg_wr": 0.0,
+    "var": 0.0,
+    "games": 2
+   }
+  ],
+  "matrix_size": 3,
+  "superhuman_distance": {
+   "top_char": "suika",
+   "top_wr": 1.0,
+   "top_var": 0.0,
+   "metric": 1.0,
+   "note": "高均值-低方差=全面强; metric=1.000(越高越接近超人)"
+  }
+ }
+}

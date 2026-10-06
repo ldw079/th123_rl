@@ -863,20 +863,29 @@ class TMTrainer:
     def _snapshot_pool(self):
         """R43方案A: 本角色快照入池(先join更新线程, 保证盘上是最新完整
         保存; 先v后pi=配对提交标记, 同outer_loop约定)。只写自己角色目录
-        (跨训练器零竞争), 滚动保留POOL_KEEP个。"""
+        (跨训练器零竞争), 滚动保留POOL_KEEP个。
+        D4(2026-10-06): 写根可注入(self._pool_write_root) — 剥削者把
+        exploit_前缀快照写进主策略的读池, 形成针对性对抗压力。"""
         _t = getattr(self, "_upd_thread", None)
         if _t is not None:
             _t.join()
             self._upd_thread = None
         import shutil as _sh
         from outer_loop import POOL_DIR
+        _root = getattr(self, '_pool_write_root', None) or POOL_DIR
         ts = time.strftime("%Y%m%d_%H%M%S")
-        d = os.path.join(POOL_DIR, self.char)
+        if getattr(self, '_is_exploiter', False):
+            ts = 'exploit_' + ts   # D4: 剥削者快照标记(stats可区分)
+        d = os.path.join(_root, self.char)
         os.makedirs(d, exist_ok=True)
         _sh.copy2(self.v_path, os.path.join(d, ts + "_v.npz"))
         _sh.copy2(self.pi_path, os.path.join(d, ts + ".npz"))
         snaps = sorted(f for f in os.listdir(d)
-                       if f.endswith(".npz") and not f.endswith("_v.npz"))
+                       if f.endswith(".npz") and not f.endswith("_v.npz")
+                       # D4: 剥削者与主策略共享池目录 — 滚动保留按
+                       # 前缀分流(exploit_只由剥削者清理, 互不误删)
+                       and f.startswith("exploit_")
+                       == bool(getattr(self, '_is_exploiter', False)))
         for f in snaps[:-POOL_KEEP]:
             for _f in (f, f[:-4] + "_v.npz"):
                 try:

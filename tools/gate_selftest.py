@@ -71,6 +71,7 @@ FILES = [
          "macro_executor.py",
          "difficulty.py",
          "habit_detector.py",
+         "exploiter.py",   # D4: 剥削者位测试载体
          "episode_core.py",
          "actor_worker.py",
          "learner_hub.py",
@@ -400,6 +401,9 @@ MUTATIONS = [
     ("train_tm.py", "ok = int(d['W2'].shape[1]) == int(n_macros)",
      "ok = True",
      "fleet缺陷③回归: 池快照维度守卫失效(陈旧快照=木桩对手) → fleet协议J2必须红"),
+    ("train_tm.py", "ts = 'exploit_' + ts",
+     "ts = ts",
+     "D4回归: 剥削者快照失去前缀(仪表/保留分流双盲) → D4测试必须红"),
 ]
 
 
