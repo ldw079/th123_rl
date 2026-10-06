@@ -943,12 +943,18 @@ chk("_V, = self._ppo_act._v_forward" not in tt
     and "_best, _best_v = mid, _base_v" in tt,
     "价值引导解包修复+基准阈值参与(R38 P0-3: 原元组解包ValueError=特性从未执行)")
 ppo_src = src("ppo.py")
-chk("np.argsort(-np.abs(adv[_hi_idx]))[:_cap]" in ppo_src,
-    "回放池切片[:_cap](R38 P0-4a: 原[_cap:]方向反→池恒空)")
-chk("logp_old[N0:N0 + _rp_n] = _rows[7]" in ppo_src,
-    "回放行logp_old=保存时策略(R38 P0-4c: 原取当前策略→ratio恒1)")
-chk("M = np.concatenate([M, _rows[6]])" in ppo_src,
-    "回放行mask拼接(R38 P0-4b: 原缺→前向广播爆炸被异步线程吞)")
+# F2批3: ppo回放族AST锚定(needle限定update体内)
+chk(fn_has("ppo.py", "update",
+           "np.argsort(-np.abs(adv[_hi_idx]))[:_cap]"),
+    "回放池切片[:_cap](R38 P0-4a: 原[_cap:]方向反→池恒空) [update体内]")
+chk(fn_has("ppo.py", "update",
+           "logp_old[N0:N0 + _rp_n] = _rows[7]"),
+    "回放行logp_old=保存时策略(R38 P0-4c: 原取当前策略→ratio恒1) [update体内]")
+chk(fn_has("ppo.py", "update", "M = np.concatenate([M, _rows[6]])"),
+    "回放行mask拼接(R38 P0-4b: 原缺→前向广播爆炸被异步线程吞) [update体内]")
+chk(fn_has("train_tm.py", "_run_episode",
+           "_Xn, side.reshape(1, -1)"),
+    "价值引导宏选择在位(R35: critic评估Top-5) [_run_episode体内]")
 # R38(P0-5/P0-6): BC对齐+原生布局
 chk("from bc_align import estimate_lag_map, realign, post_validate"
     in src("bc_build.py"),

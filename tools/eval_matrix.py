@@ -74,11 +74,12 @@ def run_matchup(char_a, char_b, port, games=2, tps=480):
                       vs_com=False, tps=tps)
         inp_a, inp_b = {}, {}
         try:
-            for frames in range(12000):   # ~4分钟上限
+            # F6缺口修复(2026-10-07): ①胜局检查必须在r is None break
+            # **之前** — GameEnded被step吞掉返回None, 但EvalEnv._rec
+            # 已记录last_match, 原顺序在读取前就退出(每对0W-0L根因);
+            # ②帧上限12000<一整场(3回合顶时≈18.4k+开销) — 提到45000
+            for frames in range(45000):
                 r = env.step(inp_a, inp_b)
-                if r is None:
-                    break
-                left, right, weather, objs = r
                 if env.last_match:
                     _w, ls, rs = env.last_match
                     if ls > rs:
@@ -87,12 +88,17 @@ def run_matchup(char_a, char_b, port, games=2, tps=480):
                         b_wins += 1
                     env.last_match = None
                     break
+                if r is None:
+                    break
+                left, right, weather, objs = r
                 if frames < 60:      # intro排水
                     continue
                 inp_a = driver_a.frame_input(left, right, weather,
                                              objs, [])
                 inp_b = driver_b.frame_input(right, left, weather,
                                              objs, [])
+            else:
+                print('  [eval] 帧上限到(顶时场) — 不计')
         except Exception as e:
             print('  [eval] %s vs %s 第%d局异常(%s: %s) — 该局不计'
                   % (char_a, char_b, g + 1, type(e).__name__, e))
