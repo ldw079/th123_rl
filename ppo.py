@@ -232,14 +232,28 @@ class PPOTrainer:
             if i < 2 * self.N_OUT:                  # 槽2: 上宏
                 j = i - self.N_OUT
                 return oldn + j if j < oldn else None
-            return 2 * oldn + (i - 2 * self.N_OUT)  # 85 恒定段
+            # B修core增长错位(原`2*oldn+(i-2N)`纯恒等平移): 5N布局
+            # [slot1 N][slot2 N][core][gap N][gap_v N][untech N],
+            # 新core宽度=self.N_SIDE-5*self.N_OUT, 旧core=old_side-5*oldn.
+            # 新core超出旧core→None(零初始化); 尾三块块内偏移对齐.
+            _core_new = self.N_SIDE - 5 * self.N_OUT
+            _core_old = old_side - 5 * oldn
+            _c = i - 2 * self.N_OUT
+            if _c < _core_new:
+                return (2 * oldn + _c) if _c < _core_old else None
+            _t = _c - _core_new
+            _b, _k = divmod(_t, self.N_OUT)
+            if _b < 3 and _k < oldn:
+                return 2 * oldn + _core_old + _b * oldn + _k
+            return None
 
         if oldn < self.N_OUT or old_side < self.N_SIDE:
             # R36(审查2026-10-02): _map_row正确性依赖的不变量 —
             # 旧侧向量必须至少含[双宏one-hot][core 308]才能正确映射;
             # 尾部块(射程/untech)允许存在(零填充到新宽度)。CORE_DIMS
             # 再变时此断言会在静默错位前拦截(偏移污染的同一形状)。
-            _CORE_DIMS = 308
+            _CORE_DIMS = 280  # B: 最低合法旧core(B前308/316均>此值;
+            #                 #  纯断言旧侧非退化, 具体布局由_map_row处理)
             assert old_side >= 2 * oldn + _CORE_DIMS, \
                 ("旧侧向量过短: old_side=%d < 2*%d+%d — "
                  "旧模型年代的CORE_DIMS与本代码不一致, "

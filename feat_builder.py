@@ -74,8 +74,12 @@ def fair_weather_id(weather):
 class FeatureBuilder:
     """每次决策调用build(); 每帧调用track_bullets()更新弹速。"""
 
-    CORE_DIMS = 316  # R61t(F5): 308+8扩展one-hot(20角色全覆盖;
-    #                # 尾部追加=现有308维内部布局零变化, 模型零迁移)
+    CORE_DIMS = 330  # R61t(F5): 308+8扩展one-hot(20角色全覆盖)
+    #                # B(用户2026-10-07"开工B"): 316+14 = 对手风格感知段
+    #                # [316..327]=对手已出技能卡槽位flag×12(100-111映射,
+    #                #  跨角色统一槽位语义, 角色身份由one-hot消歧)
+    #                # [328]=对手已出SC张数(/5)  [329]=对手已出系统卡张数(/10)
+    #                # 仅"对手已打出过的卡"=对人类同样可见的合法信息
 
     def __init__(self, n_macros):
         self.n_macros = n_macros
@@ -109,6 +113,11 @@ class FeatureBuilder:
         # R17①: 技能等级追踪(从手牌卡ID推导, 检测消耗升级)
         self._skill_levels = [0, 0, 0, 0]   # [236系, 623系, 214系, 22系] 各0-2
         self._prev_hand = None                # 上一帧手牌(检测卡消耗)
+        # B(风格估计器): 对手已出卡追踪初始
+        self._opp_hand_prev = None
+        self._opp_revealed_skill = np.zeros(12, dtype=np.float32)
+        self._opp_revealed_sc = 0
+        self._opp_revealed_sys = 0
         self._combo_chain = 0                 # 连续伤害帧计数(③连段组合子)
         self._char_name = None                # 角色名(skill_levels查表用)
 
@@ -140,6 +149,11 @@ class FeatureBuilder:
         # R17①: 技能等级随局重置(每局从Lv1重新开始)
         self._skill_levels = [0, 0, 0, 0]
         self._prev_hand = None
+        # B(风格估计器): 对手已出卡追踪 — 局内累积, 跨局清零
+        self._opp_hand_prev = None
+        self._opp_revealed_skill = np.zeros(12, dtype=np.float32)
+        self._opp_revealed_sc = 0
+        self._opp_revealed_sys = 0
         self._combo_chain = 0
         self._chain_gap = 0    # R17③: 连段间隔容忍计数
 
@@ -222,7 +236,30 @@ class FeatureBuilder:
     def update_opp(self, dt_s, left, right, weather, opp_vx=0.0):
         """决策拍更新对手模型。P1-4修复:
         - opp_down 用对手受击动作ID集(原版传的自己的HP)
-        - opp_vx 由外部差分传入(train_tm逐帧EMA; 原版硬编码0)"""
+        - opp_vx 由外部差分传入(train_tm逐帧EMA; 原版硬编码0)
+        B(风格估计器): 对手已出卡差分检测(与self._prev_hand己方先例
+        同构 — 晴岚遮蔽期跳过, 防哨兵误报)。"""
+        # B: 对手手牌差分 → 已出卡统计(合法信息: 打出过的卡可见)
+        rh = right["hand"]
+        gauge_sent = right["cardGauge"] >= 0xFF00
+        seiran_b = weather.get("active") == WEATHER_SEIRAN or gauge_sent
+        if self._opp_hand_prev is not None and not seiran_b:
+            prev_set = self._opp_hand_prev
+            cur_set = rh
+            # 消失的卡id(每槽独立): prev有值且cur同槽变为0xFF或不同id
+            for slot in range(5):
+                pid = prev_set[slot * 2]
+                cid = cur_set[slot * 2]
+                if pid != 0xFF and pid != cid:
+                    if 100 <= pid < 200:
+                        self._opp_revealed_skill[pid - 100] = 1.0
+                    elif pid >= 200:
+                        self._opp_revealed_sc += 1
+                    else:
+                        self._opp_revealed_sys += 1
+        if not seiran_b:
+            self._opp_hand_prev = rh
+
         # P1-4b修复(真): EMA存侧特征用(build的s[o+1]读这里)
         # R19 NaN防护: 非有限vx跳过(防递归EMA永久污染)
         if np.isfinite(opp_vx):
@@ -724,12 +761,23 @@ class FeatureBuilder:
         s[o + 2] = min(left.get("poseFrame", 0) or 0, 100) / 100.0
         s[o + 3] = min(right.get("poseFrame", 0) or 0, 100) / 100.0
         o += 4
-        # 14k. 剩余填充到CORE_DIMS(防御性: 上方段宽改动时兜底)
-        assert o <= self.CORE_DIMS, \
-            "侧特征溢出: o=%d > CORE_DIMS=%d" % (o, self.CORE_DIMS)
-        while o < self.CORE_DIMS:
+        # 14k. 剩余填充到旧core边界316(B前的CORE_DIMS — 保证B段
+        # 固定起始316, 不受上方段宽调整漂移)
+        assert o <= 316, \
+            "侧特征溢出: o=%d > 旧core边界316" % o
+        while o < 316:
             s[o] = 0.0
             o += 1
+
+        # 14l. B(风格估计器) 对手已出卡段 (14): 固定[316..329]
+        # [316..327]=技能卡槽位flag(100-111→0-11, 跨角色槽位统一)
+        # [328]=SC已出/5  [329]=系统卡已出/10 — 仅"已打出过的卡"(合法)
+        s[316:328] = self._opp_revealed_skill
+        s[328] = min(1.0, self._opp_revealed_sc / 5.0)
+        s[329] = min(1.0, self._opp_revealed_sys / 10.0)
+        o = 330
+
+        assert o <= self.CORE_DIMS
 
         return s
 

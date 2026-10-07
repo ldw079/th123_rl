@@ -10,6 +10,7 @@ except Exception:
     pass
 
 from ppo import PPOTrainer
+from feat_builder import FeatureBuilder
 from teach import value_rank, explain_with_value
 
 PASS, FAIL = [], []
@@ -36,7 +37,7 @@ def main():
     _d.close()
     from train_tm import CHAR_LIBS
     n_macros = len(CHAR_LIBS['reimu']['macros'])
-    n_side = 5 * n_macros + 316
+    n_side = 5 * n_macros + FeatureBuilder.CORE_DIMS
     t = PPOTrainer(n_side=n_side, n_out=n_out)
     t.load(PI, VV)
     print('模型: n_out=%d n_side=%d (宏库%d)' % (n_out, n_side, n_macros))

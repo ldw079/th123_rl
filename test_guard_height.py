@@ -65,7 +65,7 @@ def main():
     # [308..315]=F5扩展one-hot(零填充)
     lo_off = 303
     POSE_OFF = 304   # 段序固定位置(非CORE-4)
-    check("布局常量", lo_off == 303 and C == 316,
+    check("布局常量", lo_off == 303 and C == FeatureBuilder.CORE_DIMS,
           "CORE=%d 下段位@%d pose@[%d..%d] 扩展@[%d..%d]"
           % (C, lo_off, POSE_OFF, POSE_OFF + 3, C - 8, C - 1))
     check("下段表语义", LOW_ATTACK_IDS == frozenset((303, 311, 402, 412)),

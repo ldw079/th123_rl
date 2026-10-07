@@ -117,8 +117,8 @@ import opp_model
 import macros
 import macros_marisa
 import macros_suika
-chk(feat_builder.FeatureBuilder.CORE_DIMS == 316,
-    "CORE_DIMS==316(R61t F5: 308+8扩展one-hot)",
+chk(feat_builder.FeatureBuilder.CORE_DIMS == 330,
+    "CORE_DIMS==330(B风格段: 316+14对手已出卡)",
     "got %r" % feat_builder.FeatureBuilder.CORE_DIMS)
 chk(opp_model.OpponentModel.N_FEATS == 75,
     "opp_model.N_FEATS==75(基础27+历史40+资源8)",
@@ -127,7 +127,7 @@ _n_by_mod = (macros.N_MACROS, macros_marisa.N_MACROS_MARISA,
              macros_suika.N_MACROS_SUIKA)
 for n in _n_by_mod:
     fb = feat_builder.FeatureBuilder(n)
-    chk(fb.n_side == 2 * n + 316, "n_side==2N+316@N=%d(R61t F5)" % n,
+    chk(fb.n_side == 2 * n + 330, "n_side==2N+330@N=%d(B风格段)" % n,
         "got %d" % fb.n_side)
 # ppo对手子网络切片位置与段10严格对齐(错位=静默读错特征)
 from ppo import PPOTrainer as _PT
@@ -662,7 +662,7 @@ chk('"macro_counts_%s%s.npy" % (char, suffix)' in tt,
 import side_driver as sd_mod
 for _ch in ("reimu", "marisa", "suika"):
     _d = sd_mod.SideDriver(_ch, "L")
-    chk(_d.n_side == 5 * _d.n_macros + 316,
+    chk(_d.n_side == 5 * _d.n_macros + 330,
         "SideDriver维度@%s(R61t F5含扩展one-hot)" % _ch,
         "n_side=%d" % _d.n_side)
     chk(int(_d.macro_reach.max()) > 0 and int(_d.macro_reach_v.max()) > 0,
@@ -1695,6 +1695,12 @@ _BEHAVIOR_TESTS = [
     # D4(主规划): 剥削者位行为测试
     ("test_exploiter_d4.py",
      "D4: exploit_前缀/滚动保留分流/胜率仪表聚合/弱点判定"),
+    # C(对抗性卡组池): L1-L3逐卡加权
+    ("test_deck_adversarial_c.py",
+     "C: L1流派/L2必杀/L3逐SC+系统卡加权采样+归桶, 14项"),
+    # B(风格估计器): 对手已出卡→风格特征段
+    ("test_style_b.py",
+     "B: CORE_DIMS 330+对手已出卡差分+晴岚防护+旧模型load迁移保持"),
 ]
 for _tname, _tdesc in _BEHAVIOR_TESTS:
     _tp = os.path.join(ROOT, _tname)
