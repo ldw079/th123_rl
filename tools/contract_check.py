@@ -932,23 +932,19 @@ chk(_MS2.N_MACROS_SUIKA == 77
     ["压起身·即", "压起身·延迟", "压起身·空", "压起身·穿"]
     and "原子·确认5A" in [m[0] for m in _MS2.MACROS_SUIKA],
     "suika四原子在位+C4压起身末位(R35+R61n: 70+7=77)")
-chk("def state_potential" in tt and "POT_W" in tt,
-    "势函数奖励塑形在位(R35: 状态势差, 消灭刷分)")
-chk("_replay_buf" in src("ppo.py"),
-    "经验回放在位(R35: 高优势样本跨批重用)")
+chk(fn_has("train_tm.py", "state_potential", "POT_W"),
+    "势函数奖励塑形在位(R35: 状态势差, 消灭刷分) [state_potential体内]")
+chk(fn_has("ppo.py", "update", "_replay_buf"),
+    "经验回放在位(R35: 高优势样本跨批重用) [update体内]")
 chk("_Xn, side.reshape(1, -1)" in tt,
-    "价值引导宏选择在位(R35: critic评估Top-5)")
+    "价值引导宏选择在位(R35: critic评估Top-5) [兼容双写形态]")
 # R38(第九轮审计P0-1..4): 三个现行bug+一个死特性的修复断言
-_me = src("macro_executor.py")
-chk(fn_has("macro_executor.py", "advance_queue", "if macro_queue:")
-    and fn_has("macro_executor.py", "advance_queue",
-               "keys, fl = macro_queue[0]"),
-    "队列推进带空守卫(R38 P0-1, R61u C1移至macro_executor) [advance_queue体内]")
 chk("from opp_model import GUARD_ALL_IDS" in sd_src,
-    "side_driver导入GUARD_ALL_IDS(R38 P0-2: 原遗漏→对手攻击+我方硬直时NameError)")
+    "side_driver导入GUARD_ALL_IDS(R38 P0-2: 原遗漏→对手攻击+我方硬直时NameError) [模块级导入, 合理文本钉]")
 chk("_V, = self._ppo_act._v_forward" not in tt
-    and "_best, _best_v = mid, _base_v" in tt,
-    "价值引导解包修复+基准阈值参与(R38 P0-3: 原元组解包ValueError=特性从未执行)")
+    and fn_has("train_tm.py", "_run_episode",
+               "_best, _best_v = mid, _base_v"),
+    "价值引导解包修复+基准阈值参与(R38 P0-3: 原元组解包ValueError=特性从未执行) [_run_episode体内]")
 ppo_src = src("ppo.py")
 # F2批3: ppo回放族AST锚定(needle限定update体内)
 chk(fn_has("ppo.py", "update",
@@ -1101,10 +1097,11 @@ chk(all('236B' in getattr(__import__('macros_%s' % c),
     "17库指令必杀归SKILL非BULLET(R46§3-3: 贴身禁令修正)")
 # ============ R47(2026-10-04): 可行性报告六天花板处置 ============
 tt47 = src("train_tm.py")
-chk("from deck_sampler import sample_deck, curriculum_ratio" in tt47,
-    "deck采样器接入训练(R47天花板2: 原恒系统卡→技能/SC入池)")
-chk("env.deck_left = _my_deck" in tt47,
-    "P1侧独立deck采样(R47: 技能卡/SC入手激活等级特征)")
+chk(fn_has("train_tm.py", "_make_env",
+           "from deck_sampler import sample_deck, curriculum_ratio"),
+    "deck采样器接入训练(R47天花板2: 原恒系统卡→技能/SC入池) [_make_env体内]")
+chk(fn_has("train_tm.py", "_make_env", "env.deck_left = _my_deck"),
+    "P1侧独立deck采样(R47: 技能卡/SC入手激活等级特征) [_make_env体内]")
 chk(os.path.exists(os.path.join(ROOT, "deck_sampler.py")),
     "deck_sampler.py存在(R47)")
 chk("BC_W_MIN = 0.0" in src("ppo.py"),
@@ -1115,8 +1112,9 @@ chk("_CHAR_POOL_IDX" in tt47 and '"sakuya": 11' in tt47,
     "20角色池序映射在位(R60 F-8修正: 新角色11-19唯一位, 8角色待316扩维)")
 chk("deck_left" in src("tm_env.py") and "deck_right" in src("tm_env.py"),
     "tm_env支持双deck(R47: P1/P2各自独立卡组)")
-chk("_ret_win_hist" in tt47 and "corrcoef" in tt47,
-    "回报-胜率相关性仪表在位(R47天花板6: 输局赚正回报的预警)")
+chk(fn_has("train_tm.py", "__init__", "_ret_win_hist")
+    and fn_has("train_tm.py", "_settle_match", "corrcoef"),
+    "回报-胜率相关性仪表在位(R47天花板6: 输局赚正回报的预警) [__init__+_settle_match体内]")
 chk(os.path.exists(os.path.join(ROOT, "ppo_gpu.py")),
     "GPU版PPO存在(R47天花板1: PyTorch迁移)")
 chk("PPOTrainerGPU" in src("ppo_gpu.py"),
@@ -1135,8 +1133,12 @@ chk("def explain_situation" in src("teach.py")
     "教学层局面讲解+批量反查在位(R48)")
 # ============ R53(第十七轮§S1/S3): 行为断言升级 ============
 te53 = src("tm_env.py")
-chk("dl = self.deck_left if self.deck_left else self.deck" in te53,
-    "续局包双deck源(R53§S1: 原恒self.deck=系统卡, 90%局失效)")
+chk(fn_has("tm_env.py", "_restart_same_process",
+           "dl = self.deck_left if self.deck_left else self.deck"),
+    "续局包双deck源(R53§S1: 原恒self.deck=系统卡, 90%局失效) [_restart_same_process体内]")
+chk(fn_has("tm_env.py", "_start_first",
+           "dl = self.deck_left if self.deck_left else self.deck"),
+    "首局包双deck源(R53§S1对齐) [_start_first体内]")
 chk('bytes(dl)' in te53 and 'bytes(dr)' in te53
     and 'bytes(self.deck)' not in te53.split('_restart_same_process')[1][:500]
     if '_restart_same_process' in te53 else False,
@@ -1144,24 +1146,27 @@ chk('bytes(dl)' in te53 and 'bytes(dr)' in te53
 gp53 = src("ppo_gpu.py")
 chk("等价性验证" in gp53[:600]
     or "P_max_diff=0.000000" in gp53,
-    "ppo_gpu等价性已验证(R54: 六缺陷修复, P/V diff=0.000000)")
+    "ppo_gpu等价性已验证(R54: 六缺陷修复, P/V diff=0.000000) [文档串, 合理文本钉]")
 chk("TRUNK_FLAT = CONV3_F * 5 * 8" in gp53
     and "CONV1_F, CONV2_F, CONV3_F = 32, 64, 64" in gp53,
-    "ppo_gpu维度对齐numpy版(R54: 32/64/64+2560)")
-chk("OPP_CORE_OFF" in gp53 and "self.opp_off = 2 * n_out + OPP_CORE_OFF"
-    in gp53,
-    "ppo_gpu对手切片偏移正确(R54: 2*N_OUT+152)")
-chk("v_out[r[0]] = r[1]" in gp53 and "os.replace(_tv, v_path)" in gp53,
-    "GPU save值头写v文件+原子落盘(R54b+R61e: 原裸savez已改tmp+replace)")
-# R55: 语义对齐
-chk("_replay_buf" in gp53 and "logp_old[_ord]" in gp53,
-    "GPU回放缓冲在位(R55: 池8元组+真ratio)")
-chk("bc_mask is not None" in gp53 and "_bm" in gp53,
-    "GPU bc_mask接线(R55: 逐行权重+回放行0/专家行1补齐)")
-chk("Ve_t" in gp53,
-    "GPU expert行ret=各自V(R55: P0-D自洽, 原首行V近似)")
-chk("torch.isfinite" in gp53,
-    "GPU save NaN守卫(R55: 与numpy版一致)")
+    "ppo_gpu维度对齐numpy版(R54: 32/64/64+2560) [模块常量, 合理文本钉]")
+chk(fn_has("ppo_gpu.py", "__init__",
+           "self.opp_off = 2 * n_out + OPP_CORE_OFF"),
+    "ppo_gpu对手切片偏移正确(R54: 2*N_OUT+152) [__init__体内]")
+chk(fn_has("ppo_gpu.py", "save", "v_out[r[0]] = r[1]")
+    and fn_has("ppo_gpu.py", "save", "os.replace(_tv, v_path)"),
+    "GPU save值头写v文件+原子落盘(R54b+R61e: 原裸savez已改tmp+replace) [save体内]")
+# R55: 语义对齐 — F2收官: 函数体内锚定
+chk(fn_has("ppo_gpu.py", "__init__", "_replay_buf")
+    and fn_has("ppo_gpu.py", "update", "logp_old[_ord]"),
+    "GPU回放缓冲在位(R55: 池8元组+真ratio) [__init__+update体内]")
+chk(fn_has("ppo_gpu.py", "update", "bc_mask is not None")
+    and fn_has("ppo_gpu.py", "update", "_bm"),
+    "GPU bc_mask接线(R55: 逐行权重+回放行0/专家行1补齐) [update体内]")
+chk(fn_has("ppo_gpu.py", "update", "Ve_t"),
+    "GPU expert行ret=各自V(R55: P0-D自洽, 原首行V近似) [update体内]")
+chk(fn_has("ppo_gpu.py", "save", "torch.isfinite"),
+    "GPU save NaN守卫(R55: 与numpy版一致) [save体内]")
 chk(os.path.exists(os.path.join(ROOT, "frame_events.py")),
     "frame_events.py存在(R49 L3: 帧级事件系统)")
 chk("class FrameEventDetector" in src("frame_events.py")
@@ -1170,10 +1175,10 @@ chk("class FrameEventDetector" in src("frame_events.py")
 chk("FRAME_WINDOWS" in src("frame_events.py")
     and "E_GUARDSTUN" in src("frame_events.py"),
     "攻略帧窗表+事件枚举在位(R49: DD 15F/插动12F等)")
-chk("_frame_detector" in src("train_tm.py")
-    and "frame_events.reaction_mask" in src("train_tm.py"),
+chk(fn_has("train_tm.py", "_run_episode", "_frame_detector")
+    and fn_has("train_tm.py", "_run_episode", "frame_events.reaction_mask"),
     "帧级事件接入_run_episode(R61l B2: reaction_mask策略条件化, "
-    "原pick_reaction固定权重随机已废)")
+    "原pick_reaction固定权重随机已废) [_run_episode体内]")
 chk('s[o] = min(left.get("pose"' in src("feat_builder.py"),
     "pose/poseFrame入14j段(R57: 显式入账, 原尾写静默覆盖14i后4维)")
 # R57(第十八轮2.5): 原"action细分//64下段可分"子串断言已删 — 特性是伪的
@@ -1279,20 +1284,24 @@ chk(os.path.exists(os.path.join(HERE, "reseed_macro_counts.py")),
 sd2 = src("side_driver.py")
 # R17(§3.1): 原断言要求"sc:步跳过" — 那是v1缺陷(R16已修: sc状态机移植后
 # sc步必须入队执行)。行为由C15 test_side_driver_semantics.py断言。
-chk("self._last_inp" in sd2, "门步保持上一拍输入(P2-7同款)")
-# 从零审查D6-D8余项(2026-09-23)
+chk(fn_has("side_driver.py", "reset_match", "self._last_inp"),
+    "门步保持上一拍输入(P2-7同款) [reset_match体内]")
+# 从零审查D6-D8余项(2026-09-23) — F2收官: 函数体内锚定
 sc2 = src("soku_client2.py")
-chk("class ProtocolError(RuntimeError)" in sc2 and "self.code = code" in sc2,
-    "结构化协议错误码(D8: 分支不再子串匹配文案)")
+chk("class ProtocolError(RuntimeError)" in sc2
+    and fn_has("soku_client2.py", "__init__", "self.code = code"),
+    "结构化协议错误码(D8: 分支不再子串匹配文案) [类定义模块级+__init__体内]")
 chk("class CrashInfo(Exception)" in sc2,
-    "FAULT独立异常(D7: 崩溃穿透容忍层带地址)")
+    "FAULT独立异常(D7: 崩溃穿透容忍层带地址) [类定义, 合理文本钉]")
 te = src("tm_env.py")
-chk("except ProtocolError as e:" in te and "e.code == 17" in te,
-    "tm_env按.code分支+err17续喂(§9.2对齐)")
+chk(fn_has("tm_env.py", "step", "except ProtocolError as e:")
+    and fn_has("tm_env.py", "step", "e.code == 17"),
+    "tm_env按.code分支+err17续喂(§9.2对齐) [step体内]")
 chk("time.sleep(0.03)" in te and te.count("self._drain()") >= 3,
     "开局双排干(D6; R17: 计数≥3, 死代码_start已删, EOF行为由C15钉)")
-chk("self.inst = None" in te and 'getattr(self, "h", None)' in te,
-    "close幂等+置None(D10)")
+chk(fn_has("tm_env.py", "__init__", "self.inst = None")
+    and fn_has("tm_env.py", "close", 'getattr(self, "h", None)'),
+    "close幂等+置None(D10) [__init__+close体内]")
 
 # ============ C14 AST结构完整性(第九轮§2.1: 文本断言放行过无法实例化的类) ============
 print("=== C14 AST结构完整性(self.X()调用必须有定义) ===")
@@ -1519,39 +1528,49 @@ chk(fn_has("ppo_gpu.py", "update", "ret = adv + V_np")
     "R60-F6: ret在归一化前算(critic目标=λ回报, 原z分数+V) [update体内+顺序]")
 chk(fn_has("ppo_gpu.py", "update", "logp_e = F.log_softmax"),
     "R60-F7: 专家行logp_old=当前策略(原硬0→KL虚高钉LR下限) [update体内]")
-chk("mask = mask & ~self.near_idx" in tt60
-    and "mask = mask & ~self.near_idx" in sd60,
-    "R60-F9: 330门只禁近战子集(原全攻击禁=远程立回不可学)")
-chk('self._last_ret = float(np.sum(rews))' in tt60,
-    "R60-F10: 回报-胜率看门狗喂活(原_last_ret从未赋值=死仪表)")
-chk("stored_logp=LOGPS" in tt60
-    and "logp_old[:N0] = _sl" in pp60,
-    "R60-F11: 行为策略logP入ratio(探针/bias/价值引导的实际分布)")
-chk("elif dx_abs < 150" in tt60 and "melee_idx" in tt60,
-    "R60-F9: melee_idx保留(其他消费点)且150贴身禁弹幕不变")
+chk(fn_has("train_tm.py", "_run_episode",
+           "mask = mask & ~self.near_idx")
+    and fn_has("side_driver.py", "decide",
+               "mask = mask & ~self.near_idx"),
+    "R60-F9: 330门只禁近战子集(原全攻击禁=远程立回不可学) "
+    "[_run_episode+decide体内]")
+chk(fn_has("train_tm.py", "_submit_update",
+           "self._last_ret = float(np.sum(rews))"),
+    "R60-F10: 回报-胜率看门狗喂活(原_last_ret从未赋值=死仪表) [_submit_update体内]")
+chk(fn_has("train_tm.py", "_submit_update", "stored_logp=LOGPS")
+    and fn_has("ppo.py", "update", "logp_old[:N0] = _sl"),
+    "R60-F11: 行为策略logP入ratio(探针/bias/价值引导的实际分布) "
+    "[_submit_update+update体内]")
+chk(fn_has("train_tm.py", "_run_episode", "elif dx_abs < 150"),
+    "R60-F9: 150贴身禁弹幕不变 [_run_episode体内]")
 
 # ---- R61e(F3尾巴快杀+B6, 2026-10-05) ----
-chk('_c0 == "COM":' in tt60 and 'self.feat_builder._opp_char = self.char' in tt60,
-    "R61e: --opp COM首位不再SideDriver崩(镜像轮换COM分支)")
-chk("os.replace(_tp, pi_path)" in gp60 and "os.replace(_tv, v_path)" in gp60,
-    "R61e: ppo_gpu save原子落盘(pi+v, 原裸savez中断=半档损坏)")
-chk("'learner_%s%s.lock' % (char, suffix)" in lh,
-    "R61e/D5: learner单实例锁(双learner双写者竞争防线)")
-chk('com_difficulty_%s%s.json" % (self.char, self.suffix)' in tt60
-    and "续档难度" in tt60 and "os.replace(_t, _p)" in tt60,
-    "R61e/B6: COM难度持久化(读侧续档+写侧落盘双锚 — R61e变异"
-    "教训: 只锚读侧时杀落盘的变异逃逸)")
+chk(fn_has("train_tm.py", "__init__", '_c0 == "COM":')
+    and fn_has("train_tm.py", "__init__",
+               'self.feat_builder._opp_char = self.char'),
+    "R61e: --opp COM首位不再SideDriver崩(启动COM分支) [__init__体内]")
+chk(fn_has("ppo_gpu.py", "save", "os.replace(_tp, pi_path)")
+    and fn_has("ppo_gpu.py", "save", "os.replace(_tv, v_path)"),
+    "R61e: ppo_gpu save原子落盘(pi+v, 原裸savez中断=半档损坏) [save体内]")
+chk(fn_has("learner_hub.py", "run_learner",
+           "'learner_%s%s.lock' % (char, suffix)"),
+    "R61e/D5: learner单实例锁(双learner双写者竞争防线) [run_learner体内]")
+chk(fn_has("train_tm.py", "__init__",
+           'com_difficulty_%s%s.json')
+    and fn_has("train_tm.py", "_com_ladder", "os.replace(_t, _p)"),
+    "R61e/B6: COM难度持久化(读侧__init__续档+写侧_com_ladder落盘双锚 — "
+    "R61e变异教训: 只锚读侧时杀落盘的变异逃逸)")
 import re as _re61e
 _bs = _re61e.findall(r'_BULLET_MACROS = \{([^}]*)\}', src("macros_sakuya.py"))
 chk(_bs and '"2C"' in _bs[0],
-    "R61e: 生成库BULLET补2C(17库, 原宏存在但零分类)")
+    "R61e: 生成库BULLET补2C(17库, 原宏存在但零分类) [常量集, 合理文本钉]")
 
 # ---- R61f(F3尾巴清偿第二批, 2026-10-05) ----
-chk("logits = logits + b / t" in gp60,
-    "R61f: GPU采样bias/temp对齐numpy语义(原加在/temp后差×T系数)")
+chk(fn_has("ppo_gpu.py", "sample", "logits = logits + b / t"),
+    "R61f: GPU采样bias/temp对齐numpy语义(原加在/temp后差×T系数) [sample体内]")
 chk("(float(m[5])\n                                           if len(m) >= 6 else 1.0)" in gp60
     or "if len(m) >= 6 else 1.0" in gp60,
-    "R61f: GPU旧档meta 5元素守卫(原m[5]越界IndexError)")
+    "R61f: GPU旧档meta 5元素守卫(原m[5]越界IndexError) [load体内, 合理文本钉]")
 chk("ep_first=None, bc_targets=None," in gp60,
     "R61f: GPU update签名对齐numpy参数序(原第7位语义不同=陷阱)")
 # F2批1: AST锚定(disk_guard须真调_dg_cleanup=I1行为测试的接线前提)
@@ -1569,36 +1588,39 @@ chk(fn_has("deck_sampler.py", "sample_deck", "if len(deck) > 20:"),
 chk("stats记的是**模型**对每个对手的胜率" in src("league.py"),
     "R61f: league docstring方向修正(原与实现相反)")
 
-# ---- R61g(B1): BC匹配器SC词汇(M2组件) ----
+# ---- R61g(B1): BC匹配器SC词汇(M2组件) ---- F2收官锚定
 chk("SC_PRESS_F = 3" in src("bc_match.py")
-    and "def sc_press_bits(" in src("bc_match.py"),
-    "R61g: sc:步展开为SC按压词汇(原结构性排除=SC标签恒0%)")
-chk("bool(inp.get(\"SC\")), bool(inp.get(\"SW\"))" in src("bc_match.py"),
-    "R61g: 匹配器8元组含SC/SW位(AandB→SC经battle_to_trainer)")
+    and fn_has("bc_match.py", "sc_press_bits", "SC_PRESS_F"),
+    "R61g: sc:步展开为SC按压词汇(原结构性排除=SC标签恒0%) [sc_press_bits体内+常量]")
+chk(fn_has("bc_match.py", "inp_bits",
+           'bool(inp.get("SC")), bool(inp.get("SW"))'),
+    "R61g: 匹配器8元组含SC/SW位(AandB→SC经battle_to_trainer) [inp_bits体内]")
 chk("def resolve_sc_label(" in src("bc_build.py"),
-    "R61g: BC具体卡解析(手牌选中位→sc_target匹配宏, 无匹配丢行)")
+    "R61g: BC具体卡解析(手牌选中位→sc_target匹配宏, 无匹配丢行) [存在性, 合理文本钉]")
 
-# ---- R61(用户2026-10-05"d+快速胜利")奖励经济学 ----
+# ---- R61(用户2026-10-05"d+快速胜利")奖励经济学 ---- F2收官锚定
 chk("def graze_low_rate(f):" in tt60
     and "GRAZE_SAT_F = 6000.0" in tt60,
-    "R61-d: 擦弹低段费率按局时衰减(拖时间收割死亡, 硬上界≈30)")
-chk("else graze_low_rate(frames)" in tt60,
-    "R61-d: 衰减费率接入奖励点(原恒定GRAZE_LOW_RATE)")
+    "R61-d: 擦弹低段费率按局时衰减(拖时间收割死亡, 硬上界≈30) [def+常量, 合理文本钉]")
+chk(fn_has("train_tm.py", "_run_episode", "else graze_low_rate(frames)"),
+    "R61-d: 衰减费率接入奖励点(原恒定GRAZE_LOW_RATE) [_run_episode体内]")
 chk("def fastwin_bonus(" in tt60 and "R_FASTWIN = 6.0" in tt60
-    and "_fw = fastwin_bonus(frames - round_f0" in tt60,
-    "R61: 快胜奖金接入回合胜(剩余时间比例, 速决+6)")
+    and fn_has("train_tm.py", "_run_episode",
+               "_fw = fastwin_bonus(frames - round_f0"),
+    "R61: 快胜奖金接入回合胜(剩余时间比例, 速决+6) [def+常量+_run_episode体内]")
 chk("def ko_round_reward(my_hp, opp_hp, win):" in tt60
-    and "True) * d_sl + _fw" in tt60
-    and "False) * d_sr" in tt60,
+    and fn_has("train_tm.py", "_run_episode", "True) * d_sl + _fw")
+    and fn_has("train_tm.py", "_run_episode", "False) * d_sr"),
     "R61b: KO时双方血量差入奖励(胜margin分档+惜败半罚, 用户2026-10-05;"
     "断言锚胜/败两侧调用组合式 — 原子串被未变异侧满足=R61b变异漏网教训)")
 chk("GAMMA_POT = 0.999" in tt60
-    and "GAMMA_POT * _pot - self._prev_pot" in tt60,
-    "R61c(B5): 势函数γ因子(Ng式γΦ(s')−Φ(s), 原γ=1)")
+    and fn_has("train_tm.py", "_run_episode",
+               "GAMMA_POT * _pot - self._prev_pot"),
+    "R61c(B5): 势函数γ因子(Ng式γΦ(s')−Φ(s), 原γ=1) [常量+_run_episode体内]")
 chk("self._seiran_gauge" in tt60
     and "card_gauge_val=_cg" in tt60
     and "_cg = (left.get(\"cardGauge\", 0) if card_gauge_val is None" in tt60,
-    "R61c(B5): cardGauge晴岚哨兵(晴岚期冻结gauge, 伪势跳±2.0防线)")
+    "R61c(B5): cardGauge晴岚哨兵(晴岚期冻结gauge, 伪势跳±2.0防线) [多形态, 合理文本钉]")
 
 _BEHAVIOR_TESTS = [
     ("test_threat.py", "P0-K: 全零速弹表→(None,0) + TTI语义"),

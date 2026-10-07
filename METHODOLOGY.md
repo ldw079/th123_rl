@@ -1737,6 +1737,20 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     窗口执行; 门禁legacy标签WARN提示)。教训: PowerShell管道改文件
     =GBK读+UTF8写的编码坑, 门禁/源码补丁一律走Python io。
   - **验证**: 门禁531/0(gap块检查切片修正后仍非零✓)。
+- 2.62 (2026-10-07, **F2收官** — 用户指令"把f2做完"):
+  - 七批累计~95条AST锚定(113/325=35%断言含fn_has); 收官批: R60/R61
+    奖励经济学波(F9/F10/F11+R61d/R61/R61b/R61c)+R61e持久化双锚
+    (读__init__/写_com_ladder)+R55 ppo_gpu语义族+tm_env step/close
+    +soku ProtocolError+R53双deck源(_start_first新增首局锚)+B2事件
+    接入+deck采样器/回报仪表。锚定过程又抓出3处错锚(_last_ret在
+    _submit_update非_settle_match; COM分支在__init__非_rotate_opp;
+    难度路径needle含self.而代码用局部char) — 全是裸子串永不暴露
+    的"钉错位置"。
+  - **终态**: 剩余纯子串钉~50条全部为**合理终态**并逐一标注: 外部
+    mod/oracle C++源(6)+模块常量(frozenset/数值/POOL_K等)+类与
+    def存在性+文档串——这些语义上就不该函数锚定。fn_has工具自身
+    经4轮实战纠错(错锚/注释逃逸/同名函数首配/本批3错锚)。
+  - **验证**: 门禁533/0/0; 收官批涉及变异钉增量验证全红。
 - 2.59 (2026-10-06深夜, **fleet首次真实点火**(U-1/D1'半程, 用户授权
   停训练腾CPU)):
   - **点火序列**: 停单实例(4进程)→BC标签迁移→fleet隔离模式(_fleet
