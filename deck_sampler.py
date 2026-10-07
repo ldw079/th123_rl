@@ -78,3 +78,77 @@ def curriculum_ratio(episode: int) -> float:
     if episode < 100:
         return 0.5
     return min(0.8, 0.5 + (episode - 100) * 0.001)
+
+
+# ==== D/C(用户2026-10-07"只做DCB"): 卡组原型 — 流派仪表+对抗性卡组池 ====
+
+ARCHETYPES = ('system', 'skill', 'sc', 'mixed')
+
+
+def sample_archetype_deck(char_engine_id: int, rng: random.Random,
+                          archetype: str) -> list:
+    """原型卡组生成(合法约束同sample_deck: 每卡≤4/系统≤20/表内白名单)。
+    system: 纯系统卡 | skill: 技能重(5-6种×3-4, 无SC)
+    sc:     SC重(3-4种SC×2-3 + 2技能×2) | mixed: 标准混合(=sample_deck)"""
+    system = list(_SYSTEM_IDS[:20])
+    if archetype == 'system':
+        return system
+    skills = _CHAR_SKILL_IDS.get(char_engine_id, [])
+    scs = _CHAR_SC_IDS.get(char_engine_id, [])
+    if not skills and not scs:
+        return system
+    if archetype == 'mixed':
+        return sample_deck(char_engine_id, rng, 1.0)
+    deck = []
+    if archetype == 'skill':
+        n = rng.randint(5, min(6, len(skills)))
+        for sid in rng.sample(skills, n):
+            deck.extend([sid] * rng.randint(3, 4))
+    elif archetype == 'sc':
+        for sid in rng.sample(skills, min(2, len(skills))):
+            deck.extend([sid] * 2)
+        for sid in rng.sample(scs, min(4, len(scs))):
+            deck.extend([sid] * rng.randint(2, 3))
+    else:
+        raise ValueError('未知原型: %s (可用: %s)' % (archetype,
+                                                    ARCHETYPES))
+    if len(deck) > 20:
+        deck = deck[:20]
+    while len(deck) < 20:
+        deck.append(rng.choice(_SYSTEM_IDS))
+    return deck[:20]
+
+
+def archetype_of(deck) -> str:
+    """卡组原型分类(C: 对手战绩按流派归桶用)。
+    判据: 无角色卡=system; SC≥4且SC≥技能=sc; 技能≥10=skill; 余mixed。"""
+    sc = sum(1 for c in deck if c >= 200)
+    sk = sum(1 for c in deck if 100 <= c < 200)
+    if sc == 0 and sk == 0:
+        return 'system'
+    if sc >= 4 and sc >= sk:
+        return 'sc'
+    if sk >= 10:
+        return 'skill'
+    return 'mixed'
+
+
+def sample_deck_weighted(char_engine_id: int, rng: random.Random,
+                         arch_stats=None):
+    """C(对抗性卡组池): 对手卡组按我方各流派败率加权采样。
+    arch_stats: {arch: [W, L]} — 权重=league_weight同源(败多→权高,
+    fictitious play流派层); 无统计/样本<3局=中性1.0(均匀)。
+    返回 (deck, archetype) — archetype供战绩归桶。"""
+    archs = list(ARCHETYPES)
+    # 中性=0.5(league_weight同款约定) — 原中性1.0等于弱流派顶格权重,
+    # 全败流派无法取得相对优势(测试2当场抓出)
+    ws = []
+    for a in archs:
+        wl = arch_stats.get(a, [0, 0]) if arch_stats else [0, 0]
+        if sum(wl) >= 3:
+            from league import league_weight
+            ws.append(max(0.1, league_weight(wl[0], wl[1])))
+        else:
+            ws.append(0.5)
+    arch = rng.choices(archs, weights=ws)[0]
+    return sample_archetype_deck(char_engine_id, rng, arch), arch
