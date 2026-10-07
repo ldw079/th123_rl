@@ -32,15 +32,17 @@ PY = sys.executable
 
 
 def pre_flight():
-    print('[前置] 残留进程清理...')
+    print('[前置] 残留进程清理(按命令行精确匹配 — 不全杀python)...',
+          flush=True)
+    # 教训×2: 原版Get-Process python全杀 → (a)启动器自杀 (b)会话宿主
+    # 被连带(bash工具链里有python). 改为只杀训练族进程(命令行含特征串)
     subprocess.run(
         ['powershell', '-NoProfile', '-Command',
-         "$sup=(Get-CimInstance Win32_Process -Filter \"Name='python.exe'\")"
-         "| Where-Object {$_.CommandLine -like '*fleet_supervisor*'"
-         " -or $_.CommandLine -like '*run_parallel*'};"
-         "if($sup){$sup|ForEach-Object{taskkill /PID $_.ProcessId /T /F}};"
-         "Get-Process python -EA SilentlyContinue"
-         "| ForEach-Object { Stop-Process -Id $_.Id -Force -EA SilentlyContinue };"
+         "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" "
+         "| Where-Object {$_.CommandLine -match "
+         "'fleet_supervisor|run_parallel|learner_hub|actor_worker"
+         "|exploiter'} "
+         "| ForEach-Object { taskkill /PID $_.ProcessId /T /F }; "
          "Start-Sleep 2; taskkill /IM th123.exe /F 2>$null"],
         capture_output=True)
     free = ctypes.c_ulonglong(0)
