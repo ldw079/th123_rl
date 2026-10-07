@@ -68,7 +68,9 @@ def lines(f):
 def fn_has(f, fn_name, needle):
     """F2(从零#2起批): AST锚定断言 — needle必须出现在**函数fn_name体内**
     (替代全文件裸子串钉: 不受无害移动/注释/文档字符串误伤, 断言可证伪
-    性更强)。找不到函数=FAIL。"""
+    性更强)。找不到函数=FAIL。
+    F2批5修正: 同名函数(如多类的__init__)时**任一**体内含needle即通过
+    — 原版只查walk序第一个同名函数(soku双类__init__当场翻车)。"""
     try:
         tree = ast.parse(src(f))
     except SyntaxError:
@@ -77,7 +79,8 @@ def fn_has(f, fn_name, needle):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) \
                 and node.name == fn_name:
             seg = ast.get_source_segment(src(f), node)
-            return bool(seg and needle in seg)
+            if seg and needle in seg:
+                return True
     return False
 
 
@@ -639,7 +642,8 @@ chk('matrix["%s>%s" % (a, b)]' in ol and "参考线55%" in ol,
     "战报含胜率矩阵+毕业门读数(2.4: 55%参考线, 重构待干净读数)")
 # R17(§3.1): 原文本断言"temp=1.0"在评估侧改为温度跟随模型meta后假红 —
 # 改由C15的test_side_driver_semantics.py行为断言(温度==_temp, 决策计数)
-chk('not f.endswith("_v.npz")' in ol, "池latest排除价值网快照(实测踩坑)")
+chk(fn_has("outer_loop.py", "latest", 'not f.endswith("_v.npz")'),
+    "池latest排除价值网快照(实测踩坑) [latest体内]")
 # 训练半环集成
 chk(fn_has("train_tm.py", "_run_episode",
            "self.env.step(inp, self._opp_inp)"),
@@ -780,16 +784,19 @@ except (KeyError, AttributeError) as _e:
     chk(False, "fleet车道枚举(R56)", str(_e))
 chk("PORT = 20930" in src("tools/hitlab_probe.py"),
     "hitlab端口在段内(20920-20939)")
-chk("self.lsock.settimeout(accept_timeout)" in src("soku_client2.py")
-    and "accept_timeout=120.0" in src("soku_client2.py"),
-    "accept有超时(R16参数化: 默认120s, tm_env持锁期传90s)")
+chk(fn_has("soku_client2.py", "__init__",
+           "self.lsock.settimeout(accept_timeout)")
+    and fn_has("soku_client2.py", "__init__", "accept_timeout=120.0"),
+    "accept有超时(R16参数化: 默认120s, tm_env持锁期传90s) [__init__体内]")
 # 外环加固(第六轮§7) — F2批2: run_match体内锚定
 ol2 = src("outer_loop.py")
 chk(fn_has("outer_loop.py", "run_match", "env.close()"),
     "外环finally走env.close()(句柄/线程不泄漏) [run_match体内]")
 chk('"aborted" += 1' in ol2 or 'res["aborted"] += 1' in ol2,
     "中断局计数(不静默丢弃)")
-chk("outer_loop.lock" in ol2 and "O_EXCL" in ol2, "外环单实例锁")
+chk(fn_has("outer_loop.py", "cycle", "outer_loop.lock")
+    and fn_has("outer_loop.py", "cycle", "O_EXCL"),
+    "外环单实例锁 [cycle体内]")
 # R22(用户2026-10-02): 镜像对局+池深k=3 — 外环经验多样性最低成本扩容
 _rp = src("run_parallel.py")
 _mirror_ok = all(
@@ -1030,9 +1037,11 @@ chk("正常完成(%s局" in src("run_parallel.py"),
     "监督器正常完成分支eps按str格式化(R42: 原%d首触即崩, 监督器裸奔)")
 # ============ R43(2026-10-04): 池刷新制度 + COM难度阶梯 ============
 tt43 = src("train_tm.py")
-chk("POOL_SNAPSHOT_EVERY = 50" in tt43 and "def _snapshot_pool" in tt43
-    and "(ep + 1) % POOL_SNAPSHOT_EVERY == 0" in tt43,
-    "池刷新制度在位(R43-A: 每50局快照入池+滚动清理 — 原28h打旧对手)")
+chk("POOL_SNAPSHOT_EVERY = 50" in tt43
+    and fn_has("train_tm.py", "train", "(ep + 1) % POOL_SNAPSHOT_EVERY == 0")
+    and "def _snapshot_pool" in tt43,
+    "池刷新制度在位(R43-A: 每50局快照入池+滚动清理 — 原28h打旧对手; "
+    "消费点[train体内]锚定)")
 chk("def _resolve_pool" in tt43 and "if m is None:" in tt43,
     "对手路径轮换时动态解析(R43-A: 原启动时冻结)")
 chk("COM_CLIMB_N = 20" in tt43 and "COM_FALL_N = 40" in tt43
