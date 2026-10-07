@@ -1410,41 +1410,50 @@ aw = src("actor_worker.py") if os.path.exists(
 lh = src("learner_hub.py") if os.path.exists(
     os.path.join(ROOT, "learner_hub.py")) else ""
 ec = src("episode_core.py")
-# 红线①: logp采样时记录(actor钩子)+learner侧stored_logp消费
-chk("_fleet_logp_rec" in tt
-    and "if self._fleet_logp_rec is not None:" in tt
-    and "self._fleet_logp_rec(mid, feat, side, mask, nbias)" in tt,
-    "R56红线①: train_tm决策点logP钩子(守卫+调用接线)")
-chk("_fleet_logp_rec = None" in tt,
-    "R56红线①: 钩子默认None(生产路径零行为变化)")
-chk("rec_logp(mid, feat, side, mask, nbias)" in aw
-    and "_pi_forward" in aw,
-    "R56红线①: actor记录logP(a)(与采样同temp/mask/bias)")
-chk("stored_logp = kw.get('stored_logp')" in src("ppo_gpu.py")
-    and "logp_old = np.asarray(" in src("ppo_gpu.py"),
-    "R56红线①: ppo_gpu.update消费stored_logp(真ratio)")
-chk("stored_logp=logps" in lh,
-    "R56红线①: learner把episode logps传入update")
+# 红线①: logp采样时记录(actor钩子)+learner侧stored_logp消费 — F2批6 AST锚定
+chk(fn_has("train_tm.py", "__init__", "_fleet_logp_rec = None")
+    and fn_has("train_tm.py", "_run_episode",
+               "if self._fleet_logp_rec is not None:")
+    and fn_has("train_tm.py", "_run_episode",
+               "self._fleet_logp_rec(mid, feat, side, mask, nbias)"),
+    "R56红线①: train_tm决策点logP钩子(守卫+调用接线) [__init__+_run_episode体内]")
+chk(fn_has("actor_worker.py", "run_actor",
+           "tr._fleet_logp_rec = rec_logp"),
+    "R56红线①: actor记录logP(a)(与采样同temp/mask/bias) [run_actor体内]")
+chk(fn_has("ppo_gpu.py", "update", "stored_logp = kw.get('stored_logp')")
+    and fn_has("ppo_gpu.py", "update", "logp_old = np.asarray("),
+    "R56红线①: ppo_gpu.update消费stored_logp(真ratio) [update体内]")
+chk(fn_has("learner_hub.py", "update_from_episodes",
+           "stored_logp=logps"),
+    "R56红线①: learner把episode logps传入update [update_from_episodes体内]")
 # 红线②: 局边界快照同步
-chk("read_version(snap_dir)" in aw and "load_snapshot_weights" in aw,
-    "R56红线②: actor局边界轮询version+原子加载快照")
-chk("write_version" in lh and "os.replace" in ec,
-    "R56红线②: learner原子发布版本号")
-chk("batch_k" in lh and "BATCH_TIMEOUT" in lh,
-    "R56红线②: 摸批K局/超时上限(§6陈旧度)")
+chk(fn_has("actor_worker.py", "run_with_snapshot",
+           "read_version(snap_dir)"),
+    "R56红线②: actor局边界轮询version [run_with_snapshot体内]")
+chk(fn_has("episode_core.py", "save_episode_npz", "os.replace"),
+    "R56红线②: episode npz原子落盘 [save_episode_npz体内]")
+chk("BATCH_TIMEOUT" in lh
+    and fn_has("learner_hub.py", "run_learner", "batch_k"),
+    "R56红线②: 摸批K局/超时上限(§6陈旧度) [run_learner体内锚batch_k]")
 # 红线③: 环境独立
-chk("default_rng(" in aw and "seed_base" in aw
-    and "tr.ppo.rng = np.random.default_rng" in aw,
-    "R56红线③: actor按(actor_id,ver)重播种ppo.rng(防同流)")
-chk("tr._deck_rng = _rnd.Random(seed_base" in aw,
-    "R56红线③: deck/league rng按actor独立")
+chk(fn_has("actor_worker.py", "run_actor",
+           "tr.ppo.rng = np.random.default_rng")
+    and fn_has("actor_worker.py", "run_actor", "seed_base"),
+    "R56红线③: actor按(actor_id,ver)重播种ppo.rng(防同流) [run_actor体内]")
+chk(fn_has("actor_worker.py", "run_actor",
+           "tr._deck_rng = _rnd.Random(seed_base"),
+    "R56红线③: deck/league rng按actor独立 [run_actor体内]")
 # 单写者纪律(fleet的共享档全部归learner)
-chk("tr._snapshot_pool = lambda: None" in aw
-    and "tr._save_distill = lambda rows: None" in aw
-    and "tr.macro_counts_path = " in aw,
-    "R56单写者: actor禁写池快照/蒸馏, 宏计数走scratch")
-chk("np.bincount(" in lh and "counts_path" in lh,
-    "R56单写者: learner从acts合并宏计数并原子落盘")
+chk(fn_has("actor_worker.py", "run_actor",
+           "tr._snapshot_pool = lambda: None")
+    and fn_has("actor_worker.py", "run_actor",
+               "tr._save_distill = lambda rows: None")
+    and fn_has("actor_worker.py", "run_actor", "tr.macro_counts_path = "),
+    "R56单写者: actor禁写池快照/蒸馏, 宏计数走scratch [run_actor体内]")
+chk(fn_has("learner_hub.py", "update_from_episodes", "np.bincount(")
+    and fn_has("learner_hub.py", "run_learner", "counts_path"),
+    "R56单写者: learner从acts合并宏计数并原子落盘 "
+    "[update_from_episodes+run_learner体内]")
 chk('suffix' in lh and '_fleet' in lh,
     "R56隔离: learner默认suffix=_fleet(A/B期不碰生产主档)")
 # episode核心契约(单一事实源)
