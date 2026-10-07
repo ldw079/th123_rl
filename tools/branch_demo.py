@@ -80,17 +80,20 @@ def setup_scenario(env, scen):
     return True
 
 
-def run_branch(env, scen, macro_script, frames=120):
-    """一种应对分支: 设定局面→执行宏→采集后果。"""
+def run_branch(env, scen, macro_script, frames=120, opp_driver=None):
+    """一种应对分支: 设定局面→执行宏→采集后果。
+    E1-v2(2026-10-07): opp_driver提供时对手为模型驱动(真教学 — 挂机
+    对手只演示可达性, 会反抗的对手才演示"应对的代价与收益")。"""
     setup_scenario(env, scen)
     traj = []
     my_hp0, opp_hp0 = None, None
+    opp_inp = {}
     for f in range(frames):
         # P0-C(从零#2): 原对macro_script(闭包函数)取len()→首帧TypeError
         # 进程即死 — mk_input已自带越界回退(f≥脚本长返回{})
         inp = macro_script(f)
         try:
-            r = env.step(inp or {}, dict(NEUTRAL))
+            r = env.step(inp or {}, opp_inp)
         except Exception:
             break
         if r is None:
@@ -99,6 +102,13 @@ def run_branch(env, scen, macro_script, frames=120):
         if my_hp0 is None:
             my_hp0 = left["hp"]
             opp_hp0 = right["hp"]
+        if opp_driver is not None:
+            try:
+                opp_inp = opp_driver.frame_input(
+                    right, left, r[2] if len(r) > 2 else {},
+                    r[3] if len(r) > 3 else [], []) or {}
+            except Exception:
+                opp_inp = {}
         traj.append({
             "f": f, "my_hp": left["hp"], "opp_hp": right["hp"],
             "my_a": left["action"], "opp_a": right["action"],
@@ -127,6 +137,8 @@ def main():
     ap.add_argument('--char', default='reimu')
     ap.add_argument('--scenario', default='mid_range')
     ap.add_argument('--output', default=None)
+    ap.add_argument('--opp-model', action='store_true',
+                    help='E1-v2: 对手换模型驱动(默认挂机)')
     args = ap.parse_args()
 
     scen = SCENARIOS.get(args.scenario)
@@ -143,6 +155,20 @@ def main():
                 break
         except Exception:
             break
+
+    # E1-v2: 模型驱动对手(镜像=同角色生产模型 — "如果对面会打, 各应对
+    # 的代价是多少" — 挂机版只演示可达性, 本版演示真博弈)
+    opp_driver = None
+    if args.opp_model:
+        from side_driver import SideDriver
+        store = os.environ.get('TH123_STORE', r'D:\temp\th123_models')
+        opp_driver = SideDriver(args.char, 'R')
+        opp_driver.load(os.path.join(store,
+                                     'model_ppo_%s.npz' % args.char))
+        print('对手: 模型驱动(%s生产模型)' % args.char)
+        opp_driver.reset_match()
+    else:
+        print('对手: 挂机(加--opp-model切换模型驱动)')
 
     # 三种应对: 防御 / 前冲攻击 / 后退
     from train_tm import CHAR_LIBS
@@ -188,7 +214,8 @@ def main():
             return _inp
 
         print('执行分支: %s (%d帧)...' % (label, len(frames_list)))
-        result = run_branch(env, scen, mk_input(frames_list))
+        result = run_branch(env, scen, mk_input(frames_list),
+                                opp_driver=opp_driver)
         if result:
             branches[label] = result
             print('  %s: 我方HP%+d 对手HP%+d %d帧'
