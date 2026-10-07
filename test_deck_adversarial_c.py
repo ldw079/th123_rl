@@ -13,7 +13,8 @@ except Exception:
 
 from deck_sampler import (sample_deck_weighted,  # noqa: E402
                           sample_archetype_deck, archetype_of,
-                          ARCHETYPES)
+                          ARCHETYPES, sample_skillset_deck,
+                          skillset_key, _CHAR_SKILL_IDS)
 
 PASS, FAIL = [], []
 
@@ -74,6 +75,36 @@ def main():
                     collections.Counter(d).values()) > 4:
                 ok = False
     check('合法卡组', ok)
+
+    # ---- L2必杀系别层(用户2026-10-07"流派不仅是SC占比,还有必杀类型") ----
+    # 7. 固定系别卡组: 指定技能各×3, 合法且签名一致
+    sids = _CHAR_SKILL_IDS[0][:4]
+    d = sample_skillset_deck(0, sids, rng)
+    check('系别卡组合法', len(d) == 20
+          and max(collections.Counter(d).values()) <= 4)
+    check('系别签名一致', skillset_key(d) == tuple(sorted(sids)),
+          str(skillset_key(d)))
+
+    # 8. 逐技能加权: 对技能100全败(0W-12L) → skill/mixed卡组中
+    #    100号出现率显著超中性基线(5/12≈42%; 加权期望≈67%)
+    stats = {100: [0, 12]}
+    hits = tot = 0
+    for _ in range(2000):
+        d, a = sample_deck_weighted(0, rng, {'system': [5, 0]}, stats)
+        if a in ('skill', 'mixed'):
+            tot += 1
+            if 100 in d:
+                hits += 1
+    rate = hits / max(tot, 1)
+    check('逐技能加权(弱必杀高频)', rate > 0.55,
+          '含100号占比%.0f%%(%d局, 中性基线42%%)' % (rate * 100, tot))
+
+    # 9. 非法技能id拒收
+    try:
+        sample_skillset_deck(0, [999])
+        check('非法id拒收', False)
+    except AssertionError:
+        check('非法id拒收', True)
 
     print('\n==== %d PASS / %d FAIL ====' % (len(PASS), len(FAIL)))
     if FAIL:

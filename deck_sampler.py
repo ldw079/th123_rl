@@ -134,10 +134,13 @@ def archetype_of(deck) -> str:
 
 
 def sample_deck_weighted(char_engine_id: int, rng: random.Random,
-                         arch_stats=None):
+                         arch_stats=None, skill_stats=None):
     """C(对抗性卡组池): 对手卡组按我方各流派败率加权采样。
     arch_stats: {arch: [W, L]} — 权重=league_weight同源(败多→权高,
-    fictitious play流派层); 无统计/样本<3局=中性1.0(均匀)。
+    fictitious play流派层); 无统计/样本<3局=中性(见下)。
+    skill_stats: {skill_id: [W, L]} — L2必杀系别层(用户2026-10-07
+    "流派不仅是SC占比, 还有必杀类型"): skill/mixed卡组内的技能id
+    选择按逐卡败率加权 — 对哪种必杀弱就多装哪种。
     返回 (deck, archetype) — archetype供战绩归桶。"""
     archs = list(ARCHETYPES)
     # 中性=0.5(league_weight同款约定) — 原中性1.0等于弱流派顶格权重,
@@ -151,4 +154,69 @@ def sample_deck_weighted(char_engine_id: int, rng: random.Random,
         else:
             ws.append(0.5)
     arch = rng.choices(archs, weights=ws)[0]
+    if arch in ('skill', 'mixed'):
+        return (_sample_with_skill_weights(char_engine_id, rng, arch,
+                                           skill_stats), arch)
     return sample_archetype_deck(char_engine_id, rng, arch), arch
+
+
+def _skill_weight(skill_id, skill_stats):
+    """L2: 单技能卡的采样权重(league同源; 无统计=中性0.5)。"""
+    if not skill_stats:
+        return 0.5
+    wl = skill_stats.get(skill_id, [0, 0])
+    if sum(wl) >= 3:
+        from league import league_weight
+        return max(0.1, league_weight(wl[0], wl[1]))
+    return 0.5
+
+
+def _sample_with_skill_weights(char_engine_id, rng, arch, skill_stats):
+    """L2: 技能id加权选择的skill/mixed卡组。"""
+    skills = _CHAR_SKILL_IDS.get(char_engine_id, [])
+    scs = _CHAR_SC_IDS.get(char_engine_id, [])
+    deck = []
+    n_types = (rng.randint(5, min(6, len(skills))) if arch == 'skill'
+               else rng.randint(4, min(6, len(skills))))
+    if skills:
+        ws = [_skill_weight(s, skill_stats) for s in skills]
+        # 无放回加权抽(逐张取+移除, 权重保留在原位)
+        pool = list(skills)
+        chosen = []
+        for _ in range(min(n_types, len(pool))):
+            wsel = [ws[skills.index(s)] for s in pool]
+            s = rng.choices(pool, weights=wsel)[0]
+            pool.remove(s)
+            chosen.append(s)
+        for sid in chosen:
+            deck.extend([sid] * rng.randint(3, 4))
+    if arch == 'mixed' and scs:
+        n_sc_types = rng.randint(2, min(4, len(scs)))
+        for sid in rng.sample(scs, n_sc_types):
+            deck.extend([sid] * rng.randint(1, 2))
+    if len(deck) > 20:
+        deck = deck[:20]
+    while len(deck) < 20:
+        deck.append(rng.choice(_SYSTEM_IDS))
+    return deck[:20]
+
+
+def sample_skillset_deck(char_engine_id: int, skill_ids,
+                         rng: random.Random = None) -> list:
+    """L2(D仪表): 固定必杀系别的对照卡组 — skill_ids为指定装备的
+    技能卡id(每张×3-4), 无SC(纯系别对照), 余位系统卡填充。"""
+    rng = rng or random.Random(0)
+    skills = _CHAR_SKILL_IDS.get(char_engine_id, [])
+    assert all(s in skills for s in skill_ids), \
+        '技能id不在角色%s卡池: %r' % (char_engine_id, skill_ids)
+    deck = []
+    for sid in skill_ids:
+        deck.extend([sid] * 3)
+    while len(deck) < 20:
+        deck.append(rng.choice(_SYSTEM_IDS))
+    return deck[:20]
+
+
+def skillset_key(deck) -> tuple:
+    """L2签名(C归桶/D报告): 卡组内技能卡id的去重升序元组。"""
+    return tuple(sorted({c for c in deck if 100 <= c < 200}))

@@ -365,8 +365,10 @@ class TMTrainer:
         self.render = render
         self.suffix = suffix
         self._deck_rng = _rnd.Random(hash(char) & 0xFFFF)  # R47: deck采样
-        self._deck_arch_stats = {}   # C(对抗性卡组池): 对手流派战绩桶
+        self._deck_arch_stats = {}   # C(L1): 对手流派战绩桶
         self._opp_deck_arch = None   # C: 当前局对手卡组原型
+        self._opp_skill_stats = {}   # C-L2: 对手逐技能卡战绩桶
+        self._opp_skillset = ()      # C-L2: 当前局对手技能卡签名
         self._ep_count = 0                                  # R47: 课程进度
         self._ret_win_hist = []                             # R47: 回报-胜率仪表
         self.com_difficulty = com_difficulty
@@ -774,21 +776,25 @@ class TMTrainer:
         (技能+SC入池→激活等级特征/SC门控/等级条件宏)。"""
         from side_driver import EvalEnv
         from deck_sampler import sample_deck, curriculum_ratio
-        from deck_sampler import sample_deck_weighted  # C: 对抗性卡组池
+        # C: 对抗性卡组池(L1流派+L2必杀系别)
+        from deck_sampler import sample_deck_weighted, skillset_key
         _ep = getattr(self, '_ep_count', 0)
         _ratio = curriculum_ratio(_ep)
         _my_deck = sample_deck(CHAR_LIBS[self.char]['id'],
                                self._deck_rng, _ratio)
-        # C(用户"只做DCB"): 对手卡组按流派败率加权 — 弱流派自动
-        # 高频出现(fictitious play流派层, league_weight同源);
-        # 我方保持生产课程采样; COM模式维持原None→系统卡语义不变
+        # C(用户"只做DCB"+L2必杀系别): 对手卡组按流派败率+逐技能卡
+        # 败率加权 — 弱流派/弱必杀自动高频; 我方保持生产课程采样;
+        # COM模式维持原None→系统卡语义不变
         if self.opp:
             _opp_deck, self._opp_deck_arch = sample_deck_weighted(
                 CHAR_LIBS[self.opp.char]['id'],
                 self._deck_rng,
-                getattr(self, '_deck_arch_stats', None))
+                getattr(self, '_deck_arch_stats', None),
+                skill_stats=getattr(self, '_opp_skill_stats', None))
+            self._opp_skillset = skillset_key(_opp_deck)
         else:
             _opp_deck, self._opp_deck_arch = None, None
+            self._opp_skillset = ()
         if self.opp_cycle and self.opp is not None:
             env = EvalEnv(port, char_left=self.char,
                           char_right=self.opp.char, vs_com=False,
@@ -964,7 +970,7 @@ class TMTrainer:
             st[0] += 1
         elif rs > ls:
             st[1] += 1
-        # C(用户2026-10-07"只做DCB"): 对手卡组流派战绩归桶 —
+        # C(用户"只做DCB"): 对手卡组流派战绩归桶 —
         # 对抗性卡组池的输入(败率高的流派下一批被加权采样)
         _arch = getattr(self, '_opp_deck_arch', None)
         if _arch is not None:
@@ -977,6 +983,16 @@ class TMTrainer:
             if dn % 10 == 0:
                 print("[流派战绩] vs %s流: %dW-%dL (%.0f%%)"
                       % (_arch, ds[0], ds[1], 100.0 * ds[0] / dn))
+        # C-L2(必杀系别层): 对手装备的每个技能卡各记一票 —
+        # 逐卡败率驱动下批skill/mixed卡组的技能选择加权
+        _sset = getattr(self, '_opp_skillset', None)
+        if _sset:
+            for sid in _sset:
+                ss = self._opp_skill_stats.setdefault(sid, [0, 0])
+                if ls > rs:
+                    ss[0] += 1
+                elif rs > ls:
+                    ss[1] += 1
         n = st[0] + st[1]
         if lab == "COM" and self.opp_cycle:
             self._com_hist.append(1 if ls > rs else 0)
