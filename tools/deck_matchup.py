@@ -25,9 +25,10 @@ sys.stdout.reconfigure(encoding='utf8')
 from side_driver import SideDriver, EvalEnv  # noqa: E402
 from tm_env import CHAR  # noqa: E402
 from deck_sampler import (sample_deck, sample_archetype_deck,  # noqa: E402
-                          archetype_of, sample_skillset_deck)
+                          archetype_of, sample_skillset_deck,
+                          sample_solo_sc_deck, sample_sysfocus_deck)
 from train_tm import CHAR_LIBS  # noqa: E402
-from card_tables import CHAR_CARD_TABLES  # noqa: E402
+from card_tables import CHAR_CARD_TABLES, SYSTEM_CARDS  # noqa: E402
 
 STORE = os.environ.get('TH123_STORE', r'D:\temp\th123_models')
 NEUTRAL = {"A": False, "B": False, "C": False, "D": False,
@@ -106,8 +107,10 @@ def main():
     ap.add_argument('--games', type=int, default=3)
     ap.add_argument('--port', type=int, default=20912)
     ap.add_argument('--mode', default='arch',
-                    choices=['arch', 'skillset'],
-                    help='arch=L1流派比例 | skillset=L2必杀系别')
+                    choices=['arch', 'skillset', 'sc', 'sys'],
+                    help='arch=L1流派 | skillset=L2必杀系别 | '
+                         'sc=逐张SC(L3, 用户"哪一张sc应对不足") | '
+                         'sys=系统卡分组(L3)')
     args = ap.parse_args()
     chars = args.chars.split(',')
 
@@ -117,15 +120,32 @@ def main():
         eng = CHAR[char]
         report[char] = {}
         # 对照组: arch=每局在原型内重抽(比例层随机性);
-        # skillset=固定装备的系别卡组(身份层, 局间不变)
+        # skillset/sc/sys=固定装备(身份层, 局间不变)
+        fixed = {}
         if args.mode == 'arch':
-            variants = list(('system', 'skill', 'sc'))
-            fixed = {}
-        else:
-            fixed = {}
-            for gname, sids, _names in skillset_groups(eng):
+            variants = ['system', 'skill', 'sc']
+        elif args.mode == 'skillset':
+            for gname, sids, _n in skillset_groups(eng):
                 fixed[gname] = sample_skillset_deck(eng, sids, rng)
             variants = list(fixed.keys())
+        elif args.mode == 'sc':
+            cards = CHAR_CARD_TABLES[eng]
+            sc_names = {int(i): n for i, n, c in cards
+                        if int(i) >= 200}
+            for sid, n in sorted(sc_names.items()):
+                key = 'SC%d' % sid
+                fixed[key] = sample_solo_sc_deck(eng, sid, rng)
+                fixed[key + '_name'] = n      # 报告用(非卡组)
+            variants = [k for k in fixed if not k.endswith('_name')]
+        else:  # sys: 系统卡三组(各7张×4)
+            sys_names = {int(i): n for i, n, c in SYSTEM_CARDS}
+            ids = sorted(sys_names)
+            third = max(4, len(ids) // 3)
+            for gname, sub in (('系统前段', ids[:third]),
+                               ('系统中段', ids[third:2 * third]),
+                               ('系统后段', ids[2 * third:])):
+                fixed[gname] = sample_sysfocus_deck(sub, rng)
+            variants = [g for g in fixed]
         for vname in variants:
             w = l = d = 0
             for g in range(args.games):
@@ -152,17 +172,28 @@ def main():
                      '%.0f%%' % (wr * 100) if wr is not None else '无有效局'))
 
     print('\n===== %s matchup 总表(我方胜率) ====='
-          % ('流派' if args.mode == 'arch' else '必杀系别'))
-    cols = list(next(iter(report.values())).keys()) if report else []
-    print('%-8s %s' % ('角色',
-                       ' '.join('%8s' % c for c in cols)))
-    for char in chars:
-        row = []
-        for v in cols:
-            wr = report[char].get(v, {}).get('wr')
-            row.append('%7s' % ('%.0f%%' % (wr * 100)
-                                if wr is not None else '—'))
-        print('%-8s %s' % (char, ' '.join(row)))
+          % ('流派' if args.mode == 'arch'
+             else '必杀系别' if args.mode == 'skillset'
+             else '逐SC' if args.mode == 'sc' else '系统卡组'))
+    # sc模式列多 — 按行打印而非宽表
+    if args.mode == 'sc':
+        for char in chars:
+            print(' %s:' % char)
+            for v, dd in report[char].items():
+                wr = dd['wr']
+                print('   %-7s %s' % (v, '%.0f%%' % (wr * 100)
+                                      if wr is not None else '—'))
+    else:
+        cols = list(next(iter(report.values())).keys()) if report else []
+        print('%-8s %s' % ('角色',
+                           ' '.join('%8s' % c for c in cols)))
+        for char in chars:
+            row = []
+            for v in cols:
+                wr = report[char].get(v, {}).get('wr')
+                row.append('%7s' % ('%.0f%%' % (wr * 100)
+                                    if wr is not None else '—'))
+            print('%-8s %s' % (char, ' '.join(row)))
 
     if args.mode == 'skillset':
         print('\n(系别构成)')
@@ -171,6 +202,24 @@ def main():
             for gname, sids, names in skillset_groups(eng):
                 print('  %s %s: %s' % (char, gname,
                                        ' '.join(names[s] for s in sids)))
+    elif args.mode == 'sc':
+        print('\n(SC对照=该SC×3+2技能×2+系统填充; 名字对照)')
+        for char in chars:
+            eng = CHAR[char]
+            cards = CHAR_CARD_TABLES[eng]
+            for i, n, c in sorted(cards):
+                if int(i) >= 200:
+                    print('  %s SC%d: %s' % (char, int(i), n))
+    elif args.mode == 'sys':
+        print('\n(系统组构成: 各组内系统卡×4+默认填充)')
+        sys_names = {int(i): n for i, n, c in SYSTEM_CARDS}
+        ids = sorted(sys_names)
+        third = max(4, len(ids) // 3)
+        for gname, sub in (('系统前段', ids[:third]),
+                           ('系统中段', ids[third:2 * third]),
+                           ('系统后段', ids[2 * third:])):
+            print('  %s: %s' % (gname,
+                                ' '.join(sys_names[s] for s in sub)))
 
     out = os.path.join(
         HERE, 'deck_matchup_%s_%s.json'

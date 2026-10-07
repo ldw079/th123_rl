@@ -369,6 +369,10 @@ class TMTrainer:
         self._opp_deck_arch = None   # C: 当前局对手卡组原型
         self._opp_skill_stats = {}   # C-L2: 对手逐技能卡战绩桶
         self._opp_skillset = ()      # C-L2: 当前局对手技能卡签名
+        self._opp_sc_stats = {}      # C-L3: 对手逐SC卡战绩桶
+        self._opp_sys_stats = {}     # C-L3: 对手逐系统卡战绩桶
+        self._opp_deck_scids = ()    # C-L3: 当前局对手SC id集
+        self._opp_deck_sysids = ()   # C-L3: 当前局对手系统卡id集
         self._ep_count = 0                                  # R47: 课程进度
         self._ret_win_hist = []                             # R47: 回报-胜率仪表
         self.com_difficulty = com_difficulty
@@ -782,19 +786,26 @@ class TMTrainer:
         _ratio = curriculum_ratio(_ep)
         _my_deck = sample_deck(CHAR_LIBS[self.char]['id'],
                                self._deck_rng, _ratio)
-        # C(用户"只做DCB"+L2必杀系别): 对手卡组按流派败率+逐技能卡
-        # 败率加权 — 弱流派/弱必杀自动高频; 我方保持生产课程采样;
-        # COM模式维持原None→系统卡语义不变
+        # C(用户"只做DCB"+L2必杀系别+L3 SC/系统卡细化): 对手卡组按
+        # 流派败率+逐卡败率加权 — 弱流派/弱必杀/弱SC/弱系统卡自动高频
         if self.opp:
             _opp_deck, self._opp_deck_arch = sample_deck_weighted(
                 CHAR_LIBS[self.opp.char]['id'],
                 self._deck_rng,
                 getattr(self, '_deck_arch_stats', None),
-                skill_stats=getattr(self, '_opp_skill_stats', None))
+                skill_stats=getattr(self, '_opp_skill_stats', None),
+                sc_stats=getattr(self, '_opp_sc_stats', None),
+                sys_stats=getattr(self, '_opp_sys_stats', None))
             self._opp_skillset = skillset_key(_opp_deck)
+            self._opp_deck_scids = tuple(sorted(
+                {c for c in _opp_deck if c >= 200}))
+            self._opp_deck_sysids = tuple(sorted(
+                {c for c in _opp_deck if c < 100}))
         else:
             _opp_deck, self._opp_deck_arch = None, None
             self._opp_skillset = ()
+            self._opp_deck_scids = ()
+            self._opp_deck_sysids = ()
         if self.opp_cycle and self.opp is not None:
             env = EvalEnv(port, char_left=self.char,
                           char_right=self.opp.char, vs_com=False,
@@ -993,6 +1004,26 @@ class TMTrainer:
                     ss[0] += 1
                 elif rs > ls:
                     ss[1] += 1
+        # C-L3(SC/系统卡细化, 用户2026-10-07): 对手卡组内逐SC/逐系统卡
+        # 各记一票 — 弱SC/弱系统卡在sc/mixed与填充位被加权
+        _arch = _arch or getattr(self, '_opp_deck_arch', None)
+        if _arch is not None and _arch != 'system':
+            _deck_sc = getattr(self, '_opp_deck_scids', None)
+            if _deck_sc:
+                for cid in _deck_sc:
+                    cs = self._opp_sc_stats.setdefault(cid, [0, 0])
+                    if ls > rs:
+                        cs[0] += 1
+                    elif rs > ls:
+                        cs[1] += 1
+            _deck_sys = getattr(self, '_opp_deck_sysids', None)
+            if _deck_sys:
+                for cid in _deck_sys:
+                    ys = self._opp_sys_stats.setdefault(cid, [0, 0])
+                    if ls > rs:
+                        ys[0] += 1
+                    elif rs > ls:
+                        ys[1] += 1
         n = st[0] + st[1]
         if lab == "COM" and self.opp_cycle:
             self._com_hist.append(1 if ls > rs else 0)
