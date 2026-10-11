@@ -1817,6 +1817,12 @@ _BEHAVIOR_TESTS = [
      "R63(P0-1): 镜像只翻水平轴(H翻/V不变)+高跳回归+跨实现镜像规则一致"),
     ("test_contract_r63.py",
      "R63(P0-2): episode尺寸代际契约(写者自检/读者拒收/旧代际不消费不删)"),
+    # B3(F-9观察闭环): 远程弹幕使用分布报告工具
+    ("test_remote_usage_b3.py",
+     "B3: remote_usage_report×episode_core贯通(距离桶/弹幕份额/时间窗/坏档韧性)"),
+    # R64(教训×3): train_start清理自杀修复
+    ("test_trainstart_cleanup.py",
+     "R64: 清理特征串'exploiter'匹配自身命令行→taskkill自杀; 排除自身PID后 命中者死/排除者活/无干者不连坐"),
 ]
 for _tname, _tdesc in _BEHAVIOR_TESTS:
     _tp = os.path.join(ROOT, _tname)

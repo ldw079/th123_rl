@@ -31,20 +31,30 @@ sys.stdout.reconfigure(encoding='utf8')
 PY = sys.executable
 
 
+def _cleanup_ps_cmd(exclude_pid):
+    """构造残留清理命令 — 排除exclude_pid(调用者自身).
+
+    教训×3(2026-10-11实弹复现): 特征串含'exploiter'会匹配**自身命令行**
+    的 --exploiter 参数 → taskkill /T /F 连树自杀(启动即死, 日志止于
+    "[前置] 残留进程清理"行, stderr空, 什么都没启动). 修: Where-Object
+    加 ProcessId -ne 自身PID(清理powershell本身是powershell.exe,
+    不吃Name='python.exe'过滤, 无需另排除).
+    """
+    return ['powershell', '-NoProfile', '-Command',
+            "$me=%d; Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" "
+            "| Where-Object { $_.ProcessId -ne $me -and $_.CommandLine -match "
+            "'fleet_supervisor|run_parallel|learner_hub|actor_worker"
+            "|exploiter'} "
+            "| ForEach-Object { taskkill /PID $_.ProcessId /T /F }; "
+            "Start-Sleep 2; taskkill /IM th123.exe /F 2>$null" % int(exclude_pid)]
+
+
 def pre_flight():
     print('[前置] 残留进程清理(按命令行精确匹配 — 不全杀python)...',
           flush=True)
     # 教训×2: 原版Get-Process python全杀 → (a)启动器自杀 (b)会话宿主
     # 被连带(bash工具链里有python). 改为只杀训练族进程(命令行含特征串)
-    subprocess.run(
-        ['powershell', '-NoProfile', '-Command',
-         "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" "
-         "| Where-Object {$_.CommandLine -match "
-         "'fleet_supervisor|run_parallel|learner_hub|actor_worker"
-         "|exploiter'} "
-         "| ForEach-Object { taskkill /PID $_.ProcessId /T /F }; "
-         "Start-Sleep 2; taskkill /IM th123.exe /F 2>$null"],
-        capture_output=True)
+    subprocess.run(_cleanup_ps_cmd(os.getpid()), capture_output=True)
     free = ctypes.c_ulonglong(0)
     ctypes.windll.kernel32.GetDiskFreeSpaceExW(
         'D:\\', None, None, ctypes.byref(free))

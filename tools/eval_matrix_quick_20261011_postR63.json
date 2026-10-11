@@ -1,0 +1,238 @@
+{
+ "chars": [
+  "reimu",
+  "marisa",
+  "suika"
+ ],
+ "matrix": {
+  "reimu|marisa": {
+   "a_wins": 1,
+   "b_wins": 3,
+   "games": 4
+  },
+  "reimu|suika": {
+   "a_wins": 0,
+   "b_wins": 4,
+   "games": 4
+  },
+  "marisa|suika": {
+   "a_wins": 2,
+   "b_wins": 1,
+   "games": 4
+  }
+ },
+ "report": {
+  "ranking": [
+   {
+    "char": "marisa",
+    "avg_wr": 0.7142857142857143,
+    "games": 7,
+    "pairs": {
+     "reimu": {
+      "wins": 3,
+      "games": 4,
+      "wr": 0.75,
+      "lo": 0.3006418425824019,
+      "hi": 0.9544127391902995,
+      "note": null
+     },
+     "suika": {
+      "wins": 2,
+      "games": 3,
+      "wr": 0.6666666666666666,
+      "lo": 0.20765960080204768,
+      "hi": 0.9385080552796037,
+      "note": null
+     }
+    },
+    "n_pairs": 2,
+    "n_pairs_eligible": 1,
+    "worst_opp": "reimu",
+    "worst_wr": 0.75,
+    "worst_lower": 0.3006418425824019,
+    "insufficient": []
+   },
+   {
+    "char": "suika",
+    "avg_wr": 0.7142857142857143,
+    "games": 7,
+    "pairs": {
+     "marisa": {
+      "wins": 1,
+      "games": 3,
+      "wr": 0.3333333333333333,
+      "lo": 0.061491944720396215,
+      "hi": 0.7923403991979523,
+      "note": null
+     },
+     "reimu": {
+      "wins": 4,
+      "games": 4,
+      "wr": 1.0,
+      "lo": 0.5101091635454027,
+      "hi": 1.0,
+      "note": null
+     }
+    },
+    "n_pairs": 2,
+    "n_pairs_eligible": 1,
+    "worst_opp": "reimu",
+    "worst_wr": 1.0,
+    "worst_lower": 0.5101091635454027,
+    "insufficient": []
+   },
+   {
+    "char": "reimu",
+    "avg_wr": 0.125,
+    "games": 8,
+    "pairs": {
+     "marisa": {
+      "wins": 1,
+      "games": 4,
+      "wr": 0.25,
+      "lo": 0.045587260809700575,
+      "hi": 0.6993581574175981,
+      "note": null
+     },
+     "suika": {
+      "wins": 0,
+      "games": 4,
+      "wr": 0.0,
+      "lo": 0.0,
+      "hi": 0.4898908364545973,
+      "note": null
+     }
+    },
+    "n_pairs": 2,
+    "n_pairs_eligible": 2,
+    "worst_opp": "suika",
+    "worst_wr": 0.0,
+    "worst_lower": 0.0,
+    "insufficient": []
+   }
+  ],
+  "matrix_size": 3,
+  "dominance": {
+   "worst_char": "reimu",
+   "worst_opp": "suika",
+   "worst_lower": 0.0,
+   "eligible_pairs": 3,
+   "total_games": 22,
+   "reliable": false,
+   "interpretation": "最薄弱对位的Wilson下界 — 越高说明越\"无弱对位\"; 样本不足的对位不参与(见insufficient)。 ⚠ 当前总样本22局偏小, 数值仅供参考(单场失利即可压到0)"
+  },
+  "human_anchor": {
+   "caveat": "真人 vs 真人 网络对战重放。是**唯一**真人数据; 与\"模型 vs 模型\"胜率**不可相减**(对手不同), 仅作人类水平的量级参照与逐对位基线。",
+   "chars": {
+    "marisa": {
+     "games": 58,
+     "hi": 0.7791670891507393,
+     "lo": 0.544240546784708,
+     "note": null,
+     "wins": 39,
+     "wr": 0.6724137931034483
+    },
+    "reimu": {
+     "games": 162,
+     "hi": 0.5881347493154677,
+     "lo": 0.4359846718982878,
+     "note": null,
+     "wins": 83,
+     "wr": 0.5123456790123457
+    },
+    "suika": {
+     "games": 162,
+     "hi": 0.5029192705045237,
+     "lo": 0.3523642022129437,
+     "note": null,
+     "wins": 69,
+     "wr": 0.42592592592592593
+    }
+   },
+   "matchups": {
+    "marisa|marisa": {
+     "games": 12,
+     "hi": 0.6804886874504503,
+     "lo": 0.19326031365875665,
+     "note": null,
+     "wins": 5,
+     "wr": 0.4166666666666667
+    },
+    "marisa|reimu": {
+     "games": 9,
+     "hi": 0.8112214789023354,
+     "lo": 0.26665129349549305,
+     "note": null,
+     "wins": 5,
+     "wr": 0.5555555555555556
+    },
+    "reimu|reimu": {
+     "games": 62,
+     "hi": 0.4954203587653948,
+     "lo": 0.26157165984141106,
+     "note": null,
+     "wins": 23,
+     "wr": 0.3709677419354839
+    },
+    "reimu|suika": {
+     "games": 16,
+     "hi": 0.7690134759450764,
+     "lo": 0.331785563988119,
+     "note": null,
+     "wins": 9,
+     "wr": 0.5625
+    },
+    "suika|marisa": {
+     "games": 25,
+     "hi": 0.29955793920927326,
+     "lo": 0.04166817150440358,
+     "note": null,
+     "wins": 3,
+     "wr": 0.12
+    },
+    "suika|reimu": {
+     "games": 13,
+     "hi": 0.644771084873343,
+     "lo": 0.17709707797762572,
+     "note": null,
+     "wins": 5,
+     "wr": 0.38461538461538464
+    },
+    "suika|suika": {
+     "games": 54,
+     "hi": 0.6966817598007073,
+     "lo": 0.4416273382599006,
+     "note": null,
+     "wins": 31,
+     "wr": 0.5740740740740741
+    }
+   },
+   "missing_for_ideal_gauge": "缺少\"真人 vs COM(各难度)\"实测 — 那才是与模型评估同口径的锚。需要真人上机若干局并按难度记录(接线点: from_com_log)。",
+   "n_matches": 191,
+   "origin": "export",
+   "source_pattern": "%USERPROFILE%\\Desktop\\workplace\\th123_rl\\data\\oracle\\shards\\*.npz",
+   "sources": 191
+  },
+  "comparison": {
+   "comparable": false,
+   "distance": null,
+   "reason": "对手分布不同(真人 vs 真人 ≠ 模型 vs 模型快照) — 胜率之差不是能力之差。",
+   "needed": "能区分顶端的标尺: (a)真人 vs 该模型直接对打; 或 (b)在**同一批固定对手**上同时测真人与模型"
+  },
+  "caveat": [
+   "同架构模型互打: 对位胜率度量**对手/池强度**, 不等于角色或策略的绝对强弱; 镜像对位≈50% 是算法对称性的结果, 不是\"平衡\"。",
+   "rstd/温度等退火状态会影响胜率; 跨日比较须记录模型 meta。",
+   "Wilson 区间已含抽样误差; 但重放抽取偏差(对手水平/角色选择)不在区间内 — 人类锚的解读须带此限定。",
+   "真人打 COM 恒100% → COM 标尺在天花板处饱和, 只能诊断\"是否低于人类下限\", 不能度量\"高于人类多少\"。"
+  ],
+  "superhuman_distance": {
+   "metric": 0.0,
+   "metric_name": "worst_matchup_wilson_lower",
+   "worst_char": "reimu",
+   "worst_opp": "suika",
+   "eligible_pairs": 3,
+   "comparable_to_human": false,
+   "note": "最薄弱对位的Wilson下界(越高=越无弱对位)。**不是**与人类/满分的距离 — 见comparison. 同架构互打只度量对抗池广度, 非角色强度。"
+  }
+ }
+}

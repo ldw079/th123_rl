@@ -1,0 +1,139 @@
+{
+ "ep_dir": "D:\\temp\\th123_models\\fleet\\episodes",
+ "bucket_px": 330.0,
+ "windows": 2,
+ "episodes": 12,
+ "skipped": [],
+ "chars": {
+  "marisa": {
+   "episodes": 4,
+   "windows": [
+    {
+     "range": [
+      0,
+      2
+     ],
+     "ts_range": [
+      "20261008_215433",
+      "20261008_215644"
+     ],
+     "decisions": 3175,
+     "far_decisions": 3175,
+     "near_bullet_share": null,
+     "far_bullet_share": 0.00031496062992125983,
+     "top_far_bullets": {
+      "jB": 1
+     }
+    },
+    {
+     "range": [
+      2,
+      4
+     ],
+     "ts_range": [
+      "20261008_224637",
+      "20261008_224754"
+     ],
+     "decisions": 1417,
+     "far_decisions": 916,
+     "near_bullet_share": 0.001996007984031936,
+     "far_bullet_share": 0.0032751091703056767,
+     "top_far_bullets": {
+      "5C": 1,
+      "2C": 1,
+      "jB": 1
+     }
+    }
+   ],
+   "far_share_delta": 0.003
+  },
+  "reimu": {
+   "episodes": 6,
+   "windows": [
+    {
+     "range": [
+      0,
+      3
+     ],
+     "ts_range": [
+      "20261008_214946",
+      "20261008_215628"
+     ],
+     "decisions": 4893,
+     "far_decisions": 4129,
+     "near_bullet_share": 0.014397905759162303,
+     "far_bullet_share": 0.0685395979656091,
+     "top_far_bullets": {
+      "2B": 108,
+      "5B": 100,
+      "236B": 32,
+      "236C": 12,
+      "5C": 11
+     }
+    },
+    {
+     "range": [
+      3,
+      6
+     ],
+     "ts_range": [
+      "20261008_215707",
+      "20261008_224751"
+     ],
+     "decisions": 859,
+     "far_decisions": 410,
+     "near_bullet_share": 0.015590200445434299,
+     "far_bullet_share": 0.024390243902439025,
+     "top_far_bullets": {
+      "5B": 3,
+      "2B": 2,
+      "jB": 2,
+      "5C": 1,
+      "236B": 1
+     }
+    }
+   ],
+   "far_share_delta": -0.0441
+  },
+  "suika": {
+   "episodes": 2,
+   "windows": [
+    {
+     "range": [
+      0,
+      1
+     ],
+     "ts_range": [
+      "20261008_215632",
+      "20261008_215632"
+     ],
+     "decisions": 646,
+     "far_decisions": 646,
+     "near_bullet_share": null,
+     "far_bullet_share": 0.11455108359133127,
+     "top_far_bullets": {
+      "jC": 72,
+      "6C": 1,
+      "236C": 1
+     }
+    },
+    {
+     "range": [
+      1,
+      2
+     ],
+     "ts_range": [
+      "20261008_224636",
+      "20261008_224636"
+     ],
+     "decisions": 526,
+     "far_decisions": 29,
+     "near_bullet_share": 0.12877263581488935,
+     "far_bullet_share": 0.0,
+     "top_far_bullets": {}
+    }
+   ],
+   "far_share_delta": -0.1146
+  }
+ }
+}

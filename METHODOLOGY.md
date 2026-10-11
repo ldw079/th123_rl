@@ -1887,3 +1887,39 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     即成误导; **状态类字段一律带时间戳**。恢复点火遵循 runbook(fleet.lock/
     旧 episode/scratch 残留清理), 是否恢复训练由用户指令决定。
   - **验证**: 门禁 565/0/0(文档修改不触门禁断言, 改后实测复核)。
+
+- 2.65 (2026-10-11, **R64 接手推进** — 用户指令"接手并推进超人清单未完成项"):
+  - **主规划对账修正**: F6"胜局信号接线"实为已修 — 10-07 首跑 0W-0L 后当天
+    已修(eval_matrix: 胜局检查移到 r is None break 之前 + 帧上限 45000 +
+    顶时口径), 10-07 的 json 即含真实胜局(0-2/0-2/2-0); 主规划状态章与
+    2.61 条目未跟进, 本轮修正。
+  - **F6 R63 后语义新基线**(停训窗口实测, 3对×4局): reimu 弱侧确认
+    (vs marisa 1W-3L, vs suika 0W-4L) — marisa/suika 并列 71.4%, 最薄弱
+    对位 reimu vs suika Wilson 下界 0.000; 人类锚(191局)与距离判定按
+    R63 口径正确拒绝伪距离(comparable=False)。报告 json 入档
+    (tools/eval_matrix_quick_20261011_postR63.json)。**注意: 三角色全部
+    对局均顶时判定** — 双模型侧被动不接敌, 与 B3 基线互证(见下)。
+  - **B3 观察闭环仪表化**: tools/remote_usage_report.py(330px 外弹幕
+    使用分布, 零新增在线仪表 — 全离线读 episode 的 sides[2n+5]=adx/600
+    + acts + CHAR_LIBS.bullet; 按文件名时间戳切窗, 坏档跳过不炸)。
+    10-08 存量 12 局基线: **marisa 远程决策占比 100% 但弹幕份额≈0%**
+    (停外圈不开枪=被动性量化信号, 与 E1 演示观察一致); reimu 远程弹幕
+    份额 6.9%→2.4% 波动; suika 单局 jC×72 不稳定。配对测试
+    test_remote_usage_b3.py 10/10 入 C15。48h 观察钟随本轮点火启动。
+  - **train_start 自杀 bug 修复(教训×3 实弹复现)**: 0a4b145 的清理特征串
+    '...|exploiter' 匹配**自身命令行**的 --exploiter 参数 → taskkill /T
+    /F 连树自杀(症状: 日志止于"[前置] 残留进程清理"、stderr 空、无任何
+    进程启动 — 10-08 停摆后的首次重启即被此bug击落)。修: 清理命令
+    Where-Object 加 ProcessId -ne 自身PID(_cleanup_ps_cmd(exclude_pid))。
+    真进程级配对测试 test_trainstart_cleanup.py 4/4(命中者死/同特征串
+    被排除者活=自杀修复本体/无干者不连坐)入 C15。**同型病根: "按命令行
+    特征清理"与"自身命令行含特征"结构性相撞 — 特征串清理必须排除自身。**
+  - **训练恢复**(2026-10-11 20:22, fleet 3 actor + reimu 剥削者): 前置
+    全过(锁清理/磁盘 122.7GB/协议 21+/模型代际 70/76/77 全匹配/episode
+    schema=2 无需归档)。健康: 8 python + 4 th123; learner_reimu 首批
+    17.7s/批(安静机量级)、快照滚至 v133、KL 0.149(正常带)、陈旧2;
+    新 episode 20:27 起流入。门禁 567/0/0(新增 B3/R64 两行为测试)。
+  - **D3' 可行性侦察**: 20 角色模型全在位(资源前提✓); 阻塞 = 
+    fleet_supervisor CHARS 硬编码三角色 + 每角色 1 learner 的 CPU 上限
+    (本机 4actor 已满) → 20 角色 league 需 learner 分时/轮换架构设计,
+    非配置改动, 登记为下轮设计项。
