@@ -148,39 +148,41 @@ def build_matrix(chars, games=2, full=False):
 
 
 def analyze(matrix, chars):
-    """分析矩阵 → 排名/克星/超人距离."""
-    n = len(chars)
-    wins = {c: [] for c in chars}
-    for key, r in matrix.items():
-        ca, cb = key.split('|')
-        wr = r['a_wins'] / max(r['games'], 1)
-        wins[ca].append(('win', wr))
-        wins[cb].append(('lose', 1 - wr))
+    """分析矩阵 → 排名/克星/超人距离(对抗池广度 + 人类锚)。
 
-    report = {'ranking': [], 'matrix_size': len(matrix)}
-    for c in chars:
-        if not wins[c]:
-            continue
-        rates = [r for _, r in wins[c]]
-        avg = sum(rates) / len(rates)
-        var = sum((r - avg) ** 2 for r in rates) / len(rates) if rates else 0
-        report['ranking'].append({
-            'char': c, 'avg_wr': avg, 'var': var,
-            'games': len(rates),
-        })
-    report['ranking'].sort(key=lambda x: -x['avg_wr'])
-
-    # 超人距离: 高平均胜率+低方差 = 全面强(超人特征)
-    if report['ranking']:
-        top = report['ranking'][0]
-        report['superhuman_distance'] = {
-            'top_char': top['char'],
-            'top_wr': top['avg_wr'],
-            'top_var': top['var'],
-            'metric': top['avg_wr'] - top['var'],
-            'note': '高均值-低方差=全面强; metric=%.3f(越高越接近超人)'
-                    % (top['avg_wr'] - top['var']),
-        }
+    R63(F6)重写: 原 `metric = top['avg_wr'] - top['var']` 是**占位口径**
+    (用一个胜率的"均值"减"方差", 无统计意义; 且不含任何基准 → 不是"距离")。
+    现委托 `tools/superhuman_gauge.py`:
+      - `dominance`: 最薄弱对位的 Wilson 95% 下界(样本不足的对位不参与)
+      - `human_anchor`: 真实人类重放基线(191局, 带区间) — 项目唯一真人数据
+      - `comparison`: 只在**同口径**时给"距离"; 否则给出不可相减的原因
+    `report['superhuman_distance']` 旧键保留(向后兼容/门禁锚点), 但内容改为
+    带区间与样本量的结构, 不再冒充"距离"。
+    """
+    from tools.superhuman_gauge import gauge_from_matrix
+    g = gauge_from_matrix(matrix, chars)
+    report = {
+        'ranking': g['ranking'],
+        'matrix_size': len(matrix),
+        'dominance': g['dominance'],
+        'human_anchor': g['human_anchor'],
+        'comparison': g['comparison'],
+        'caveat': g['caveat'],
+    }
+    d = g['dominance']
+    report['superhuman_distance'] = {
+        'metric': d['worst_lower'],          # None = 样本不足(不再伪造数值)
+        'metric_name': 'worst_matchup_wilson_lower',
+        'worst_char': d['worst_char'],
+        'worst_opp': d['worst_opp'],
+        'eligible_pairs': d['eligible_pairs'],
+        'comparable_to_human': g['comparison']['comparable'],
+        'note': ('最薄弱对位的Wilson下界(越高=越无弱对位)。'
+                 '**不是**与人类/满分的距离 — 见comparison. '
+                 '同架构互打只度量对抗池广度, 非角色强度。'
+                 if d['worst_lower'] is not None else
+                 '样本不足(min_games=%d) — 无数值(不伪造)' % g['min_games']),
+    }
     return report
 
 
@@ -199,17 +201,30 @@ def main():
     matrix = build_matrix(chars, args.games, args.full)
     report = analyze(matrix, chars)
 
-    print('\n=== 排名 ===')
+    print('\n=== 排名(按平均对位胜率; 非角色强度) ===')
     for i, r in enumerate(report['ranking'], 1):
-        print('%2d. %-10s 胜率%.1f%% 方差%.3f (%d局)'
-              % (i, r['char'], r['avg_wr'] * 100, r['var'],
-                 r['games']))
-    if 'superhuman_distance' in report:
-        sd = report['superhuman_distance']
-        print('\n=== 超人距离 ===')
-        print('  最强: %s (胜率%.1f%% 方差%.3f 指标%.3f)'
-              % (sd['top_char'], sd['top_wr'] * 100, sd['top_var'],
-                 sd['metric']))
+        wr = r['avg_wr']
+        print('%2d. %-10s 平均对位胜率%s 对位%d(可用%d) 最弱%s=%s (%d局)'
+              % (i, r['char'],
+                 ('  n/a ' if wr is None else '%5.1f%%' % (wr * 100)),
+                 r['n_pairs'], r['n_pairs_eligible'],
+                 r['worst_opp'] or '-',
+                 ('n/a' if r['worst_lower'] is None
+                  else '%.3f' % r['worst_lower']), r['games']))
+    try:
+        from tools.superhuman_gauge import format_report
+        print()
+        print(format_report({'dominance': report['dominance'],
+                             'ranking': report['ranking'],
+                             'human_anchor': report['human_anchor'],
+                             'comparison': report['comparison'],
+                             'our_side': 'bilateral', 'min_games': 4},
+                            top=len(report['ranking'])))
+    except Exception as e:
+        sd = report.get('superhuman_distance', {})
+        print('\n=== 超人距离(退化打印) ===')
+        print('  %s' % sd.get('note'))
+        print('  (%s)' % e)
 
     out = args.output or os.path.join(
         HERE, 'eval_matrix_%s_%s.json'

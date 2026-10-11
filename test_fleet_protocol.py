@@ -30,7 +30,47 @@ except Exception:
 
 from ppo import PPOTrainer, CONV_H, CONV_W  # noqa: E402
 from episode_core import (episode_meta, save_episode_npz,  # noqa: E402
-                          load_episode_npz, read_version, write_version)
+                          load_episode_npz, read_version, write_version,
+                          build_contract, EpisodeContractError,
+                          code_macro_count)
+from feat_builder import FeatureBuilder  # noqa: E402
+
+
+def test_contract(tr):
+    """R63(P0-2): 合成episode的尺寸契约(与生产同构 — actor序列化时写)。"""
+    return build_contract('reimu', tr.N_OUT, tr.N_SIDE, tr.N_OUT,
+                          feat_dim=3 * CONV_H * CONV_W)
+
+
+def synth_episode_dims(snap_ver, ep_idx, n_dec, rng, n_out, n_side):
+    """同synth_episode但**可指定尺寸** — 用于生成他角色(marisa)的局,
+    使契约与其真实宏数一致(伪造宽度会被写者自检正确拒写)。"""
+    feats, sides, acts, rews, masks = [], [], [], [], []
+    bc_t, opp_next, logps = [], [], []
+    for i in range(n_dec):
+        feat = rng.integers(0, 255, CONV_H * CONV_W * 3).astype(np.uint8)
+        side = rng.standard_normal(n_side).astype(np.float32)
+        mask = np.ones(n_out, dtype=bool)
+        mid = int(rng.integers(0, n_out))
+        feats.append(feat)
+        sides.append(side)
+        acts.append(mid)
+        rews.append(float(rng.standard_normal()))
+        masks.append(mask)
+        bc_t.append(mid)
+        opp_next.append(int(rng.integers(0, 8)) if i < n_dec - 1 else -1)
+        logps.append(float(np.log(1.0 / n_out)))
+    return dict(
+        feats=np.stack(feats), sides=np.stack(sides),
+        acts=np.array(acts, dtype=np.int64),
+        rews=np.array(rews, dtype=np.float32),
+        masks=np.stack(masks),
+        bc_targets=np.array(bc_t, dtype=np.int64),
+        opp_next=np.array(opp_next, dtype=np.int64),
+        logps=np.array(logps, dtype=np.float32),
+        ep_terms=np.array([True]),
+        distill=np.zeros((0, 11), dtype=np.float32),
+    )
 
 STORE = os.environ.get('TH123_STORE', r'D:\temp\th123_models')
 MODEL_PI = os.path.join(STORE, 'model_ppo_reimu.npz')
@@ -203,12 +243,19 @@ def main():
     for i, L in enumerate(lens):
         arr = synth_episode(act_tr, snap_ver=2, ep_idx=i, n_dec=L,
                             rng=ep_rng)
-        meta = episode_meta('reimu', 0, i, 2, 1003 + i, L)
+        meta = episode_meta('reimu', 0, i, 2, 1003 + i, L,
+                            contract=test_contract(act_tr))
         paths.append(save_episode_npz(ep_dir, 'reimu', 0, i, arr, meta))
-        # F: 别的角色的局不误收
-        arr2 = synth_episode(act_tr, 2, 0, 5, ep_rng)
+        # F: 别的角色的局不误收(R63: 该局的契约必须用**真实marisa宏数** —
+        # 用reimu宽度伪造他角色局会被写者自检正确拒写, 那是修复生效的证据)
+        _m_n = code_macro_count('marisa')
+        _m_side = 5 * _m_n + FeatureBuilder.CORE_DIMS
+        arr2 = synth_episode_dims(2, 0, 5, ep_rng, _m_n, _m_side)
         save_episode_npz(ep_dir, 'marisa', 1, 0, arr2,
-                         episode_meta('marisa', 1, 0, 2, 7, 5))
+                         episode_meta('marisa', 1, 0, 2, 7, 5,
+                                      contract=build_contract(
+                                          'marisa', _m_n, _m_side, _m_n,
+                                          feat_dim=3 * CONV_H * CONV_W)))
 
     got = collect_episodes(ep_dir, 'reimu', 3)
     check('F1角色过滤', all('reimu' in os.path.basename(p)
@@ -218,7 +265,7 @@ def main():
     from learner_hub import quarantine as _quar
     _poison = save_episode_npz(
         ep_dir, 'reimu', 9, 9, synth_episode(act_tr, 2, 9, 8, ep_rng),
-        episode_meta('reimu', 9, 9, 2, 99, 8))
+        episode_meta('reimu', 9, 9, 2, 99, 8, contract=test_contract(act_tr)))
     _bad_tr = _G(n_side=n_side - 8, n_out=n_out)   # 维度错配→update必炸
     try:
         update_from_episodes(_bad_tr, [_poison], 'reimu', '_t',
@@ -270,7 +317,8 @@ def main():
                 arr['logps'] = arr['logps'] + 0.5
             paths.append(save_episode_npz(
                 ep_dir, 'reimu', 5, i, arr,
-                episode_meta('reimu', 5, i, 2, 1, len(arr['acts']))))
+                episode_meta('reimu', 5, i, 2, 1, len(arr['acts']),
+                             contract=test_contract(act_tr))))
         return paths
 
     update_from_episodes(gpu_d1, _write_eps(base_arrs, False),
@@ -293,7 +341,8 @@ def main():
         arr = synth_episode(act_tr, 2, ep_i, 10, ep_rng)
         p = save_episode_npz(
             ep_dir, 'reimu', aid, ep_i, arr,
-            episode_meta('reimu', aid, ep_i, 2, 1, 10))
+            episode_meta('reimu', aid, ep_i, 2, 1, 10,
+                         contract=test_contract(act_tr)))
         os.utime(p, (mt, mt))
     got2 = collect_episodes(ep_dir, 'reimu', 2)
     actors_in = sorted({int(os.path.basename(p).split('_')[2])

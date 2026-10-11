@@ -25,7 +25,7 @@ import numpy as np
 # ---- episode npz模式(单一事实源 — actor/learner/gate三方引用) ----
 EP_KEYS = ("feats", "sides", "acts", "rews", "masks", "bc_targets",
            "opp_next", "logps", "ep_terms", "distill", "meta")
-EP_SCHEMA = 1   # R57(2.6): 模式版本 — 格式演化时旧文件可判读/拒收
+EP_SCHEMA = 2   # R63: v1→v2 增contract块(尺寸/布局指纹); 旧v1文件拒收
 # feats      (N,14400) uint8   视觉特征(3帧: 今帧+2差分)
 # sides      (N,n_side) f32    侧向量(宏one-hot×2+core+射程/untech块)
 # acts       (N,) i64          实际执行宏ID(最终动作 — 含探针/价值引导重选)
@@ -36,21 +36,194 @@ EP_SCHEMA = 1   # R57(2.6): 模式版本 — 格式演化时旧文件可判读/�
 # logps      (N,) f32          行为策略logP(a) — 采样时记录(红线①)
 # ep_terms   (1,) bool         [not truncated](超时/比分未满=True→GAE尾零)
 # distill    (D,11) f32        基准树诊断行(可空D=0)
-# meta       json str          {char,actor,ep,snap_ver,seed,decisions,ts}
-# schema     int               模式版本(当前1)
+# meta       json str          {char,actor,ep,snap_ver,seed,decisions,ts,contract}
+# schema     int               模式版本(当前2)
+
+FEAT_DIMS = 14400   # 3×60×80 视觉栈(与ppo.CONV_H/W同源; 此处硬编码以
+#                     避免episode_core↔ppo循环import; 变更须同步ppo并跑门禁)
 
 
-def episode_meta(char, actor_id, ep, snap_ver, seed, decisions):
-    """构造episode meta(json str — npz内以0-d str数组存)。"""
-    return json.dumps({
+class EpisodeContractError(ValueError):
+    """episode 契约违规(尺寸/布局/角色不符) — **不可就地吞掉**。
+
+    R63(P0-2, 2026-10-07架构审查): 生产事故实证 — CORE_DIMS 316→330 与
+    宏数 63→70 的代码改动落在运行中的进程边界上时: actor(旧码)继续按其
+    尺寸产 episode, learner(新码)按模型档推断尺寸 → `np.concatenate` 抛
+    ValueError → 整批进 failed/ 永久丢弃 + learner 无限 continue, 而两侧
+    进程"都活着"。实测 learner_reimu.log 13次启动拒绝 + 5次批隔离 +
+    failed/ 26个文件(~300MB)。
+    本异常让调用方能把"契约不符"与"单批数据坏"区分开: 前者必须重启
+    (代码/产物已不同代), 后者可隔离后继续。
+    """
+
+
+def code_macro_count(char):
+    """**代码侧**宏库大小(learner侧唯一真值源, 与actor/train_tm同源)。
+
+    与 train_tm._load_char_libs 同约定: reimu→macros.MACROS,
+    其余→macros_<char>.MACROS_<CHAR>。取不到返回None(调用方降级)。
+    """
+    try:
+        if char == "reimu":
+            import macros as _m
+            return len(_m.MACROS)
+        _m = __import__('macros_%s' % char)
+        return len(getattr(_m, 'MACROS_%s' % char.upper()))
+    except Exception:
+        return None
+
+
+def _ppo_feat_dims():
+    """视觉特征宽度(单真值源: ppo 的 3×CONV_H×CONV_W)。取不到→FEAT_DIMS。
+
+    生产必须与 ppo 实际卷积输入一致; 测试用合成小特征时由写者显式覆盖
+    (见 build_contract(feat_dim=...)), 避免"真实常量"对合成数据误报。
+    """
+    try:
+        import ppo as _ppo
+        return int(3 * _ppo.CONV_H * _ppo.CONV_W)
+    except Exception:
+        return int(FEAT_DIMS)
+
+
+def build_contract(char, n_out, n_side, n_macros, feat_dim=None):
+    """构造 episode 契约块(写者声明 + 读者校验的共同格式)。
+
+    n_out    策略网络宏数(宏库大小)
+    n_side   侧向量宽度(应为 5*n_out + CORE_DIMS)
+    n_macros 掩码宽度(应等于 n_out)
+    feat_dim 视觉特征宽度; None=取ppo真值。**save_episode_npz会按数组
+             实际形状覆盖它** — 契约的价值在"宏数/布局代际", 不在像素宽度
+             (feat_dim只作诊断, 合成测试用合成宽度不误报)。
+    """
+    _code_n = code_macro_count(char)
+    return {
+        "char": str(char),
+        "n_out": int(n_out),
+        "n_side": int(n_side),
+        "n_macros": int(n_macros),
+        "feat_dim": int(_ppo_feat_dims() if feat_dim is None else feat_dim),
+        # 代码侧宏数: 与n_out不符=本进程代码早于/晚于模型档 → 契约自带
+        # 判据, 读者无需猜(旧版靠np.concatenate抛形状错, 报错点远离根因)
+        "code_n_macros": (int(_code_n) if _code_n is not None else -1),
+    }
+
+
+def check_model_generation(char, model_n_out):
+    """校验"模型档动作维 == 当前代码宏库"。
+
+    返回 None=通过; 否则返回人类可读的原因字符串(**调用方必须据此拒绝启动**)。
+    R63(P0-2): 抽成单一实现是有意的 — 它让"learner是否真的校验了代际"
+    变成可**行为测试**的对象(而不是靠门禁文本钉: 变异自检证明
+    `code_macro_count(char)` 这类子串锚定会被 `... or n_out` 绕过)。
+    """
+    _cn = code_macro_count(char)
+    if _cn is None:
+        return ("无法确定代码侧宏数(macros_%s不可导入)" % char)
+    if int(model_n_out) != int(_cn):
+        return ("模型档宏数%d≠当前代码宏数%d — 代际不符, 需迁移/重训模型, "
+                "不要用旧档续训" % (int(model_n_out), int(_cn)))
+    return None
+
+
+def check_contract(contract, where=""):
+    """校验契约块**自洽**(不依赖任何外部产物)。
+
+    这是抓"代码在活进程脚下被改"的关键判据: actor声明的n_out/n_side若与
+    **当前代码**算出的宏数不一致, 说明该进程跑的是旧代码 → 其episode必须
+    被拒收(而不是靠下游形状错误被发现)。返回问题列表(空=通过)。
+    """
+    bad = []
+    if not isinstance(contract, dict):
+        return ["contract缺失或非dict: %r" % (contract,)]
+    for k in ("char", "n_out", "n_side", "n_macros", "feat_dim",
+              "code_n_macros"):
+        if k not in contract:
+            bad.append("contract缺键%s" % k)
+    if bad:
+        return bad
+    if contract["n_macros"] != contract["n_out"]:
+        bad.append("n_macros(%s)≠n_out(%s) — 掩码宽度与策略宽度不一致"
+                   % (contract["n_macros"], contract["n_out"]))
+    # 代码侧一致性: episode声明的n_out必须等于当前代码的宏数
+    _cn = code_macro_count(contract["char"])
+    if _cn is not None:
+        if int(contract["n_out"]) != int(_cn):
+            bad.append("episode声明n_out=%s≠当前代码宏数=%s(角色%s) — "
+                       "写者跑的是旧/新代码, 拒收"
+                       % (contract["n_out"], _cn, contract["char"]))
+        if int(contract["code_n_macros"]) != int(_cn):
+            bad.append("episode内code_n_macros=%s≠当前代码%s — 写者时代"
+                       "不符" % (contract["code_n_macros"], _cn))
+    # n_side必须与(宏数, CORE_DIMS)自洽 — CORE_DIMS由代码侧提供
+    _core = None
+    try:
+        import feat_builder as _fb
+        _core = int(_fb.FeatureBuilder.CORE_DIMS)
+    except Exception:
+        pass
+    if _core is not None:
+        _want = 5 * int(contract["n_out"]) + _core
+        if int(contract["n_side"]) != _want:
+            bad.append("n_side=%s≠5*n_out+CORE_DIMS=%s(代码CORE_DIMS=%s) — "
+                       "布局代际不符" % (contract["n_side"], _want, _core))
+    if where:
+        return ["%s: %s" % (where, b) for b in bad]
+    return bad
+
+
+def episode_meta(char, actor_id, ep, snap_ver, seed, decisions,
+                 contract=None):
+    """构造episode meta(json str — npz内以0-d str数组存)。
+
+    contract: build_contract()的产物; None=不写契约(仅离线工具用)。
+    """
+    m = {
         "char": char, "actor": int(actor_id), "ep": int(ep),
         "snap_ver": int(snap_ver), "seed": int(seed),
         "decisions": int(decisions), "ts": time.strftime("%H:%M:%S"),
-    })
+    }
+    if contract is not None:
+        m["contract"] = contract
+    return json.dumps(m)
 
 
 def save_episode_npz(ep_dir, char, actor_id, ep_idx, arrays, meta_str):
-    """原子写episode npz(tmp+rename, 项目惯例)。arrays须含EP_KEYS除meta。"""
+    """原子写episode npz(tmp+rename, 项目惯例)。arrays须含EP_KEYS除meta。
+
+    R63: 落盘前**写者自检** — 声明的契约必须与数组真实形状一致, 否则
+    拒绝落盘(生产事故: 写者自己声明与数据不符时, 下游无法判读)。
+    """
+    data = dict(arrays)
+    try:
+        _meta = json.loads(meta_str if isinstance(meta_str, str)
+                           else str(meta_str))
+    except Exception:
+        _meta = {}
+    _c = _meta.get("contract")
+    if isinstance(_c, dict):
+        _sides = data.get("sides")
+        _masks = data.get("masks")
+        _feats = data.get("feats")
+        # feat_dim以**数组实际形状**为准回写(契约只诊断像素宽; 宏数/布局
+        # 才是代际判据 — 合成特征宽度不误报, 声明与实际不符仍被下面捕获)
+        if _feats is not None and getattr(_feats, "ndim", 0) == 2:
+            _c["feat_dim"] = int(_feats.shape[1])
+        _bad = []
+        if _sides is not None and int(_c.get("n_side", -1)) != int(_sides.shape[1]):
+            _bad.append("n_side(%s)≠sides.shape[1](%s)"
+                        % (_c.get("n_side"), _sides.shape[1]))
+        if _masks is not None and int(_c.get("n_macros", -1)) != int(_masks.shape[1]):
+            _bad.append("n_macros(%s)≠masks.shape[1](%s)"
+                        % (_c.get("n_macros"), _masks.shape[1]))
+        _cself = check_contract(_c, where="写者自检")
+        if _bad or _cself:
+            raise EpisodeContractError(
+                "拒绝落盘 episode %s ep%s: %s" % (char, ep_idx,
+                                                  "; ".join(_bad + _cself)))
+        # 覆盖meta里的contract(回写feat_dim后的版本)
+        _meta["contract"] = _c
+        meta_str = json.dumps(_meta)
     os.makedirs(ep_dir, exist_ok=True)
     fname = "ep_%s_%02d_%05d_%s.npz" % (char, actor_id, ep_idx,
                                         time.strftime("%Y%m%d_%H%M%S"))
@@ -58,7 +231,6 @@ def save_episode_npz(ep_dir, char, actor_id, ep_idx, arrays, meta_str):
     # .npz结尾, 否则os.replace找不到落盘文件
     tmp = os.path.join(ep_dir, fname + ".tmp.npz")
     dst = os.path.join(ep_dir, fname)
-    data = dict(arrays)
     data["meta"] = np.array(meta_str)
     data["schema"] = np.array(EP_SCHEMA)
     np.savez(tmp, **data)
@@ -66,18 +238,62 @@ def save_episode_npz(ep_dir, char, actor_id, ep_idx, arrays, meta_str):
     return dst
 
 
-def load_episode_npz(path):
-    """读episode npz → (arrays dict, meta dict)。缺键=协议违规(响亮失败);
-    schema不符(未来版本)=拒收并提示(旧版本无schema字段按v0放行 —
-    fleet未上线前无存量文件, 此分支仅为格式演化预留)。"""
+def load_episode_npz(path, expect_contract=None):
+    """读episode npz → (arrays dict, meta dict)。
+
+    校验(全部**响亮失败**, 不再进删除路径):
+      1. 键齐全; 2. schema==EP_SCHEMA; 3. contract自洽(check_contract);
+      4. arrays真实形状 == contract声明; 5. (可选)expect_contract逐项相等。
+    R63: 原实现只查键与schema, 尺寸不符要等np.concatenate才爆(报错点远离
+    根因)且爆了就走"删文件/隔离"路径 → 数据被当垃圾处理。现在契约不符
+    抛EpisodeContractError, 由调用方按"代际不符"处置(隔离但不删,
+    且learner退出让监督器重启)。
+    """
     d = np.load(path, allow_pickle=True)
-    arrays = {k: d[k] for k in EP_KEYS if k != "meta"}
-    if "schema" in d.files and int(d["schema"]) != EP_SCHEMA:
+    try:
+        arrays = {k: d[k] for k in EP_KEYS if k != "meta"}
+        _miss = [k for k in EP_KEYS if k not in d.files or
+                 (k != "meta" and k not in arrays)]
+        if _miss:
+            raise EpisodeContractError("episode缺键%s: %s"
+                                       % (_miss, os.path.basename(path)))
+        if "schema" in d.files and int(d["schema"]) != EP_SCHEMA:
+            raise EpisodeContractError(
+                "episode schema v%d≠当前v%d — 格式已演化(旧v1无contract块), "
+                "该文件由旧代码产出, 需重新采集"
+                % (int(d["schema"]), EP_SCHEMA))
+        meta = json.loads(str(d["meta"]))
+        _c = meta.get("contract")
+        if not isinstance(_c, dict):
+            raise EpisodeContractError(
+                "episode无contract块(schema=%s) — 无法判读尺寸代际: %s"
+                % (d["schema"] if "schema" in d.files else "?",
+                   os.path.basename(path)))
+        _bad = check_contract(_c, where=os.path.basename(path))
+        # 声明 vs 实际形状
+        if int(_c["n_side"]) != int(arrays["sides"].shape[1]):
+            _bad.append("n_side声明%s≠sides实际%s"
+                        % (_c["n_side"], arrays["sides"].shape[1]))
+        if int(_c["n_macros"]) != int(arrays["masks"].shape[1]):
+            _bad.append("n_macros声明%s≠masks实际%s"
+                        % (_c["n_macros"], arrays["masks"].shape[1]))
+        if int(_c["feat_dim"]) != int(arrays["feats"].shape[1]):
+            _bad.append("feat_dim声明%s≠feats实际%s"
+                        % (_c["feat_dim"], arrays["feats"].shape[1]))
+        if int(_c["n_out"]) != int(arrays["bc_targets"].max()) + 1 and \
+                len(arrays["bc_targets"]) and \
+                int(arrays["bc_targets"].max()) >= int(_c["n_out"]):
+            _bad.append("bc_targets含≥n_out的宏ID(%s≥%s)"
+                        % (arrays["bc_targets"].max(), _c["n_out"]))
+        if expect_contract:
+            for k, v in expect_contract.items():
+                if k in _c and _c[k] != v:
+                    _bad.append("契约不符@%s: episode %s=%s ≠ 期望 %s"
+                                % (k, k, _c[k], v))
+        if _bad:
+            raise EpisodeContractError("; ".join(_bad))
+    finally:
         d.close()
-        raise ValueError("episode schema v%d≠当前v%d — 格式已演化, "
-                         "旧文件需迁移工具" % (int(d["schema"]), EP_SCHEMA))
-    meta = json.loads(str(d["meta"]))
-    d.close()
     return arrays, meta
 
 
@@ -130,6 +346,29 @@ def save_distill_rows(store_dir, char, suffix, rows):
 
 
 # ---- 快照版本文件IO(红线②: 局边界同步读version) ----
+
+def fleet_snap_dir(fleet_dir, char, suffix):
+    """快照目录(actor与learner**必须**用同一份实现 — 目录不一致=actor
+    读不到learner发布的快照, 表现为actor永远跑启动权重)。
+
+    R63(P1-5): 原 learner 锁按 suffix 隔离而 snap_dir/EP_DIR 不隔离 →
+    `--suffix ""`(迁移)与 `--suffix "_fleet"` 可同时对同一角色运行, 共用
+    一个version计数器与一个episode队列(互相删除对方数据)。默认 `_fleet`
+    保持历史路径(现网零变化), 其余suffix走独立子目录。
+    """
+    if suffix == '_fleet':
+        return os.path.join(fleet_dir, 'snap_%s' % char)
+    _tag = (suffix or 'main').lstrip('_')
+    return os.path.join(fleet_dir, 'snap_%s_%s' % (char, _tag))
+
+
+def fleet_ep_dir(fleet_dir, suffix):
+    """episode队列目录(理由同fleet_snap_dir)。"""
+    if suffix == '_fleet':
+        return os.path.join(fleet_dir, 'episodes')
+    _tag = (suffix or 'main').lstrip('_')
+    return os.path.join(fleet_dir, 'episodes_%s' % _tag)
+
 
 def write_version(snap_dir, ver):
     """原子写版本号(tmp+rename)。learner发布快照后调用。"""

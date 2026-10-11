@@ -38,6 +38,11 @@ STAGGER_S = 20
 MAX_RESTARTS = 20
 COOLDOWN_S = 30
 LEAGUE_INTERVAL = 3600  # league重分配周期(秒)
+# R63(P1-5): actor局预算 — supervisor的actor是**长期生产者**, 原不传
+# --episodes 而 actor_worker 默认1000局, 跑满即 exit 0 → 被下面判为
+# "正常完成"永久移出车队 → 车队静默排空到零actor(learner永远空转)。
+# 传一个实质无界的预算 + 语义修正(见监督循环)双保险。
+ACTOR_EPISODES = 1000000
 
 
 def log(msg):
@@ -95,10 +100,36 @@ def aggregate_stats(fleet_dir):
     return stats or None
 
 
+def _kill_tree(pid):
+    """R63(P1-5): 连同**子进程**一起终结(Windows)。
+
+    原实现只 `os.kill(pid,9)` 杀 worker, 而 worker 用 subprocess.Popen
+    直接拉起 th123.exe(soku_client2.py:115, 无job object) → 游戏成孤儿,
+    **继续占住监听端口**; portmap 随后把同一端口发给重启后的 actor,
+    形成"旧游戏还在听/新actor连上旧游戏"的风险(portmap.py:3-5 明确把
+    静默双绑列为已知风险)。taskkill /T 杀整棵树可一次解决。
+    失败时退回单进程 kill(不改变原有语义)。
+    """
+    if os.name == 'nt':
+        try:
+            r = subprocess.run(['taskkill', '/F', '/T', '/PID', str(int(pid))],
+                               capture_output=True, text=True, timeout=20)
+            if r.returncode == 0:
+                return True
+        except Exception:
+            pass
+    try:
+        os.kill(int(pid), 9)
+        return True
+    except OSError:
+        return False
+
+
 def reap_orphans():
     """R61f(F3/D5): 启动时回收孤儿 — 上次supervisor被强杀时其子进程
     (actor_worker/learner_hub)可能残留(占游戏实例+learner双写者由
-    R61e单实例锁兜底)。按WMI ParentProcessId判定: 父进程已死=孤儿。"""
+    R61e单实例锁兜底)。按WMI ParentProcessId判定: 父进程已死=孤儿。
+    R63(P1-5): 改整树终结(taskkill /T) — 否则游戏子进程残留占端口。"""
     out = subprocess.run(
         ['powershell', '-NoProfile', '-Command',
          "Get-CimInstance Win32_Process -Filter \"Name like 'python%'\" "
@@ -119,12 +150,9 @@ def reap_orphans():
     for pid, ppid in workers:
         if pid == os.getpid() or ppid in live:
             continue          # 自己/父仍在(受管或属本会话) — 不碰
-        try:
-            os.kill(pid, 9)
+        if _kill_tree(pid):
             n += 1
-            log('孤儿回收: PID=%d(父%d已死)' % (pid, ppid))
-        except OSError:
-            pass
+            log('孤儿回收: PID=%d(父%d已死, 含游戏子树)' % (pid, ppid))
     return n
 
 
@@ -192,7 +220,8 @@ def main():
                 port = fleet_port(actor_id)
                 cmd = [PY, '-X', 'utf8', '-u', 'actor_worker.py',
                        '--char', ch, '--actor', str(actor_id),
-                       '--port', str(port)]
+                       '--port', str(port),
+                       '--episodes', str(ACTOR_EPISODES)]
                 p = subprocess.Popen(
                     cmd, cwd=HERE, creationflags=CG,
                     stdout=open(
@@ -230,9 +259,13 @@ def main():
                 if p.poll() is None:
                     continue
                 if p.returncode in (0, 130):
-                    log('%s 正常完成(code=%d) — 不重启' % (key, p.returncode))
-                    del actors[key]
-                    continue
+                    # R63(P1-5): actor跑满预算/被中断 = 仍是**生产者退出**,
+                    # 必须重启而不是移出车队(原语义"不重启"→车队静默排空;
+                    # 配合ACTOR_EPISODES实质无界, 此路径近乎不可达, 但语义
+                    # 必须正确: 车队排空后 while actors or learners 会
+                    # 永久空转且看起来健康)。
+                    log('%s 正常完成(code=%d) — 视为生产者退出, 重启' % (
+                        key, p.returncode))
                 ch, aid = key
                 rk = restarts.get(key, 0)
                 if rk >= MAX_RESTARTS:
@@ -246,7 +279,8 @@ def main():
                 port = fleet_port(aid)
                 cmd = [PY, '-X', 'utf8', '-u', 'actor_worker.py',
                        '--char', ch, '--actor', str(aid),
-                       '--port', str(port)]
+                       '--port', str(port),
+                       '--episodes', str(ACTOR_EPISODES)]
                 p2 = subprocess.Popen(
                     cmd, cwd=HERE, creationflags=CG,
                     stdout=open(
@@ -296,7 +330,9 @@ def main():
             try:
                 p.wait(timeout=30)
             except subprocess.TimeoutExpired:
-                p.kill()
+                # R63(P1-5): 整树终结 — 原 p.kill() 只杀worker, 其游戏
+                # 子进程残留占端口(见_kill_tree)
+                _kill_tree(p.pid)
         for p in list(learners.values()):
             try:
                 p.send_signal(signal.CTRL_BREAK_EVENT)
@@ -306,7 +342,7 @@ def main():
             try:
                 p.wait(timeout=30)
             except subprocess.TimeoutExpired:
-                p.kill()
+                _kill_tree(p.pid)
     finally:
         try:
             os.remove(LOCK)

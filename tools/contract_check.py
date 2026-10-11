@@ -1498,10 +1498,121 @@ chk("state['snap_ver'] * 1_000_001 + state['ep']" in aw,
 chk("os.path.join(snap_dir, 'counts.npy')" in lh
     and "tr.macro_counts = _c" in aw,
     "R57-2.4: 宏计数下行(learner随快照发counts, actor换版载入)")
-chk("EP_SCHEMA = 1" in ec and 'data["schema"]' in ec,
-    "R57-2.6: episode schema版本字段(格式演化可判读)")
+chk(("EP_SCHEMA = 1" in ec or "EP_SCHEMA = 2" in ec) and 'data["schema"]' in ec,
+    "R57-2.6: episode schema版本字段(格式演化可判读; R63→v2带contract块)")
+# ---- R63(P0-2): episode尺寸代际契约(生产事故: 旧码actor×新码learner=批量丢数据) ----
+chk("class EpisodeContractError" in ec,
+    "R63(P0-2): 契约违规专用异常(与'单批数据坏'可区分)")
+chk("def code_macro_count(" in ec and "def build_contract(" in ec
+    and "def check_contract(" in ec,
+    "R63(P0-2): 契约三件套(代码侧宏数真值/构造/自洽校验)")
+chk("EP_SCHEMA = 2" in ec,
+    "R63(P0-2): schema==2(contract块随v2落地; 退回v1即断言红)")
+chk(fn_has("episode_core.py", "load_episode_npz",
+           "if _bad:\n            raise EpisodeContractError"),
+    "R63(P0-2): 读者在契约/形状不符时抛错(变异自检证明原'anchored字符串'"
+    "可被绕过 → 改锚**判定+抛出**的毗邻结构) [load_episode_npz体内]")
+chk(fn_has("episode_core.py", "check_model_generation", "code_macro_count(char)")
+    and fn_has("episode_core.py", "check_model_generation", "!= int(_cn)"),
+    "R63(P0-2): 模型代际判据=代码侧宏数比对(单一实现, 可行为测试) "
+    "[check_model_generation体内]")
+chk(fn_has("episode_core.py", "save_episode_npz", "拒绝落盘"),
+    "R63(P0-2): 写者落盘前自检(声明与数组形状不符即拒写) "
+    "[save_episode_npz体内]")
+chk(fn_has("actor_worker.py", "submit",
+           "build_contract(char, tr.n_macros, int(tr.ppo.N_SIDE), tr.n_macros)"),
+    "R63(P0-2): actor以自身真实尺寸构造契约(宏数/N_SIDE取自本网络) "
+    "[actor_worker.submit体内]")
+chk(fn_has("learner_hub.py", "run_learner", "入队契约不符"),
+    "R63(P0-2): learner启动前入队预检(拒绝消费旧代际队列) "
+    "[run_learner体内]")
+chk(fn_has("learner_hub.py", "run_learner", "check_model_generation(char, n_out)")
+    and fn_has("learner_hub.py", "run_learner", "拒绝启动"),
+    "R63(P0-2): learner启动前校验模型档代际(经单一判据+拒绝启动) "
+    "[run_learner体内]")
+# R63(P0-1): 镜像只翻水平轴(上下不是左右) — 见test_mirror_axis_r63.py
+tt63 = src("train_tm.py")
+chk('if axis == "H" and mirror:' in tt63,
+    "R63(P0-1): keys_to_input镜像只翻H(原'H','V'同翻=约一半决策执行纵向镜像动作)")
+chk('if axis in ("H", "V") and mirror:' not in tt63,
+    "R63(P0-1): 旧的H+V同翻写法已从库中清除(防回退)")
+# R63(P0-2): 生产macro_counts档宽度必须等于当前代码宏数
+# (非现役17角色档仍为66宏=旧308代际残留; 该断言会把他们点出来)
+from episode_core import code_macro_count as _rt_code_n   # noqa: E402
+for _ch in ("reimu", "marisa", "suika"):
+    _mc = os.path.join(STORE, "macro_counts_%s.npy" % _ch)
+    _cn = _rt_code_n(_ch)
+    _got = (int(len(np.load(_mc))) if os.path.exists(_mc) else None)
+    warn(_got is not None and _cn is not None and _got == _cn,
+         "R63(P0-2): macro_counts_%s宽度==代码宏数(%s)" % (_ch, _cn),
+         "%s" % (_got if _got is not None else "缺档"))
 chk("def aggregate_stats(" in src("fleet_supervisor.py"),
     "R57-2.6: supervisor聚合actor stats(league数据源)")
+
+# ---- R63(F6): 超人距离从"占位口径"改为可证伪度量 ----
+# 原 `metric = avg_wr - var` 是把胜率的均值减方差(无量纲意义, 无基准);
+# 实测盘上矩阵: 每对2局的 marisa 拿到 metric=1.0 —— 占位读数会冒充满级。
+_sg = src(os.path.join("tools", "superhuman_gauge.py"))
+_em = src(os.path.join("tools", "eval_matrix.py"))
+chk("def wilson(" in _sg and "def gauge_from_matrix(" in _sg
+    and "def load_human_baseline(" in _sg,
+    "R63(F6): 超人距离三件套(Wilson区间/主度量/人类锚)")
+chk("if k <= 0:\n        lo = 0.0" in _sg,
+    "R63(F6): Wilson端点按定义钳制(闭式解残差4.87e-17会让与0比较失效) "
+    "[wilson体内]")
+chk("per[cb]['pairs'][ca] = rate(bw, n)" in _sg,
+    "R63(F6): 对位双边口径(原只写a视角 → 恒在b侧角色avg_wr=None覆盖洞) "
+    "[matchup_rates体内]")
+chk("'comparable': comparable" in _sg and "'distance': None" in _sg,
+    "R63(F6): 非同口径只报不可相减原因, 不伪造'距离'")
+chk("'oracle', 'shards'" in _sg,
+    "R63(F6): 人类锚接真实重放数据(oracle shards, 191局) — 项目唯一真人数据")
+# R63(F6): COM 标尺天花板饱和(用户实测: 真人打COM=100%) → 不可作分母
+chk("COM_VS_HUMAN" in _sg and "'discriminates_at_top': False" in _sg,
+    "R63(F6): COM标尺标注天花板饱和(真人打COM=100% → 不能当超人距离分母)")
+chk("def com_ruler_verdict(" in _sg
+    and "below_human_floor" in _sg
+    and "at_or_above_human_on_saturated_ruler" in _sg,
+    "R63(F6): COM标尺四档判定(低于人类下限/不可区分/饱和达顶/无数据)")
+chk("lo >= hw - near" in _sg,
+    "R63(F6): 饱和达顶分支可达(原 lo>=hw 在hw=1.0时是**死分支** — 自测抓出)")
+chk("cannot_do" in _sg and "作为任何\"距离\"的分母" in _sg,
+    "R63(F6): 报告显式写出COM标尺不能做什么(防误读)")
+# R63: 变异沙箱自清 + 磁盘预检(治理工具自身事故)
+_gs = src(os.path.join("tools", "gate_selftest.py"))
+chk("if base:\n            shutil.rmtree(base, ignore_errors=True)" in _gs,
+    "R63: 沙箱失败时也自清(base入try — 原崩溃残留1.5GB/份压满系统盘)")
+chk("SELFTEST_TMPDIR" in _gs and "_skip_big" in _gs,
+    "R63: 沙箱磁盘预检 + 可指大盘(原WinError 112伪装成门禁坏)")
+chk("worst_lower" in _sg and "min_games" in _sg,
+    "R63(F6): 最差对位Wilson下界 + 最小样本门(最弱对位不被平均值掩盖)")
+chk("'metric': d['worst_lower']" in _em,
+    "R63(F6): eval_matrix改调新度量")
+# 防回退断言必须只看**可执行代码**: 旧公式在文档/注释里被引用是正常的
+# (本模块自己的说明就引用了它) — 全文本子串匹配会把自己的注释判红。
+# R63教训: 只遍历表达式节点(字符串常量不在其中)。
+def _has_sub_name(node, name):
+    """node 的表达式子树里是否有某个"以 name 为下标的取值"(如 x['avg_wr'])。"""
+    for n in ast.walk(node):
+        if isinstance(n, ast.Subscript):
+            ix = n.slice
+            if isinstance(ix, ast.Constant) and ix.value == name:
+                return True
+    return False
+
+
+_em_stale = False
+try:
+    for _n in ast.walk(ast.parse(_em)):
+        if isinstance(_n, ast.BinOp) and isinstance(_n.op, ast.Sub):
+            if _has_sub_name(_n.left, 'avg_wr') and \
+                    _has_sub_name(_n.right, 'var'):
+                _em_stale = True
+except SyntaxError:
+    _em_stale = True
+chk(not _em_stale,
+    "R63(F6): 旧的'胜率减方差'占位公式已从**可执行代码**中清除"
+    "(注释/文档引用不算 — 自测抓出全文本匹配会判红自身注释)")
 
 # ---- R60(从零审计F-1..F-11) ----
 tt60 = src("train_tm.py")
@@ -1673,7 +1784,7 @@ _BEHAVIOR_TESTS = [
      "R61r(E5): 五种坏习惯检测+惩罚宏映射+教学报告"),
     # R61s(F6): 评估体系
     ("test_eval_f6.py",
-     "R61s(F6): matchup矩阵分析+排名+超人距离度量"),
+     "R61s(F6): matchup矩阵分析+排名+超人距离度量(R63: Wilson下界/人类锚/同口径)"),
     # R61u(C1): 统一执行器+分支门
     ("test_executor_c1.py",
      "R61u(C1): 分支门评估(hit/blocked/jump/whiff/delay)+队列推进+拍子/压起身模板"),
@@ -1701,6 +1812,11 @@ _BEHAVIOR_TESTS = [
     # B(风格估计器): 对手已出卡→风格特征段
     ("test_style_b.py",
      "B: CORE_DIMS 330+对手已出卡差分+晴岚防护+旧模型load迁移保持"),
+    # R63(2026-10-07架构审查)
+    ("test_mirror_axis_r63.py",
+     "R63(P0-1): 镜像只翻水平轴(H翻/V不变)+高跳回归+跨实现镜像规则一致"),
+    ("test_contract_r63.py",
+     "R63(P0-2): episode尺寸代际契约(写者自检/读者拒收/旧代际不消费不删)"),
 ]
 for _tname, _tdesc in _BEHAVIOR_TESTS:
     _tp = os.path.join(ROOT, _tname)

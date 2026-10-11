@@ -118,6 +118,9 @@ class FeatureBuilder:
         self._opp_revealed_skill = np.zeros(12, dtype=np.float32)
         self._opp_revealed_sc = 0
         self._opp_revealed_sys = 0
+        # R63(P2): 超出12槽位表的技能卡id计数(如patchouli 112-114) —
+        # 不写特征但可诊断(原直接IndexError炸局)
+        self._opp_skill_overflow = 0
         self._combo_chain = 0                 # 连续伤害帧计数(③连段组合子)
         self._char_name = None                # 角色名(skill_levels查表用)
 
@@ -154,6 +157,7 @@ class FeatureBuilder:
         self._opp_revealed_skill = np.zeros(12, dtype=np.float32)
         self._opp_revealed_sc = 0
         self._opp_revealed_sys = 0
+        self._opp_skill_overflow = 0   # R63(P2): 超槽位技能id计数随局重置
         self._combo_chain = 0
         self._chain_gap = 0    # R17③: 连段间隔容忍计数
 
@@ -251,8 +255,21 @@ class FeatureBuilder:
                 pid = prev_set[slot * 2]
                 cid = cur_set[slot * 2]
                 if pid != 0xFF and pid != cid:
-                    if 100 <= pid < 200:
+                    # R63(P2): 技能卡槽位表宽12 → 只覆盖id 100..111。
+                    # 角色4(patchouli)的技能id为112/113/114(card_tables.py:7),
+                    # 原 `self._opp_revealed_skill[pid - 100]` 直接
+                    # IndexError(index 12/13/14 out of bounds) → 被 train_tm
+                    # 的 except Exception 吞成"重建环境×5→退出码1"。
+                    # 现: 超界不写(该槽位无法表示)并计数+首次告警 —
+                    # 训练不中断, 缺口也不被静默隐藏。
+                    if 100 <= pid < 100 + len(self._opp_revealed_skill):
                         self._opp_revealed_skill[pid - 100] = 1.0
+                    elif 100 <= pid < 200:
+                        self._opp_skill_overflow += 1
+                        if self._opp_skill_overflow == 1:
+                            print("[特征] 对手技能id=%d超出槽位表(width=%d)"
+                                  " — 该卡不可表示(需扩表, R63P2)"
+                                  % (pid, len(self._opp_revealed_skill)))
                     elif pid >= 200:
                         self._opp_revealed_sc += 1
                     else:

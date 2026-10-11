@@ -1795,3 +1795,61 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     零数据伪影): GameEnded未达eval循环。这是C10门禁"重构待干净
     读数"注记的真身, F6遗留缺口=胜局信号接线(下次窗口修)。
   - **验证**: 门禁533/0/0; 变异146+1全拦截(维度守卫钉+D4钉双红)。
+
+- 2.62 (2026-10-07, 架构审查R63 — 用户裁定"先修发现的问题"):
+  - **P0-1 镜像轴(行为修复)**: `keys_to_input` 原 `axis in ("H","V")` 把**屏幕
+    上下**也翻了 → 朝向左时 j8A→j2A、高跳(down,(),up)退化成普通跳, 而轨迹/
+    distill/bc_targets/mask 记的仍是策略原选招式 = 约一半决策信用分配污染,
+    对手侧同款。判据: bc_match.py:18/29-40 只翻H且docstring记载"原连V一起翻=
+    同型bug已修"、soku_client2极性约定(up=V:+1)、branch_demo同款。修: 只翻H。
+    配对测试 test_mirror_axis_r63.py(含跨实现镜像规则一致性+极性锚)。
+  - **P0-2 episode尺寸代际契约(架构修复)**: 生产事故实测(learner_reimu.log):
+    代码在活进程脚下变更(CORE_DIMS 316→330/宏数63→70) → 旧码actor按自身尺寸
+    产局、新码learner按模型档推断 → np.concatenate形状错 → 被except兜成"批隔离
+    继续" → 整批进failed/永久丢弃 + 无限continue(13次启动拒绝+5次批隔离+26个
+    failed文件, 两侧进程都"活着"=看起来在训练实际每批都丢)。修: EP_SCHEMA 1→2
+    + contract块{n_out,n_side,n_macros,feat_dim,code_n_macros}; 写者落盘前自检、
+    读者四项校验(键/schema/契约自洽/声明vs实际)+expect_contract; 不符抛
+    EpisodeContractError(与"单批数据坏"分流, 不再走删文件路径); learner启动前
+    入队预检+主循环响亮退出(让监督器重启)+模型档宏数==代码宏数校验。
+    配对测试 test_contract_r63.py(含"形状全对但代际错"用例)。
+  - **P1-1 奖励仪表**: `[奖励成分]`原打印 `总和=sum(rew_mix.values())`, 其中
+    dmg/taken **从不入seg_rew**(HP由势函数覆盖)、而真扣分项micro_tax不在mix里
+    → 与真实回报不同源(调参=读错量纲)。修: 分栏"诊断(不入回报)"/"入账", 小计
+    只累计真实通道+打印实际回报; micro_tax键补初始化。
+  - **P1-5 fleet治理六项**: ①GPU load缺参数响亮拒载(原只打印→**随机critic被
+    发布**并驱动30%价值引导重选; numpy版同场景是raise=双实现不对称);
+    ②learner池清理加exploit_前缀分流(原周期删掉剥削者针对性对手);
+    ③snap_dir/EP_DIR按suffix隔离(原锁隔离而目录共享 → runbook明说的
+    "--suffix空串迁移"与_fleet可同跑并互删数据); ④孤儿回收改taskkill /F /T
+    整树(原只杀worker, 游戏残留占端口); ⑤actor视为长期生产者(传大预算+
+    exit0也重启, 原跑满1000局即被移出车队→静默排空到零actor);
+    ⑥对手技能槽位越界钳制(原pid≥112即IndexError炸局, patchouli 112-114)。
+  - **门禁**: 修复前535/0/0 → 修复后**551 PASS/0 WARN/0 FAIL**(净-1: 强化断言时合并了2条冗余项); R63组断言14条
+    + 两个行为测试入门禁C15 + 9条配对变异。**变异自检第一轮抓出我自己4条弱断言**
+    (or兜底/只钉函数名前缀/子串可被`or n_out`绕过/真实覆盖缺口——"代码侧宏数
+    校验"从未被覆盖), 修正后9条全红(exit 0)。教训入册: **锚在标识符上或写成
+    or兜底的断言=空断言; 变异自检是证明断言有效的手段。**
+  - **未修(记录)**: P1-2 Adam优化器m/v/t不落盘(机制确证: 每次重载首步偏置
+    校正冲量, ~10步衰减; 幅度未测——受控探针与活训练抢CPU已主动终止);
+    P1-3 numpy采样↔torch更新**无跨实现对等性测试**(建议补常驻断言);
+    supervisor重启预算不衰减; 镜像语义仍两处实现(train_tm:1295/side_driver:423)。
+  - **F6 超人距离(用户追加要求完善到可用)**: 原 metric = avg_wr - var 是占位口径
+    (实测盘上矩阵: 每对仅2局的marisa拿到metric=1.0=满分)。改为三件可证伪的量:
+    ①dominance=最薄弱对位的Wilson 95%下界(自测: 全胜3-0但被某对手0-4 → 平均仍0.692
+    而**下界0.000**, 证明平均值会骗人); ②human_anchor=**真实人类基线**, 接
+    data/oracle/shards的191局真人网络对战重放(项目唯一真人数据, 此前从未接线),
+    逐角色/逐对位带区间; ③comparison=只在**同口径**时给距离。
+    **距离仍给不出且如实留空**: 人类是真人vs真人、模型矩阵是模型vs模型快照,
+    对手分布不同→胜率之差不是能力之差。**更正**: 先前判"缺真人vs COM数据"是错的
+    —— 用户实测真人打COM胜率100%(COM远逊于真人) → COM标尺**天花板饱和不可分辨**
+    (人类与超人在此读数相同), 补上也不能当分母; 缺的是**能区分顶端的标尺**
+    (真人vs该模型直接对打, 或同一批"人类也会输"的固定对手)。新增 COM_VS_HUMAN
+    常量 + com_ruler_verdict() 四档判定(低于人类下限/不可区分/饱和达顶/无数据),
+    并明确拒绝由"打COM全胜"推出超人; 自测抓出原 lo>=hw 在hw=1.0时是**死分支**,
+    已改 lo>=hw-near。新增 tools/superhuman_gauge.py + data/human_baseline.json
+    派生档(2KB, 供沙箱); 专项文档 docs/f6_superhuman_distance_2026-10-07.md。
+  - **文档**: docs/arch_review_2026-10-07_r63_fixes.md(全量报告) +
+    docs/fleet_ignition_runbook.md(新增R63护栏表+点火前旧代际归档步骤)。
+  - **⚠ 未生效**: 运行中的7个训练进程仍跑旧代码(Python只在启动时载入模块),
+    P0-1/P0-2需**重启训练**方生效。

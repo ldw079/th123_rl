@@ -31,7 +31,11 @@ sys.stdout.reconfigure(encoding='utf8')
 from ppo import PPOTrainer  # noqa: E402,F401 (结构推断用)
 from feat_builder import FeatureBuilder  # noqa: E402 (P0-A: n_side唯一真值源)
 from episode_core import (load_episode_npz, save_distill_rows,  # noqa: E402
-                          read_version, write_version)
+                          read_version, write_version,
+                          EpisodeContractError, check_contract,
+                          code_macro_count, build_contract,
+                          check_model_generation,
+                          fleet_snap_dir, fleet_ep_dir)
 
 try:
     from ppo_gpu import PPOTrainerGPU
@@ -191,6 +195,11 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
     for ep_path in eps:
         try:
             arr, meta = load_episode_npz(ep_path)
+        except EpisodeContractError:
+            # R63(P0-2): 契约不符=代际问题, **不是坏数据** — 不移入删除
+            # 路径(原实现把契约违规也删掉, 把可诊断的证据销毁了)。
+            # 上抛交由调用方按"必须重启"处置。
+            raise
         except Exception as e:
             print('[learner] %s 损坏(%s) — 丢弃' % (
                 os.path.basename(ep_path), e))
@@ -339,6 +348,15 @@ def run_learner(char, batch_k=BATCH_K, suffix='_fleet'):
                   char, _f_side, n_side, n_out,
                   FeatureBuilder.CORE_DIMS))
         sys.exit(1)
+    # R63(P0-2): 模型档宏数必须等于**当前代码**宏数 — 否则本learner会用
+    # 一个动作空间与数据不同的网络训练并发布(旧版只与"自己刚载入的档"
+    # 自洽, 代码宏数变了却无从察觉)。宽断言只保证侧向量, 不保证动作维。
+    # 判据抽在 episode_core.check_model_generation(单一实现, 可行为测试 —
+    # 文本锚定已被变异自检证明可被 `or n_out` 之类绕过)。
+    _gen_bad = check_model_generation(char, n_out)
+    if _gen_bad is not None:
+        print('[learner] %s %s — 拒绝启动' % (char, _gen_bad))
+        sys.exit(1)
 
     gpu_tr = PPOTrainerGPU(n_side=n_side, n_out=n_out)
     gpu_tr.load(init_pi, init_v)
@@ -346,7 +364,10 @@ def run_learner(char, batch_k=BATCH_K, suffix='_fleet'):
           'updates%d)' % (char, n_out, gpu_tr._temp, gpu_tr._beta,
                           gpu_tr._bcw, gpu_tr._updates))
 
-    snap_dir = os.path.join(FLEET_DIR, 'snap_%s' % char)
+    # R63(P1-5): 快照与episode队列按suffix隔离(原共享=fleet+迁移双开时
+    # 两learner互踩版本号/互删队列)。本地绑定屏蔽模块级常量。
+    snap_dir = fleet_snap_dir(FLEET_DIR, char, suffix)
+    EP_DIR = fleet_ep_dir(FLEET_DIR, suffix)
     os.makedirs(snap_dir, exist_ok=True)
     os.makedirs(EP_DIR, exist_ok=True)
 
@@ -373,6 +394,33 @@ def run_learner(char, batch_k=BATCH_K, suffix='_fleet'):
             np.zeros(n_macros - len(macro_counts), dtype=np.int64)])
 
     # 发布首版快照(actor可以开始) — counts.npy随发(R57 2.4下行通道)
+    # R63(P0-2): 发布前**入队一致性检查** — 盘上待消费的最新一代episode
+    # 必须与本learner同代。不同代时立刻响亮退出, 而不是启动后再逐批
+    # 发现(np.concatenate抛形状错→整批进failed/→无限continue, 生产事故
+    # 形态: 13次启动拒绝 + 5次批隔离 + 26个failed文件)。
+    _pre = collect_episodes(EP_DIR, char, batch_k)
+    if _pre:
+        try:
+            _a, _m = load_episode_npz(_pre[-1],
+                                      expect_contract=build_contract(
+                                          char, n_out, n_side, n_out))
+        except EpisodeContractError as _e:
+            print('[learner] %s 入队契约不符 — 拒绝启动(不消费、不删除): %s'
+                  % (char, _e))
+            # 关键: 隔离**整个**队列而非本批 — 只隔离本批则下次启动又捡到
+            # 同代旧档, 形成"启动→拒绝→重启"循环(把fleet变成无进展的
+            # 重启风暴, 与"静默零学习"是同一后果的另一形态)。
+            _allq = collect_episodes(EP_DIR, char, 0)
+            _q = quarantine(_allq)
+            print('[learner] %s 已将%d个不符代际的episode移入failed/隔离区'
+                  ' (人工核查后删除; 处置见 docs/fleet_ignition_runbook.md)'
+                  % (char, _q))
+            sys.exit(1)
+        except Exception as _e:
+            print('[learner] %s 入队预检异常(%s: %s) — 拒绝启动'
+                  % (char, type(_e).__name__, _e))
+            sys.exit(1)
+
     gpu_tr.save(pi_path, v_path)
     ver = publish_snapshot(snap_dir, gpu_tr)
     _c_tmp = os.path.join(snap_dir, 'counts.npy.tmp.npy')
@@ -402,6 +450,17 @@ def run_learner(char, batch_k=BATCH_K, suffix='_fleet'):
             stats, macro_counts, n_eps, max_ver, N = update_from_episodes(
                 gpu_tr, eps, char, suffix, n_macros, macro_counts,
                 bc_bank=bc_bank, snap_dir=snap_dir)
+        except EpisodeContractError as e:
+            # R63(P0-2): 契约不符=代际问题 → 隔离整队 + **响亮退出**
+            # (让监督器重启)。原实现: 任何异常都"批隔离N个继续" →
+            # learner永远活着、永远学不到东西, 而日志只留下隔离计数。
+            print('[learner] %s 批契约不符 — 退出(码1)等待监督器重启: %s'
+                  % (char, e))
+            _allq = collect_episodes(EP_DIR, char, 0)
+            _q = quarantine(_allq)
+            print('[learner] %s 已隔离%d个不符代际episode(不删除, 人工核查)'
+                  % (char, _q))
+            sys.exit(1)
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -449,7 +508,14 @@ def run_learner(char, batch_k=BATCH_K, suffix='_fleet'):
             shutil.copy2(pi_path, os.path.join(pool_dir, ts + '.npz'))
             snaps = sorted(f for f in os.listdir(pool_dir)
                            if f.endswith('.npz')
-                           and not f.endswith('_v.npz'))
+                           and not f.endswith('_v.npz')
+                           # R63(P1-5): 前缀分流 — 同目录下还有剥削者写入的
+                           # exploit_* 快照(exploiter.py --fleet→FLEET_DIR/pool)。
+                           # 原实现无过滤地"只留最新3个"→ learner周期性地把
+                           # 剥削者的针对性对手快照删掉(D4对抗压力静默消失),
+                           # 且与train_tm._snapshot_pool的前缀保留纪律冲突
+                           # (跨写者越权删除)。这里只清理本learner自己写的。
+                           and not f.startswith('exploit_'))
             for f in snaps[:-3]:
                 for _f in (f, f[:-4] + '_v.npz'):
                     try:

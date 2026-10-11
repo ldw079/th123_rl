@@ -43,6 +43,9 @@ from episode_core import (episode_meta, save_episode_npz,  # noqa: E402
 STORE = os.environ.get('TH123_STORE', r'D:\temp\th123_models')
 FLEET_DIR = os.path.join(STORE, 'fleet')
 EP_DIR = os.path.join(FLEET_DIR, 'episodes')
+# R63(P1-5): 快照目录从 episode_core 取**同一份**实现(actor与learner
+# 必须一致, 否则actor读不到learner发布的快照=快照死链)。
+from episode_core import fleet_snap_dir  # noqa: E402
 
 SNAP_WAIT_S = 300   # 首版快照最长等待
 
@@ -72,7 +75,8 @@ def run_actor(char, actor_id, port, tps=480, episodes=1000,
         others = [c for c in ('reimu', 'marisa', 'suika') if c != char]
         opps = [char] + others + ['COM']
 
-    snap_dir = os.path.join(FLEET_DIR, 'snap_%s' % char)
+    # R63(P1-5): 与learner同源(默认_fleet后缀=历史路径)
+    snap_dir = fleet_snap_dir(FLEET_DIR, char, '_fleet')
     scratch = os.path.join(FLEET_DIR, 'scratch_actor%02d' % actor_id)
     os.makedirs(scratch, exist_ok=True)
 
@@ -136,6 +140,11 @@ def run_actor(char, actor_id, port, tps=480, episodes=1000,
             "logP记录数%d != 决策数%d (红线①断链!)" % (len(fleet_logps),
                                                      len(acts)))
         assert masks_hist, "masks_hist为空 — 掩码缺失=更新比率污染, 拒绝序列化"
+        # R63(P0-2): 写者声明的尺寸契约 — 读者据此判读代际, 不再靠
+        # np.concatenate抛形状错定位根因。契约取自本actor**自己**的
+        # 网络/宏库(train_tm构造时按同一CORE_DIMS派生)。
+        from episode_core import build_contract
+        _contract = build_contract(char, tr.n_macros, int(tr.ppo.N_SIDE), tr.n_macros)
         arrays = dict(
             feats=np.stack(feats).astype(np.uint8),
             sides=np.stack(sides).astype(np.float32),
@@ -157,7 +166,7 @@ def run_actor(char, actor_id, port, tps=480, episodes=1000,
         meta = episode_meta(char, actor_id, state['ep'],
                             state['snap_ver'],
                             seed_base + state['snap_ver'],
-                            len(acts))
+                            len(acts), contract=_contract)
         dst = save_episode_npz(EP_DIR, char, actor_id, state['ep'],
                                arrays, meta)
         print('[actor%d] %s ep%d %d决策 v%d 帧%.0f → %s' % (

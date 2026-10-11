@@ -314,6 +314,48 @@ MUTATIONS = [
      "R57-2.5回退: 下段位恒0(段位又全盲) → test_guard_height行为测试必须红"),
     ("episode_core.py", "data[\"schema\"] = np.array(EP_SCHEMA)", "data[\"schema\"] = np.array(99)",
      "R57-2.6回退: schema标错版本(消费端拒收) → schema断言必须红"),
+    # ---- R63(2026-10-07架构审查: 镜像轴 + episode代际契约) ----
+    ("train_tm.py", "if axis == \"H\" and mirror:", "if axis in (\"H\", \"V\") and mirror:",
+     "R63(P0-1)回退: 镜像连V一起翻(约一半决策执行纵向镜像动作) → 镜像轴断言必须红"),
+    ("episode_core.py", "EP_SCHEMA = 2   # R63", "EP_SCHEMA = 1   # R63",
+     "R63(P0-2)回退: schema退回v1(contract块失效) → 契约断言必须红"),
+    ("episode_core.py", "return [\"%s: %s\" % (where, b) for b in bad]",
+     "return []  # 恒空",
+     "R63(P0-2)回退: check_contract恒返回空(契约代际校验失效) → 契约断言必须红"),
+    ("episode_core.py", "        if _bad:\n            raise EpisodeContractError(\"; \".join(_bad))",
+     "        if False:\n            raise EpisodeContractError(\"; \".join(_bad))",
+     "R63(P0-2)回退: 读者契约不符不再抛(旧代际被当正常数据消费) → 契约断言必须红"),
+    ("actor_worker.py", "build_contract(char, tr.n_macros, int(tr.ppo.N_SIDE), tr.n_macros)",
+     "build_contract('reimu', 3, 3, 3)",
+     "R63(P0-2)回退: actor写死/写错契约(不与自身网络尺寸同源) → 写者契约断言必须红"),
+    ("learner_hub.py", "check_model_generation(char, n_out)",
+     "None  # 代际校验移除",
+     "R63(P0-2)回退: learner不校验模型档代际(旧档续训) → 代际断言必须红"),
+    ("episode_core.py", "    if int(model_n_out) != int(_cn):",
+     "    if False:",
+     "R63(P0-2)回退: 模型代际判据恒真(旧档续训不被拒) → 代际判据断言必须红"),
+    # ---- R63(F6): 超人距离占位口径 ----
+    ("tools/eval_matrix.py", "'metric': d['worst_lower']",
+     "'metric': 1.0",
+     "R63(F6)回退: 超人距离回到常量占位读数 → 度量断言必须红"),
+    ("tools/superhuman_gauge.py", "    if k <= 0:\n        lo = 0.0",
+     "    if False:\n        lo = 0.0",
+     "R63(F6)回退: Wilson端点钳制移除(残差4.87e-17 → 与0比较失效) → 断言必须红"),
+    ("tools/superhuman_gauge.py", "            per[cb]['pairs'][ca] = rate(bw, n)",
+     "            pass",
+     "R63(F6)回退: 对位退回单边(a视角) → 恒在b侧角色空手(F6测试必须红)"),
+    ("tools/superhuman_gauge.py", "'comparable': comparable,",
+     "'comparable': True,",
+     "R63(F6)回退: 非同口径也标可比(伪造距离) → F6测试必须红"),
+    ("tools/superhuman_gauge.py", "'discriminates_at_top': False,",
+     "'discriminates_at_top': True,",
+     "R63(F6)回退: COM标尺谎称顶端可分辨(真人打COM=100%已饱和) → 断言必须红"),
+    ("tools/superhuman_gauge.py", "    elif lo >= hw - near:",
+     "    elif False:",
+     "R63(F6)回退: 饱和达顶分支变死代码 → F6测试必须红"),
+    # 注: gate_selftest.py **自身**的沙箱生命周期不做变异 —— 变异体若破坏
+    # 自清逻辑, 每条变异会泄漏 ~1.5GB 沙箱并压满系统盘(本轮真实事故),
+    # 属于"变异工具自伤", 收益为负。该处仅保留 contract_check 的文本断言。
     ("feat_builder.py", "s[o + 21] = 1.0 if right[\"action\"] in F_VARIANT_IDS else 0.0", "s[o + 21] = 0.0",
      "R58回退: 对手f变体位恒0(遠A警戒盲区复活) → test_guard_height必须红"),
     ("train_tm.py", "elif getattr(self, \"_fleet_logp_rec\", None) is not None:", "elif False:",
@@ -407,7 +449,44 @@ MUTATIONS = [
 ]
 
 
+def _free_gb(path):
+    """给沙箱盘留多少空间(GB)。查询失败 → None(不拦)。"""
+    try:
+        import ctypes
+        n = ctypes.c_ulonglong(0)
+        ctypes.windll.kernel32.GetDiskFreeSpaceExW(
+            str(path), None, None, ctypes.byref(n))
+        return n.value / 1024 / 1024 / 1024
+    except Exception:
+        return None
+
+
+def _sandbox_tmpdir():
+    """沙箱根目录。默认系统TEME; 可用 SELFTEST_TMPDIR 指到大盘。
+
+    R63(F6)事故: 沙箱含 mod源码树(+两个store副本+BC库) ≈1.5GB/份,
+    而 %TEMP% 常在系统盘(本机C:仅剩1.4GB空闲) → build_sandbox 抛
+    WinError 112 磁盘空间不足, 且**失败时沙箱不自清**(base在try之前
+    创建 → finally不执行), 残留把盘彻底占满。
+    """
+    d = os.environ.get("SELFTEST_TMPDIR")
+    if d:
+        os.makedirs(d, exist_ok=True)
+        return d
+    return None
+
+
 def build_sandbox(sb):
+    # R63: 大件(mod源码树)拷贝前先看盘 — 空间不足则跳过该件而不是
+    # 中途抛WinError 112(半建沙箱 + 裸traceback, 无法判断是门禁坏了
+    # 还是盘满了)。modroot缺席时C9相关项按AGENTS.md降级为WARN。
+    _need_gb = 0.4
+    _free = _free_gb(sb)
+    _skip_big = (_free is not None and _free < _need_gb)
+    if _skip_big:
+        print("[sandbox] 沙箱盘仅剩%.2fGB(<%.1fGB) — 跳过大件拷贝"
+              "(mod源码树; C9降WARN)。可用 SELFTEST_TMPDIR 指到大盘。"
+              % (_free, _need_gb))
     for f in FILES:
         shutil.copy2(os.path.join(ROOT, f), os.path.join(sb, f))
     os.makedirs(os.path.join(sb, "tools"), exist_ok=True)
@@ -440,6 +519,12 @@ def build_sandbox(sb):
     _prov = os.path.join(ROOT, "mod_provenance.json")
     if os.path.exists(_prov):
         shutil.copy2(_prov, os.path.join(sb, "mod_provenance.json"))
+    # R63(F6): 人类基线的**派生档**随沙箱(2KB; 191份重放原文约200MB不适合拷)。
+    # F6测试的锚断言因此在沙箱内也成立; 重放原文仍是唯一真值源。
+    _hb = os.path.join(ROOT, "data", "human_baseline.json")
+    if os.path.exists(_hb):
+        os.makedirs(os.path.join(sb, "data"), exist_ok=True)
+        shutil.copy2(_hb, os.path.join(sb, "data", "human_baseline.json"))
     # oracle侧源码树(C9-oracle源断言的变异载体)
     oroot = os.path.join(sb, "oraclemod")
     for rel in ("TrainingMod\\state.cpp", "TrainingMod\\network.cpp"):
@@ -450,7 +535,7 @@ def build_sandbox(sb):
             shutil.copy2(srcf, dst)
     # mod源码树完整拷贝(C9血统哈希覆盖全树+变异载体; 只拷源/头文件)
     _msrc_root = r"D:\temp\build\SokuAI-master"
-    if os.path.isdir(_msrc_root):
+    if os.path.isdir(_msrc_root) and not _skip_big:
         shutil.copytree(
             _msrc_root, os.path.join(sb, "modroot"),
             ignore=shutil.ignore_patterns(
@@ -476,16 +561,35 @@ def run_gate(sb, store, env_extra=None):
     env["TH123_ORACLE_MODROOT"] = os.path.join(sb, "oraclemod")
     if env_extra:
         env.update(env_extra)
-    r = subprocess.run(
-        [PY, "-X", "utf8", os.path.join(sb, "tools", "contract_check.py")],
-        capture_output=True, text=True, env=env, timeout=1500)
+    # R63: 超时从1500→5400。实测裸跑门禁93s, 但沙箱内跑**全部**行为测试
+    # (含torch更新)且与活训练抢CPU时, 1500s会被突破 → TimeoutExpired
+    # 直接把自检打断(本轮真实事故: 报出负超时, 疑似期间墙钟跳变/系统挂起),
+    # 表现为"治理工具崩了"而不是"某条变异漏网"。可经 SELFTEST_GATE_TIMEOUT
+    # 覆盖。
+    _to = int(os.environ.get("SELFTEST_GATE_TIMEOUT", "5400"))
+    try:
+        r = subprocess.run(
+            [PY, "-X", "utf8", os.path.join(sb, "tools", "contract_check.py")],
+            capture_output=True, text=True, env=env, timeout=_to)
+    except subprocess.TimeoutExpired as e:
+        # 明确区分"沙箱门禁超时"与"断言变红/漏网" — 否则会被误读成门禁坏了
+        print("[sandbox] 门禁超时(>%ds) — 该变异无法判定(非漏网)。"
+              "可用 SELFTEST_GATE_TIMEOUT 调大, 或空闲时重跑。" % _to)
+        return 124, (e.stdout or "") if isinstance(e.stdout, str) else ""
     return r.returncode, r.stdout
 
 
 def main():
     fails = []
-    base = tempfile.mkdtemp(prefix="gate_selftest_")
+    # R63: base必须在try**之内**创建 — 原在try之前, build_sandbox抛错时
+    # finally不执行 → 半建沙箱(~1.5GB)永久残留在%TEMP%(实测残留两份,
+    # 把系统盘从数GB压到1.4GB, 后续断言全部因磁盘满而假死)。
+    _tmp = _sandbox_tmpdir()
+    base = None
     try:
+        base = tempfile.mkdtemp(prefix="gate_selftest_", dir=_tmp)
+        print("[self-test] 沙箱: %s (剩余%.2fGB)"
+              % (base, _free_gb(base) or -1))
         # ---- 基线: 未变异沙箱必须绿 ----
         sb = os.path.join(base, "baseline")
         os.makedirs(sb)
@@ -558,6 +662,15 @@ def main():
                 continue
             open(target, "w", encoding="utf-8").write(txt.replace(old, new))
             rc, out = run_gate(sb, store)
+            if rc == 124:
+                # R63: 沙箱门禁超时(环境问题) ≠ 变异被拦截。若当"红"处理,
+                # 一条永不触发的断言会在忙时假通过 — 那是"空断言"的另一种
+                # 伪装。如实标为无法判定并计入失败。
+                print("变异[%s | %s]: ○无法判定(沙箱门禁超时, 非漏网)"
+                      % (f, why))
+                fails.append("超时未判定: " + why)
+                shutil.rmtree(sb, ignore_errors=True)
+                continue
             ok = rc != 0 and ("  FAIL" in out or "FAIL项" in out)
             print("变异[%s | %s]: exit=%d %s"
                   % (f, why, rc, "✓红" if ok else "✗漏网"))
@@ -565,7 +678,8 @@ def main():
                 fails.append(why)
             shutil.rmtree(sb, ignore_errors=True)
     finally:
-        shutil.rmtree(base, ignore_errors=True)
+        if base:
+            shutil.rmtree(base, ignore_errors=True)
 
     print()
     if fails:

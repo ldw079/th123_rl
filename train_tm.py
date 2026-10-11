@@ -316,12 +316,25 @@ KEY_TO_BIT = {
 
 
 def keys_to_input(keys, mirror=False):
-    """宏键名元组 → TM输入dict。mirror=朝向镜像(左右互换)。"""
+    """宏键名元组 → TM输入dict。mirror=朝向镜像(**只翻水平轴**)。
+
+    R63(P0-1, 2026-10-07架构审查): 原 `axis in ("H","V")` 把上下也翻了 —
+    H/V极性见 soku_client2.KEYMAP/send_inputs: V是**屏幕上下**(up=+1),
+    镜像是左右翻转, 上下语义不变。原版后果: `_last_dir<0` 时 j8A→j2A、
+    高跳(down,(),up)退化成普通跳, 而轨迹/distill/bc_targets 记的仍是
+    策略原本选的那一招 → 约一半决策的信用分配被污染(执行A、记录A、
+    实际发生A的纵向镜像), 对手侧同款。
+
+    判据(库内第三条独立证据): bc_match.keys_to_input 只翻H, 其docstring
+    记录"原连V一起翻→换边段空中宏标签静默丢失/错配"=**同型bug已修在
+    bc_match、漏在train_tm**; tools/branch_demo.py:200-202 同样只翻H。
+    配对测试: test_mirror_axis_r63.py。
+    """
     inp = {}
     for k in keys:
         if k in KEY_TO_BIT:
             axis, val = KEY_TO_BIT[k]
-            if axis in ("H", "V") and mirror:
+            if axis == "H" and mirror:
                 val = -val
             inp[axis] = val
     return inp
@@ -1239,7 +1252,10 @@ class TMTrainer:
         # R17仪表: 每局奖励成分(决策依据 — 此前盲调, P0-K教训)
         # R39(P3-8): guard/wall/spirit通道R35已删, 死键移除(恒零=读死表)
         rew_mix = {"dmg": 0.0, "taken": 0.0, "ko": 0.0, "graze": 0.0,
-                   "evade": 0.0, "whiff": 0.0}
+                   "evade": 0.0, "whiff": 0.0, "micro_tax": 0.0}
+        # R63(P1-1): micro_tax键入表(原只get到不初始化) — 败回合微收追扣
+        # 原来**不在**mix里, 于是打印的"总和"既漏了扣分项、又把不参与
+        # 目标函数的dmg/taken算进去 → 调参依据与实际回报不同源。
         graze_frames = 0     # R17: 擦弹帧计数(测真实擦弹需求量)
         t0 = time.time()
         self.feat_hist = []    # 跨局栈污染修复(5帧用于差分)(上局尾帧不进新局首决策)
@@ -1737,13 +1753,23 @@ class TMTrainer:
                 rews[-1] += seg_rew
                 # P1(§7.2): rews[0]是占位0, 丢弃使rews[i]对应acts[i]
             # R17仪表: 奖励成分(episode作用域 — 调参依据)
-            print("[奖励成分] 伤害+%.1f 承伤%.1f KO%+.1f 擦弹+%.1f(%d帧) "
-                  "规避+%.1f 空挥%.1f 空中被动%.1f 微收追扣%.1f 总和%.1f"
+            # R63(P1-1)修: 原来打印的"总和"= sum(rew_mix.values()), 其中
+            # dmg/taken **从不加进seg_rew**(HP由势函数差分覆盖, 见上),
+            # 而真正扣分的micro_tax不在mix里 → 打印的总和既含幻影项、
+            # 又漏扣分项, 与真实回报不同源(用户按此行调奖励经济学=
+            # 读错量纲)。现: ①幻影项标注"(诊断,不入回报)"; ②总和只累计
+            # 真实入账通道, 并打印该局实际回报以便自查。
+            _real_sum = (rew_mix["ko"] + rew_mix["graze"] + rew_mix["evade"]
+                         + rew_mix["whiff"] + rew_mix.get("air_passive", 0.0)
+                         + rew_mix.get("micro_tax", 0.0))
+            print("[奖励成分] 诊断(不入回报): 伤害+%.1f 承伤%.1f | "
+                  "入账: KO%+.1f 擦弹+%.1f(%d帧) 规避+%.1f 空挥%.1f "
+                  "空中被动%.1f 微收追扣%.1f 小计%+.1f 回报%+.1f"
                   % (rew_mix["dmg"], rew_mix["taken"], rew_mix["ko"],
                      rew_mix["graze"], graze_frames, rew_mix["evade"],
                      rew_mix["whiff"], rew_mix.get("air_passive", 0.0),
-                     rew_mix.get("micro_tax", 0.0),
-                     sum(rew_mix.values())))
+                     rew_mix.get("micro_tax", 0.0), _real_sum,
+                     float(np.sum(rews)) if rews else 0.0))
             # R17环境健全性断言(用户2026-09-29反思): 策略树审计只照模型
             # 不照环境 — 木桩时代(09-27~09-28)审计全程照常出矩阵、无人
             # 察觉对手零输出。此断言当天即可抓住假COM。

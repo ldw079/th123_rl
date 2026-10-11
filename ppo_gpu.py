@@ -712,18 +712,43 @@ if HAS_TORCH:
                 ('W2v', 'W2v.weight'), ('b2v', 'b2v'),
                 ('W3v', 'W3v'), ('b3v', 'b3v'),
             ]
+            # R63(P1-5): 可选参数(旧代际档合法缺失 — 与numpy版load同哲学:
+            # 侧非线性头Ws1/Ws2与对手子网络Wo1/Wo2/W_opp/Wq1/Wq2在早期档
+            # 中不存在, 缺失时保持"零输出起步"的init值, 不算腐坏)。
+            _OPTIONAL = ('Ws1', 'bs1', 'Ws2', 'bs2', 'Wo1', 'bo1', 'Wo2',
+                         'bo2', 'W_opp', 'Wq1', 'bq1', 'Wq2', 'bq2')
+            _missing = []
             for nname, tname, in_ch in _CONV_MAP:
                 r = _from_np(nname, tname, in_ch)
                 if r:
                     sd[r[0]] = r[1]
+                elif nname not in _OPTIONAL:
+                    _missing.append(nname)
             for item in _LIN_MAP:
                 nname, tname = item
                 r = _from_np(nname, tname, None)
                 if r:
                     sd[r[0]] = r[1]
+                elif nname not in _OPTIONAL:
+                    _missing.append(nname)
+            # R63(P1-5): 缺失参数**响亮拒载** — 原 strict=False 只打印
+            # "[GPU load] 缺失键" 后继续, 于是"缺value档"或"旧格式缺
+            # 对手子网络"会**静默保留随机初始化的critic**, 而该critic
+            # 立即被publish_snapshot发布成fleet快照, 并驱动 train_tm 的
+            # 价值引导宏重选(30%决策) → 随机critic直接污染行为数据;
+            # GAE目标同样出自随机V(numpy版同场景是raise, GPU版是打印,
+            # 双实现不对称)。
+            if _missing:
+                raise ValueError(
+                    '[GPU load] 参数缺失%d项: %s — 拒绝加载(缺失=随机初始化'
+                    '混入被发布; 检查pi/v档配对与代际)' % (
+                        len(_missing), _missing[:8]))
             result = self.net.load_state_dict(sd, strict=False)
             if result.missing_keys:
-                print('[GPU load] 缺失键: %s' % result.missing_keys[:5])
+                # 已声明required全齐 → 这里只可能是映射表未覆盖的新参数
+                raise ValueError(
+                    '[GPU load] 仍有未映射参数: %s — 映射表过期, 拒绝加载'
+                    % (result.missing_keys[:8],))
             if 'meta' in merged:
                 m = merged['meta']
                 self._temp = float(m[0])
