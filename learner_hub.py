@@ -193,6 +193,9 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
     ep_lens, ep_terms = [], []
     distill_batches = []
     ok_paths = []
+    # 阶段0仪表(系列预测方案§2): episode消费即删(P1-C) → 批路径是唯一
+    # 可持续测量点; no_grad前向不改训练语义
+    series_recs = []
     max_ver = 0
     for ep_path in eps:
         try:
@@ -224,6 +227,24 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
         all_logp.append(arr['logps'])
         ep_lens.append(n)
         ep_terms.append(bool(arr['ep_terms'][0]))
+        try:
+            from series_meter import (decode_match_outcome, position_from_meta,
+                                      score_episode_aux)
+            _h, _n = score_episode_aux(gpu_tr.net, arr, gpu_tr._temp)
+            series_recs.append((position_from_meta(meta),
+                                (_h if _n else None), _n,
+                                decode_match_outcome(arr['rews'])))
+        except Exception as _e:
+            # 仪表失败绝不阻断训练(胜负桶降级保留)
+            print('[learner] 仪表评分异常(%s) — 只计胜负桶' % _e)
+            try:
+                from series_meter import (decode_match_outcome,
+                                          position_from_meta)
+                series_recs.append((position_from_meta(meta),
+                                    None, 0,
+                                    decode_match_outcome(arr['rews'])))
+            except Exception:
+                pass
         max_ver = max(max_ver, int(meta.get('snap_ver', 0)))
         distill_batches.append(arr['distill'])
         ok_paths.append(ep_path)
@@ -272,6 +293,11 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
         _c_tmp = os.path.join(snap_dir, 'counts.npy.tmp.npy')
         np.save(_c_tmp, macro_counts)
         os.replace(_c_tmp, os.path.join(snap_dir, 'counts.npy'))
+    try:
+        from series_meter import curve_line
+        stats['series_curve'] = curve_line(series_recs)
+    except Exception:
+        pass
     return stats, macro_counts, len(all_acts), max_ver, len(acts)
 
 
@@ -496,6 +522,10 @@ def run_learner(char, batch_k=BATCH_K, suffix='_fleet'):
               % (char, n_eps, N, dt, ver,
                   stats.get('kl', 0), stats.get('entropy', 0),
                   stats.get('value_loss', 0), ver - max_ver, _aux_s))
+        # 阶段0仪表: 系列位置分桶曲线随批留档(grep口径: 系列曲线)
+        if stats.get('series_curve'):
+            print('[learner] %s 系列曲线 %s'
+                  % (char, stats['series_curve']))
 
         # 宏计数原子落盘
         _mc_tmp = counts_path + '.tmp.npy'

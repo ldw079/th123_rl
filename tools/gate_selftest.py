@@ -75,10 +75,15 @@ FILES = [
          "episode_core.py",
          "actor_worker.py",
          "learner_hub.py",
-         "fleet_supervisor.py"]
+         "fleet_supervisor.py",
+         "series_meter.py"]
 
 # (文件, 原文, 变异文, 防的回归)
 MUTATIONS = [
+    ("series_meter.py", "r >= ROUND_WIN", "rews >= 3000.0",
+     "S0仪表: 胜负解码阈值废(全解码L) → 胜率曲线断言必须红"),
+    ("series_meter.py", "% SERIES_LEN + 1", "% SERIES_LEN + 2",
+     "S0仪表: 系列位置整体偏移 → 位置/分桶断言必须红"),
     ("ppo.py", "ent_grad = -P *", "ent_grad = P *",
      "P0-1 熵梯度符号反 → 熵行为断言必须红"),
     ("ppo.py", "os.replace", "shutil.move",
@@ -461,19 +466,50 @@ def _free_gb(path):
         return None
 
 
-def _sandbox_tmpdir():
-    """沙箱根目录。默认系统TEME; 可用 SELFTEST_TMPDIR 指到大盘。
+def _clean_stale_sandboxes(root, max_age_h=2.0):
+    """宪法R13"按时清理": 回收超过max_age_h的gate_selftest_*沙箱
+    (被杀进程/断电的残留)。活跃运行安全: base目录随mut_*子目录创建
+    持续刷新mtime, 不会误删并发运行中的沙箱。"""
+    import time as _t
+    now = _t.time()
+    try:
+        entries = os.listdir(root)
+    except OSError:
+        return 0
+    n = 0
+    for e in entries:
+        if not e.startswith("gate_selftest_"):
+            continue
+        p = os.path.join(root, e)
+        try:
+            if now - os.path.getmtime(p) > max_age_h * 3600:
+                shutil.rmtree(p, ignore_errors=True)
+                n += 1
+        except OSError:
+            pass
+    return n
 
-    R63(F6)事故: 沙箱含 mod源码树(+两个store副本+BC库) ≈1.5GB/份,
-    而 %TEMP% 常在系统盘(本机C:仅剩1.4GB空闲) → build_sandbox 抛
-    WinError 112 磁盘空间不足, 且**失败时沙箱不自清**(base在try之前
-    创建 → finally不执行), 残留把盘彻底占满。
+
+def _sandbox_tmpdir():
+    """沙箱根目录。**宪法R13(用户2026-10-11明令): 所有沙箱一律落D盘,
+    禁用系统盘** — 默认 D:/temp/gate_sandbox; SELFTEST_TMPDIR 仅作
+    无D盘机器的覆盖口。
+
+    事故血统: R63(F6)首例(%TEMP%在C:, 失败不自清, 残留1.5GB×2把系统盘
+    压满)于2026-10-11原样复发(C:100%仅剩526MB, 自检WinError 112假死)
+    → 用户裁定升格红线: D盘+按时清理(启动自动回收>2h过期沙箱, 含
+    系统盘遗留清扫; 正常/异常退出由finally自清, 机制在位)。
     """
-    d = os.environ.get("SELFTEST_TMPDIR")
-    if d:
-        os.makedirs(d, exist_ok=True)
-        return d
-    return None
+    d = os.environ.get("SELFTEST_TMPDIR") or r"D:\temp\gate_sandbox"
+    os.makedirs(d, exist_ok=True)
+    n = _clean_stale_sandboxes(d)
+    import tempfile as _tf
+    _sys = _tf.gettempdir()
+    if os.path.realpath(_sys) != os.path.realpath(d):
+        n += _clean_stale_sandboxes(_sys)
+    if n:
+        print("[sandbox] R13按时清理: 回收%d个过期沙箱" % n)
+    return d
 
 
 def build_sandbox(sb):

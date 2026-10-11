@@ -1829,6 +1829,9 @@ _BEHAVIOR_TESTS = [
     # D3'(R65): 20角色league对手生态
     ("test_league20_d3.py",
      "D3': league20_opps组成/league_alloc泛化回归/种子维度守卫幂等/build_opp_cycle池根注入+严格性"),
+    # 系列预测方案阶段0(R67): 系列位置分桶测量仪表
+    ("test_series_meter_s0.py",
+     "S0: 胜负解码(回合结算块)/系列位置/分桶/aux评分真前向50%构造/曲线行四桶"),
 ]
 for _tname, _tdesc in _BEHAVIOR_TESTS:
     _tp = os.path.join(ROOT, 'tests', _tname)

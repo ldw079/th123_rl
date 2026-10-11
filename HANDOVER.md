@@ -110,7 +110,7 @@ fleet_supervisor.py --actors 3
 - **R63 修复已生效**: 10-08 20:18 fleet 重启载入 R63 后代码(随 04499b2 入库), 该轮 episode 零 failed
 - **上轮末期读数**(10-08 22:46 league 重算): COM 0W-16L(主策略全胜) / 剥削者快照 0W-5L(gauge 健康) / 镜像对手 0W-7L
 - **F6 新基线**(10-11, R63 后语义): reimu 弱侧(vs marisa 1-3, vs suika 0-4); 全对局顶时判定 = 双模型侧被动不接敌
-- **观察项**: R62 相关性回正 / B 风格段活性 / C 流派战绩收敛 / 剥削者 gauge / **B3 远程弹幕涌现**(48h 钟起点 10-11 20:22, 工具 tools/remote_usage_report.py)
+- **观察项**: R62 相关性回正 / B 风格段活性 / C 流派战绩收敛 / 剥削者 gauge / **B3 远程弹幕涌现**(48h 钟起点 10-11 20:22, 工具 tools/remote_usage_report.py) / **系列预测阶段0**(learner 日志 grep"系列曲线", 位置分桶 aux/胜率基线, METHODOLOGY 2.69; 初读平坦→阶段3优先待 48h 确认, 方案 docs/series_opponent_prediction_plan_2026-10-06.md)
 - **已知问题**: th123.exe 偶发 "pure virtual function call" 崩溃(游戏级, actor 自动恢复)
 
 ## 八、工作流
