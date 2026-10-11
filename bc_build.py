@@ -32,8 +32,8 @@ from bc_match import StreamMatcher, LOW_INFO
 from feat_builder import FeatureBuilder
 from macros import MACROS, NORMALIZED_AFFECTED  # noqa: F401 (导入触发规范化)
 from macros import MACROS as M_REIMU
-from macros_marisa import MACROS_MARISA
-from macros_suika import MACROS_SUIKA
+from macros.marisa import MACROS_MARISA
+from macros.suika import MACROS_SUIKA
 from reach_maps import resolve_reach, resolve_startup
 
 OBJ_FMT = '<b2f4H'

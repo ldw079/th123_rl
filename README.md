@@ -50,10 +50,10 @@ th123_rl/
 ├── side_driver.py         对手侧推理驱动(评估+自对弈)
 ├── exploiter.py / league.py / opp_model.py    剥削者/league 加权/对手建模
 ├── deck_sampler.py / card_tables.py           卡组采样(C 对抗性池)
-├── macros*.py             宏库(3 主角色 + 17 league 角色)
 ├── frame_events.py        帧级事件检测+反应掩码
 ├── bc_*.py / distill.py / teach.py            BC 库/蒸馏诊断/教学层
-├── test_*.py              行为测试(门禁 C15 白名单, 根目录为既定惯例)
+├── macros/                宏库包(__init__=灵梦库+共享规范化器, 20 角色各一档)
+├── tests/                 行为测试(37 档, 门禁 C15 白名单)
 ├── tools/                 工具(train_start/audit_all/contract_check/评估仪表…)
 ├── docs/                  文档(主规划/审查报告/设计文档/手册)
 ├── data/                  本地数据(BC 库/神谕分片, gitignore)

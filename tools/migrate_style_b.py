@@ -20,12 +20,12 @@ OLD_DIMS, NEW_DIMS = 316, 330
 CHARS = {'reimu': 70, 'marisa': 76, 'suika': 77}
 # 新角色(未训练, 模型可能不存在)
 for f in glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                'macros_*.py')):
+                                'macros', '[a-z]*.py')):
     import re
     src = open(f, encoding='utf-8').read()
     m = re.search(r'N_MACROS_\w+ = (\d+)', src)
     if m:
-        ch = os.path.basename(f)[7:-3]
+        ch = os.path.basename(f)[:-3]
         if ch not in CHARS:
             CHARS[ch] = int(m.group(1))
 

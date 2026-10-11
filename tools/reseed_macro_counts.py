@@ -16,8 +16,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 import numpy as np  # noqa: E402
 import macros as mc  # noqa: E402
-import macros_marisa as mm  # noqa: E402
-import macros_suika as ms  # noqa: E402
+import macros.marisa as mm  # noqa: E402
+import macros.suika as ms  # noqa: E402
 
 STORE = r"D:\temp\th123_models"
 LIBS = {"reimu": mc.MACROS, "marisa": mm.MACROS_MARISA, "suika": ms.MACROS_SUIKA}

@@ -1987,3 +1987,30 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     ③logs/陈旧档删除(demo.bat时代产物, 已gitignore)。
   - **验证**: 94 py编译0失败; 34活模块import全通; 门禁568/0/0(归档
     零锚定实证); fleet不受影响(21:23拓扑持续, 无重启事件)。
+
+- 2.68 (2026-10-11, **R66b 有引用文件包化: macros/ + tests/** — 用户指令
+  "把剩下的大量有引用零散文件也整理"):
+  - **布局裁定**: 核心模块留根(平铺src布局=既定惯例, 移动=改门禁全部
+    路径锚的纯风险); 整理两大散乱群 — 20宏库+21档→`macros/`包,
+    37行为测试→`tests/`目录。根目录py从94→37(全活模块)。
+  - **macros包化关键手法**: `git mv macros.py macros/__init__.py` —
+    macros.py同时是灵梦库+共享规范化器枢纽(17新库`from macros import
+    _eff_dirs/_norm_presteps`), 包__init__即枢纽 → 所有`from macros
+    import X`/`import macros`消费方(train_tm/bc_build/distill/
+    episode_core)零改动; 只需改`macros_X`形态引用(train_tm×3,
+    episode_core×3, bc_build×2, reseed×2, 门禁21处+工具4件)。
+  - **tests迁移**: 37档git mv + 头部sys.path上溯一级(四种模式逐档
+    适配) + 相对HERE读根源文件的2处上溯(visual_stack读side_driver/
+    contract_r63读actor_worker) + 门禁C15路径+train_start协议测试
+    路径+runbook命令行。
+  - **顺手修休眠bug×1**: migrate_style_b的glob在F4工具迁移时就指向
+    tools/目录(宏库在根)=循环体从未执行过 — 顺带修到macros/包。
+  - **坑×2入册**: ①多行文本补丁必须按文件EOL转换(gate_selftest/
+    test_visual_stack是pyc重建产物=全CRLF, '\n'模式静默不匹配);
+    ②批量前缀模板"%s"+"path.dirname"漏了"os."段 → 纯os文件产出
+    NameError — 模板拼接后必须逐文件冒烟(37测试逐跑抓出8个)。
+  - **验证**: 门禁568/0/0全绿(C15从tests/真跑37测试+全部宏库断言读
+    macros/路径); 变异自检抽查"62教义(除法形)"变异在沙箱
+    (macros/__init__.py子路径拷贝)被拦截✓红; fleet零影响(运行中
+    进程模块已载入, 重启路径actor_worker→train_tm→macros包贯通
+    由import冒烟证明: CHAR_LIBS 20角色/宏数70/76/77全对)。

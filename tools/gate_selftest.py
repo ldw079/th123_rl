@@ -23,9 +23,9 @@ FILES = [
          "feat_builder.py",
          "soku_client2.py",
          "ppo.py",
-         "macros.py",
-         "macros_marisa.py",
-         "macros_suika.py",
+         "macros/__init__.py",
+         "macros/marisa.py",
+         "macros/suika.py",
          "opp_model.py",
          "standard_tree.py",
          "train_tm.py",
@@ -42,23 +42,23 @@ FILES = [
          "bc_build.py",
          "bc_align.py",
          "oracle_batch2.py",
-         "macros_sakuya.py",
-         "macros_patchouli.py",
-         "macros_yuyuko.py",
-         "macros_reisen.py",
-         "macros_komachi.py",
-         "macros_tenshi.py",
-         "macros_alice.py",
-         "macros_youmu.py",
-         "macros_remilia.py",
-         "macros_yukari.py",
-         "macros_aya.py",
-         "macros_iku.py",
-         "macros_sanae.py",
-         "macros_cirno.py",
-         "macros_meiling.py",
-         "macros_utsuho.py",
-         "macros_suwako.py",
+         "macros/sakuya.py",
+         "macros/patchouli.py",
+         "macros/yuyuko.py",
+         "macros/reisen.py",
+         "macros/komachi.py",
+         "macros/tenshi.py",
+         "macros/alice.py",
+         "macros/youmu.py",
+         "macros/remilia.py",
+         "macros/yukari.py",
+         "macros/aya.py",
+         "macros/iku.py",
+         "macros/sanae.py",
+         "macros/cirno.py",
+         "macros/meiling.py",
+         "macros/utsuho.py",
+         "macros/suwako.py",
          "deck_sampler.py",
          "league.py",
          "teach.py",
@@ -93,7 +93,7 @@ MUTATIONS = [
      "P0-4b 负TTI钳位回归 → 威胁负例必须红"),
     ("threat.py", "GAME_FPS = 62", "GAME_FPS = 60",
      "62教义回退 → C1必须红"),
-    ("macros.py", "return f / 62.0", "return f / 60.0",
+    ("macros/__init__.py", "return f / 62.0", "return f / 60.0",
      "62教义回退(除法形) → C1必须红"),
     ("train_tm.py", "rews[-1] += seg_rew", "pass",
      "终局KO奖励丢失回归 → C6必须红"),
@@ -138,7 +138,7 @@ MUTATIONS = [
      "对手输入接线断开(P2不动) → C10必须红"),
     ("train_tm.py", "self.opp.frame_input(right, left, weather,", "self.opp.frame_input(right, right, weather,",
      "P2视角错接(对手看着自己打) → C10必须红"),
-    ("macros.py", "[((\"down\",), 6), ((\"down\", \"A\"), 10)]", "[((\"down\", \"A\"), 10)]",
+    ("macros/__init__.py", "[((\"down\",), 6), ((\"down\", \"A\"), 10)]", "[((\"down\", \"A\"), 10)]",
      "死招回归: 2A方向预置被删 → C11必须红"),
     ("portmap.py", "\"train_rebuild\": (20850, 20899),", "\"train_rebuild\": (20895, 20905),",
      "端口段重叠回归 → C12必须红"),
@@ -244,7 +244,7 @@ MUTATIONS = [
      "C16训练mod集漂移(MemoryPatch被禁→多开摧毁) → C16断言必须红"),
     ("skill_levels.py", "102: 3,", "102: 0,",
      "R39§4-4回退: 灵梦102亜空穴槽位错位复活 → SKILL_MAP锚点断言必须红"),
-    ("macros_suika.py", "201: 2,", "",
+    ("macros/suika.py", "201: 2,", "",
      "R39§4-6回退: suika的sc:201耗费项被删 → sc∈SC_COST断言必须红"),
     ("reach_maps.py", "'TM·对空连': (308,),", "",
      "R39§4-7回退: TM宏射程登记条目被删 → TM登记率断言必须红(注: 变异须删条目而非改空元组 — 断言查表成员性, 空元组仍算已登记)"),
@@ -260,11 +260,11 @@ MUTATIONS = [
      "R43-A回退: 池快照事实上停摆(等于10-02冻结态) → 池刷新断言必须红"),
     ("train_tm.py", "COM_CLIMB_N = 20", "COM_CLIMB_N = 99999",
      "R43-B回退: COM阶梯永不升级(课程失效) → 阶梯断言必须红"),
-    ("macros_sakuya.py", "(\"5A确认\", [((\"A\",), 10), ((), 2), (\"confirm\", 0)]),", "(\"5X确认\", [((\"A\",), 10), ((), 2), (\"confirm\", 0)]),",
+    ("macros/sakuya.py", "(\"5A确认\", [((\"A\",), 10), ((), 2), (\"confirm\", 0)]),", "(\"5X确认\", [((\"A\",), 10), ((), 2), (\"confirm\", 0)]),",
      "R44回退: 宏定义改名但类别集合不变→幽灵名断言必须红(原全局替换宏定义与集合同变=无幽灵)"),
     ("tm_env.py", "\"reisen\": 10, \"komachi\": 12,", "\"reisen\": 10,",
      "R46§3-1回退: CHAR表缩回旧版(新角色KeyError) → CHAR20断言必须红"),
-    ("macros_sakuya.py", "MACROS_SAKUYA = [(n, _norm_presteps(sc)) for n, sc in _RAW_SAKUYA]", "MACROS_SAKUYA = _RAW_SAKUYA",
+    ("macros/sakuya.py", "MACROS_SAKUYA = [(n, _norm_presteps(sc)) for n, sc in _RAW_SAKUYA]", "MACROS_SAKUYA = _RAW_SAKUYA",
      "R46§3-2回退: 规范化重绑定丢失(14宏跑原始脚本) → 规范化断言必须红"),
     # 从零#2迁移: R61d(A3)裁决后ID集已换(旧159-167/50-98失效)
     ("frame_events.py", "frozenset(range(150, 167)) - {158}",
@@ -488,6 +488,9 @@ def build_sandbox(sb):
               "(mod源码树; C9降WARN)。可用 SELFTEST_TMPDIR 指到大盘。"
               % (_free, _need_gb))
     for f in FILES:
+        _d = os.path.dirname(os.path.join(sb, f))
+        if _d:
+            os.makedirs(_d, exist_ok=True)
         shutil.copy2(os.path.join(ROOT, f), os.path.join(sb, f))
     os.makedirs(os.path.join(sb, "tools"), exist_ok=True)
     for tf in sorted(os.listdir(os.path.join(ROOT, "tools"))):
@@ -495,9 +498,12 @@ def build_sandbox(sb):
             shutil.copy2(os.path.join(ROOT, "tools", tf),
                          os.path.join(sb, "tools", tf))
     # 行为测试随沙箱(沙箱门禁从自身目录运行它们)
-    for t in sorted(os.listdir(ROOT)):
+    _tdir = os.path.join(sb, "tests")
+    os.makedirs(_tdir, exist_ok=True)
+    for t in sorted(os.listdir(os.path.join(ROOT, "tests"))):
         if t.startswith("test_") and t.endswith(".py"):
-            shutil.copy2(os.path.join(ROOT, t), os.path.join(sb, t))
+            shutil.copy2(os.path.join(ROOT, "tests", t),
+                         os.path.join(_tdir, t))
     # BC库副本(C12断言指向沙箱)
     bcdir = os.path.join(sb, "bc")
     os.makedirs(bcdir, exist_ok=True)

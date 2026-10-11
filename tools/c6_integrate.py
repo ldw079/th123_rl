@@ -96,7 +96,7 @@ def main():
             print('%s: 0条可转换' % ch)
             continue
 
-        fpath = os.path.join(ROOT, 'macros_%s.py' % ch)
+        fpath = os.path.join(ROOT, 'macros', '%s.py' % ch)
         src = open(fpath, encoding='utf-8').read()
         m = re.search(r'(MACROS_[A-Z_]+)\s*=', src)
         var = m.group(1)

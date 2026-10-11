@@ -91,13 +91,13 @@ import config
 chk(threat.GAME_FPS == 62, "threat.GAME_FPS==62", "got %r" % threat.GAME_FPS)
 chk(config.FPS == 62, "config.FPS==62", "got %r" % config.FPS)
 _div60 = re.compile(r"/\s*60(?:\.0)?\b")
-for f in ["threat.py", "feat_builder.py", "train_tm.py", "macros.py",
+for f in ["threat.py", "feat_builder.py", "train_tm.py", "macros/__init__.py",
           "opp_model.py", "standard_tree.py"]:
     bad = [l.strip() for l in lines(f) if _div60.search(l)]
     chk(not bad, "无/60帧转秒残留@%s" % f, "; ".join(bad[:2]))
 # AST级60字面量扫描: 时敏文件零容忍; 结构文件按行白名单(网格60×80/重试range/tps默认)
-_STRICT60 = ["threat.py", "feat_builder.py", "macros.py", "macros_marisa.py",
-             "macros_suika.py", "opp_model.py", "standard_tree.py"]
+_STRICT60 = ["threat.py", "feat_builder.py", "macros/__init__.py", "macros/marisa.py",
+             "macros/suika.py", "opp_model.py", "standard_tree.py"]
 _ALLOW60 = re.compile(r"80|range\(|default=60|tps=60")
 for f in _STRICT60 + ["train_tm.py", "config.py", "ppo.py", "tm_env.py"]:
     bad = []
@@ -115,8 +115,8 @@ import feat_builder
 import opp_model
 # R17: core 260→308(对手建模段10: 27→75); 宏数从三库动态取(防硬编码漂移)
 import macros
-import macros_marisa
-import macros_suika
+import macros.marisa as macros_marisa
+import macros.suika as macros_suika
 chk(feat_builder.FeatureBuilder.CORE_DIMS == 330,
     "CORE_DIMS==330(B风格段: 316+14对手已出卡)",
     "got %r" % feat_builder.FeatureBuilder.CORE_DIMS)
@@ -544,7 +544,7 @@ chk(fb2.count("gauge_feat(") == 6, "gauge_feat接线=定义+5处",
 # ============ C8 基准树教义(三角色) ============
 print("=== C8 基准树教义(宏名存在/节点覆盖/角色路由) ===")
 import standard_tree
-import macros_marisa, macros_suika
+import macros.marisa as macros_marisa, macros.suika as macros_suika
 chk(set(standard_tree.TREES) == {"reimu", "marisa", "suika"},
     "TREES三角色齐", "got %s" % sorted(standard_tree.TREES))
 _N = {"reimu": {m[0] for m in macros.MACROS},
@@ -722,8 +722,8 @@ def _adjacency_ok(script):
 
 
 import macros as _mc
-import macros_marisa as _mm
-import macros_suika as _ms
+import macros.marisa as _mm
+import macros.suika as _ms
 for lib, names in ((_mc.MACROS, "reimu"), (_mm.MACROS_MARISA, "marisa"),
                    (_ms.MACROS_SUIKA, "suika")):
     bad = [m[0] for m in lib if not _adjacency_ok(m[1])]
@@ -742,9 +742,9 @@ chk(_t3[0] == (("down",), 6),
     str(_t3[0]))
 chk(_t3[0] == (("down",), 6) and "up" not in _t3[0], "D14回归哨兵")
 # 三库源始字面断言(非规范化产物 — 变异真正打得到的地方)
-mc_src = src("macros.py")
-mm_src = src("macros_marisa.py")
-ms_src = src("macros_suika.py")
+mc_src = src("macros/__init__.py")
+mm_src = src("macros/marisa.py")
+ms_src = src("macros/suika.py")
 chk('[(("down",), 6), (("down", "A"), 10)]' in mc_src,
     "reimu 2A源始预置步=down×6(hitlab v9标定阈值5)")
 chk('[(("down",), 6), (("down", "A"), 10)]' in mm_src,
@@ -821,10 +821,10 @@ chk(fn_has("side_driver.py", "decide",
                "mask = mask & ~self.air_combo_idx"),
     "SideDriver同款位置门控(R23) [decide体内]")
 # 新宏末位追加契约(本次差点中插错位全部下游)
-chk("新宏必须追加在列表末尾" in src("macros_suika.py")
-    or "新宏必须追加在列表末尾" in src("macros.py"),
+chk("新宏必须追加在列表末尾" in src("macros/suika.py")
+    or "新宏必须追加在列表末尾" in src("macros/__init__.py"),
     "宏库末位追加契约注记在位(R23)")
-import macros_suika as _MS
+import macros.suika as _MS
 _suika_last = [m[0] for m in _MS.MACROS_SUIKA][-4:]
 chk(_MS.N_MACROS_SUIKA == 77
     and "原子·确认5A" in [m[0] for m in _MS.MACROS_SUIKA],
@@ -913,7 +913,7 @@ chk(fn_has("macro_executor.py", "advance_queue", "300 <= opp_a < 600"),
     "帧级防御中断在位(R34, R61u C1移至macro_executor) [advance_queue体内]")
 chk(fn_has("macro_executor.py", "advance_queue", "spirit < 100"),
     "灵力门控在位(R34, R61u C1移至macro_executor) [advance_queue体内]")
-import macros_marisa as _MM
+import macros.marisa as _MM
 chk(_MM.N_MACROS_MARISA == 76
     and [m[0] for m in _MM.MACROS_MARISA][-4:] ==
     ["压起身·即", "压起身·延迟", "压起身·空", "压起身·穿"]
@@ -921,7 +921,7 @@ chk(_MM.N_MACROS_MARISA == 76
     "marisa四原子在位+C4压起身末位(R34+R61n: 69+7=76)")
 # R35(六大差距方案实施)
 import macros as _MR
-import macros_suika as _MS2
+import macros.suika as _MS2
 chk(_MR.N_MACROS == 70
     and [m[0] for m in _MR.MACROS][-4:] ==
     ["压起身·即", "压起身·延迟", "压起身·空", "压起身·穿"]
@@ -1052,8 +1052,8 @@ _NEW6 = ('sakuya', 'patchouli', 'yuyuko', 'reisen', 'komachi', 'tenshi',
          'alice', 'youmu', 'remilia', 'yukari', 'aya', 'iku', 'sanae',
          'cirno', 'meiling', 'utsuho', 'suwako')
 for _nc in _NEW6:
-    _np = os.path.join(ROOT, 'macros_%s.py' % _nc)
-    chk(os.path.exists(_np), "宏库存在@macros_%s.py(R44/45)" % _nc)
+    _np = os.path.join(ROOT, 'macros', '%s.py' % _nc)
+    chk(os.path.exists(_np), "宏库存在@macros/%s.py(R44/45)" % _nc)
 chk(all(_nc in _CL39 for _nc in _NEW6),
     "十七新角色全部注册CHAR_LIBS(R44/45)")
 chk(all(_nc in _CMM39 for _nc in _NEW6),
@@ -1081,17 +1081,17 @@ for _nc in _NEW6:
 from tm_env import CHAR as _TE_CHAR
 chk(len(_TE_CHAR) == 20, "tm_env CHAR表全20角色(R46§3-1阻塞项修复)")
 _nc17 = [c for c in _NEW6]
-_n46 = all(getattr(__import__('macros_%s' % c),
+_n46 = all(getattr(__import__('macros.%s' % c, fromlist=['*']),
                     'NORMALIZED_AFFECTED_%s' % c.upper()) is not None
-           and isinstance(getattr(__import__('macros_%s' % c),
+           and isinstance(getattr(__import__('macros.%s' % c, fromlist=['*']),
                                   'NORMALIZED_AFFECTED_%s' % c.upper()), set)
-           and len(getattr(__import__('macros_%s' % c),
+           and len(getattr(__import__('macros.%s' % c, fromlist=['*']),
                            'NORMALIZED_AFFECTED_%s' % c.upper())) > 0
            for c in _nc17)
 chk(_n46, "17库hitlab规范化重绑定为set且非空(R46§3-2)")
-chk(all('236B' in getattr(__import__('macros_%s' % c),
+chk(all('236B' in getattr(__import__('macros.%s' % c, fromlist=['*']),
                           '%s_SKILL_MACROS' % c.upper())
-        and '236B' not in getattr(__import__('macros_%s' % c),
+        and '236B' not in getattr(__import__('macros.%s' % c, fromlist=['*']),
                                   '%s_BULLET_MACROS' % c.upper())
         for c in _nc17),
     "17库指令必杀归SKILL非BULLET(R46§3-3: 贴身禁令修正)")
@@ -1347,7 +1347,7 @@ _NEW17 = ['yukari', 'komachi', 'meiling', 'sanae', 'youmu', 'yuyuko',
 for _ch in _NEW17:
     _truth = {int(i): (int(c) if str(c).isdigit() else 1)
               for i, _n, c in _CCT[_CHAREN[_ch]]}
-    _mod = _il17.import_module('macros_%s' % _ch)
+    _mod = _il17.import_module('macros.%s' % _ch)
     _cost = getattr(_mod, 'SC_COST_%s' % _ch.upper())
     # 只对≥100的角色卡严格对表(0/1=系统卡槽位, 不在CHAR_CARD_TABLES)
     _bad = {cid: (_cost[cid], _truth.get(cid))
@@ -1370,8 +1370,8 @@ for _ch in ("reimu", "marisa", "suika"):
     _C = _d["C"]
     # R40(第十一轮§6-6): 原硬编码55/61/62(R19时点值) — 分母动态取当前宏数
     import importlib as _il
-    _modmap = {"reimu": "macros", "marisa": "macros_marisa",
-               "suika": "macros_suika"}
+    _modmap = {"reimu": "macros", "marisa": "macros.marisa",
+               "suika": "macros.suika"}
     _n_macros = len(getattr(_il.import_module(_modmap[_ch]),
                             {"reimu": "MACROS", "marisa": "MACROS_MARISA",
                              "suika": "MACROS_SUIKA"}[_ch]))
@@ -1675,7 +1675,7 @@ chk(fn_has("train_tm.py", "__init__",
     "R61e/B6: COM难度持久化(读侧__init__续档+写侧_com_ladder落盘双锚 — "
     "R61e变异教训: 只锚读侧时杀落盘的变异逃逸)")
 import re as _re61e
-_bs = _re61e.findall(r'_BULLET_MACROS = \{([^}]*)\}', src("macros_sakuya.py"))
+_bs = _re61e.findall(r'_BULLET_MACROS = \{([^}]*)\}', src("macros/sakuya.py"))
 chk(_bs and '"2C"' in _bs[0],
     "R61e: 生成库BULLET补2C(17库, 原宏存在但零分类) [常量集, 合理文本钉]")
 
@@ -1831,7 +1831,7 @@ _BEHAVIOR_TESTS = [
      "D3': league20_opps组成/league_alloc泛化回归/种子维度守卫幂等/build_opp_cycle池根注入+严格性"),
 ]
 for _tname, _tdesc in _BEHAVIOR_TESTS:
-    _tp = os.path.join(ROOT, _tname)
+    _tp = os.path.join(ROOT, 'tests', _tname)
     if not os.path.exists(_tp):
         chk(False, "行为测试存在@%s" % _tname, "文件缺失")
         continue

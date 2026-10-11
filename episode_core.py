@@ -61,13 +61,13 @@ def code_macro_count(char):
     """**代码侧**宏库大小(learner侧唯一真值源, 与actor/train_tm同源)。
 
     与 train_tm._load_char_libs 同约定: reimu→macros.MACROS,
-    其余→macros_<char>.MACROS_<CHAR>。取不到返回None(调用方降级)。
+    其余→macros.<char>.MACROS_<CHAR>。取不到返回None(调用方降级)。
     """
     try:
         if char == "reimu":
             import macros as _m
             return len(_m.MACROS)
-        _m = __import__('macros_%s' % char)
+        _m = __import__('macros.%s' % char, fromlist=['*'])
         return len(getattr(_m, 'MACROS_%s' % char.upper()))
     except Exception:
         return None
@@ -119,7 +119,7 @@ def check_model_generation(char, model_n_out):
     """
     _cn = code_macro_count(char)
     if _cn is None:
-        return ("无法确定代码侧宏数(macros_%s不可导入)" % char)
+        return ("无法确定代码侧宏数(macros.%s不可导入)" % char)
     if int(model_n_out) != int(_cn):
         return ("模型档宏数%d≠当前代码宏数%d — 代际不符, 需迁移/重训模型, "
                 "不要用旧档续训" % (int(model_n_out), int(_cn)))

@@ -70,7 +70,7 @@ def pre_flight():
     except Exception as e:
         print('[前置] league种子异常(%s) — 继续(双兜底)' % e)
     r = subprocess.run([PY, '-X', 'utf8',
-                        os.path.join(ROOT, 'test_fleet_protocol.py')],
+                        os.path.join(ROOT, 'tests', 'test_fleet_protocol.py')],
                        capture_output=True, cwd=ROOT)
     ok = r.returncode == 0
     print('[前置] fleet协议测试 %s' % ('21+ PASS' if ok else '!!FAIL — 先修'))

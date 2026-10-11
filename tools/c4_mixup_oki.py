@@ -173,8 +173,8 @@ def integrate(char):
     """向角色宏库末位追加表里择+压起身宏+类别集更新。"""
     import re
     fpath = os.path.join(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__))), 'macros_%s.py' % char
-        if char != 'reimu' else 'macros.py')
+        os.path.abspath(__file__))), 'macros', ('%s.py' % char)
+        if char != 'reimu' else '__init__.py')
     src = open(fpath, encoding='utf8').read()
 
     # 找到宏变量名

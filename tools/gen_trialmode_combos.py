@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """R61i(C6): 17新角色Trialmode连段→宏库追加。
 从trialmode_to_macro的combo_to_macro管线, 按角色生成追加片段并直接
-写入macros_<char>.py末位(末位追加契约)。每角色取伤害topN条(≤8步)。
+写入macros/<char>.py末位(末位追加契约)。每角色取伤害topN条(≤8步)。
 """
 import os
 import sys
@@ -52,7 +52,7 @@ def main():
             print('%s: 0条可转换' % ch)
             continue
         # 写入macros_<ch>.py末位
-        fpath = os.path.join(ROOT, 'macros_%s.py' % ch)
+        fpath = os.path.join(ROOT, 'macros', '%s.py' % ch)
         src = open(fpath, encoding='utf8').read()
         import re
         m = re.search(r'(MACROS_[A-Z_]+)\s*=', src)

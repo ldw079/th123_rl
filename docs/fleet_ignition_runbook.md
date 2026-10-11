@@ -8,7 +8,7 @@
 
 ```bat
 cd %USERPROFILE%\Desktop\workplace\th123_rl
-D:\temp\pyenv\python.exe -X utf8 test_fleet_protocol.py      :: 须 24/24 (R63 起)
+D:\temp\pyenv\python.exe -X utf8 tests\test_fleet_protocol.py      :: 须 24/24 (R63 起)
 D:\temp\pyenv\python.exe -X utf8 tools\contract_check.py     :: 须 0 FAIL / 0 WARN
 ```
 

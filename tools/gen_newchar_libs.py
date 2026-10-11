@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """R44: 六新角色宏库生成器(咲夜/帕秋莉/幽幽子/铃仙/小町/天子)。
 
-产物: macros_{char}.py ×6 — 结构与三现役库同构:
+产物: macros/{char}.py — 结构与三现役库同构:
 - 通用体术/移动/防御/系统卡(引擎级一致, 照搬现役模板)
 - 指令技 236/623/22/214 × B/C(输入公式化, mod层直收)
 - 空中体术 jA/j6A/j8A/j2A/jB/jC
@@ -215,7 +215,7 @@ def main():
             SC_MACROS='\n'.join(sc_lines),
             SC_EXTRA_NAMES=(', ' + ', '.join(sc_extra)) if sc_extra else '',
             SC_COST_DICT=cost_str)
-        p = os.path.join(HERE, 'macros_%s.py' % en)
+        p = os.path.join(HERE, 'macros', '%s.py' % en)
         io.open(p, 'w', encoding='utf-8').write(body)
         n = body.count('    ("')  # 宏数粗计
         print('生成 %s: %s (符卡%d张, 耗费%s)' % (en, p, len(scs), cost_str))

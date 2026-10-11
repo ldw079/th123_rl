@@ -67,8 +67,8 @@ CHAR_LIBS = {}
 
 def _load_char_libs():
     import macros as m_reimu
-    import macros_marisa as m_marisa
-    import macros_suika as m_suika
+    import macros.marisa as m_marisa
+    import macros.suika as m_suika
     # P1-1修复: 距离掩码用全攻击集(近战+弹幕+必杀+连段+压制+空中体术)
     # 原版只用了MELEE(5)+BULLET(8), 漏了COMBO/STRING/SKILL/AIR/DA等15+宏
     def _attack_set(melee, bullet, skill, combo, string, air):
@@ -121,7 +121,7 @@ def _load_char_libs():
         ('meiling', 17), ('utsuho', 18), ('suwako', 19),
     ]
     for _nc, _nid in _NEW_SPECS:
-        _m = __import__('macros_%s' % _nc)
+        _m = __import__('macros.%s' % _nc, fromlist=['*'])
         _U = _nc.upper()
         CHAR_LIBS[_nc] = {
             "id": _nid, "macros": getattr(_m, 'MACROS_%s' % _U),
