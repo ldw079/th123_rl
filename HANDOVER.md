@@ -1,6 +1,6 @@
 # TH123 对战 AI 项目交接文档
 
-> 日期: 2026-10-08 · 供下一个智能体直接接手
+> 日期: 2026-10-08 · 2026-10-11 对账修订(§五门禁数字/§七训练状态按实盘校正, 见 METHODOLOGY 2.64) · 供下一个智能体直接接手
 > 读完本文即可开始工作; 细节按需查阅引用文档。
 
 ---
@@ -77,7 +77,7 @@ D:\temp\pyenv\python.exe -X utf8 tools\audit_all.py
 D:\temp\pyenv\python.exe -X utf8 tools\contract_check.py
 ```
 
-- 当前: **533 PASS / 2 WARN / 0 FAIL**
+- 当前: **565 PASS / 0 WARN / 0 FAIL**(2026-10-11 实测)
 - 门禁不过 = 不许提交
 - 变异自检(可选但推荐): `SELFTEST_TAGS=<标签> python tools/gate_selftest.py`
 
@@ -103,8 +103,10 @@ fleet_supervisor.py --actors 3
 
 ## 七、当前状态
 
-- **训练**: 运行中(fleet 3 actor + 剥削者)
-- **观察项**: R62 相关性回正 / B 风格段活性 / C 流派战绩收敛 / 剥削者 gauge
+- **训练**: **已停止** — 最后活动 2026-10-08 22:47(模型快照/episode/actor日志同刻止, fleet 日志以 league 重算收尾、无正常停机记录, 停因未记录)。接手后第一件事: 重新点火(`启动训练.bat`), 点火前按 `docs/fleet_ignition_runbook.md` 清残留(fleet.lock / 旧 episode / scratch)
+- **R63 修复已生效**: 10-08 20:18 fleet 重启载入 R63 后代码(随 04499b2 入库), 该轮 episode 零 failed
+- **上轮末期读数**(10-08 22:46 league 重算): COM 0W-16L(主策略全胜) / 剥削者快照 0W-5L(gauge 健康) / 镜像对手 0W-7L
+- **观察项**(恢复训练后): R62 相关性回正 / B 风格段活性 / C 流派战绩收敛 / 剥削者 gauge
 - **已知问题**: th123.exe 偶发 "pure virtual function call" 崩溃(游戏级, actor 自动恢复)
 
 ## 八、工作流
@@ -152,4 +154,4 @@ fleet_supervisor.py --actors 3
 
 ---
 
-*本交接文档覆盖 2026-10-08 为止的全部工作。METHODOLOGY.md 是唯一权威 — 与本文冲突处以宪法为准。*
+*本交接文档覆盖 2026-10-08 为止的全部工作; 2026-10-11 对账修订了门禁数字与训练状态(METHODOLOGY 2.64)。METHODOLOGY.md 是唯一权威 — 与本文冲突处以宪法为准。*
