@@ -1963,3 +1963,27 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
   - **观察项**: 首个league位命中在第10轮换(ep50≈4h后, sakuya位);
     overnight后查: league对局胜率分布(vs init_fresh随机网应显著>50%,
     若≈50%=主策略弱于预期的红灯)、league重算行的新角色标签stats累积。
+
+- 2.67 (2026-10-11, **R66 根目录整理** — 用户指令"整理项目文件夹架构"):
+  - **原则**: 路径即契约 — 门禁568断言按路径锚定源文件、fleet进程按
+    cwd+文件名拉起actor/learner、文档按路径引用。**只动零引用档, 不移动
+    任何活模块**(macros_*/test_*留根目录是既定惯例, 移动=全链改锚的
+    纯风险零收益)。
+  - **归档12档**(git mv → _archive/root_cleanup_20261011/, 逐档README
+    记因): M0纯视觉演示栈5件(bot/capture/demo.bat/selftest×2 — demo.bat
+    调用的loop.py早已归档=死链, 自检职能由C15门禁替代)/monitor.py(读
+    fleet前旧日志路径, audit_all替代)/oracle_batch.py(v1, v2正统)/
+    _tmp_probe_b.py(B波侦察一次性)/restart_train_tmp.bat(硬编码PID
+    一次性)/ModLoaderSettings.json仓库副本(门禁查的是游戏目录真档)/
+    根级数据产物distill_data.npz+wm_dynamics.npz(生产数据在STORE)。
+  - **判定法(四路全空才归档)**: 活模块import图+门禁路径锚定+bat调用+
+    runbook回退路径。**保留但易误判**: 一键开训.bat(runbook记载的
+    单实例回退启动器)、perception/standard_tree/config/level_macros/
+    skill_levels/bc_align(train_tm/side_driver/feat_builder/bc_build
+    import)。
+  - **规范化新增**: ①README.md(仓库标准入口: 教义/文档路由/快速开始/
+    目录结构/工作流 — 项目此前无README, M0时代的README在_archive);
+    ②.gitignore根级 /*.npz(distill.py等工具根目录输出保持未跟踪);
+    ③logs/陈旧档删除(demo.bat时代产物, 已gitignore)。
+  - **验证**: 94 py编译0失败; 34活模块import全通; 门禁568/0/0(归档
+    零锚定实证); fleet不受影响(21:23拓扑持续, 无重启事件)。

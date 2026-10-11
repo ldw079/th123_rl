@@ -13,3 +13,7 @@ __pycache__/
 *.tmp
 *.tmp.npz
 *.corrupt
+# R66(根目录整理): 根级数据产物一律不入库 — distill.py等工具的输出档
+# 落根目录时保持未跟踪(历史残留distill_data.npz/wm_dynamics.npz已归档)
+/*.npz
+/*.json.tmp

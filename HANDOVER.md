@@ -137,6 +137,7 @@ fleet_supervisor.py --actors 3
 | 文件 | 何时读 |
 |---|---|
 | 本文(HANDOVER.md) | 接手时读一遍 |
+| `README.md` | 仓库标准入口(快速开始/目录结构) |
 | `METHODOLOGY.md` 尾部(最新版本条目) | 每次开工前扫最近 3 个版本 |
 | `AGENTS.md` | 需要通道/门禁细节时 |
 | `docs/master_plan_2026-10-05.md` | 了解任务全景与状态 |
