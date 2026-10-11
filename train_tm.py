@@ -222,6 +222,14 @@ _FRAME_EV_NAMES = {v: k for k, v in frame_events.__dict__.items()
 # R43方案A(池刷新制度): 本角色每POOL_SNAPSHOT_EVERY局快照入池(只写自己
 # 目录, 跨训练器零竞争), 滚动保留POOL_KEEP个; 对手路径在**轮换时动态解析**
 # (原启动时冻结 — 10-03批次28h全程打10-02旧对手的根因)。
+# D3'(R65)按实测吞吐重标定推导(原值为云6-12×吞吐时代设定, 撤云后验证):
+#   实测 ~5min/局/actor ≈ 12局/h/角色 → POOL_SNAPSHOT_EVERY=50聚合局
+#   ≈ 4.2h/池快照; POOL_K=3 → 对手可选窗 ≈ 12.6h; 对手周期(D3'后27位×5局
+#   =135局/轮 ≈ 11h/轮)主角色位每轮命中1-2个快照代 — 快照分辨率≈轮换
+#   分辨率(不浪费也不欠采样); league静态位(seed)标签永不变, min_games=5
+#   在fleet聚合stats下约1轮命中即过中性期。结论: 三常量在本地吞吐下
+#   数值维持, 推导入册(METHODOLOGY 2.66) — 重标定的交付物是推导本身,
+#   下次吞吐变化(如actor扩容)按此式重算。
 POOL_SNAPSHOT_EVERY = 50
 POOL_KEEP = 6
 POOL_K = 3   # R43: 池深(原main()局部变量 — _resolve_pool模块级引用需要提升)
@@ -1980,15 +1988,21 @@ class TMTrainer:
             print("  ✓ 与标准一致")
 
 
-def build_opp_cycle(specs):
+def build_opp_cycle(specs, pool_root=None, strict=True):
     """--opp规格列表 → 轮换对手cycle。R56(fleet): 从main()原文抽出 —
     fleet actor用同一函数构造对手池(防双拷贝漂移)。
     specs: ["reimu", "COM", ...]或["reimu:path.npz"]; 返回[(char, path|None)]
-    或specs为空时None。轮换时None→动态解析池快照(R43)。"""
+    或specs为空时None。轮换时None→动态解析池快照(R43)。
+    D3'(R65): pool_root可注入 — 原恒查生产POOL_DIR, 而fleet actor运行时
+    _resolve_pool读注入的fleet池根=启动校验与运行时解析**查的不是同一个
+    池**(现3角色靠生产池恰好有trio快照侥幸通过)。fleet须传fleet池根。
+    strict=False时池空角色跳过该周期位(league角色种未种齐不炸actor;
+    运行时再度变空由_rotate_opp的安全跳过兜底), strict=True保留原
+    SystemExit语义(单实例模式误配置响亮失败)。"""
     if not specs:
         return None
     from outer_loop import OpponentPool
-    pool = OpponentPool()
+    pool = OpponentPool(pool_root) if pool_root else OpponentPool()
     # R22(用户2026-10-02): 池深k=3 — 原latest(1)只有对手当前版,
     # 无历史对抗(策略循环+旧技能遗忘风险); 镜像对局由--opp含己方
     # 角色实现(run_parallel已配)。快照按新近度交错排列, 每个轮换
@@ -2002,7 +2016,13 @@ def build_opp_cycle(specs):
         if not pth:
             cands = pool.latest(ch, k=POOL_K)
             if not cands:
-                raise SystemExit("对手池无 %s 快照 — 先跑 outer_loop.py snapshot" % ch)
+                if strict:
+                    raise SystemExit(
+                        "对手池无 %s 快照 — 先跑 outer_loop.py snapshot" % ch)
+                # D3'(R65): 非严格模式跳过该位(league角色未种/被清,
+                # actor降级到剩余周期位, 不炸启动)
+                print("[opp] 池无%s快照 — 周期跳过该位" % ch)
+                continue
             # R43: 条目存None — 轮换时动态解析(新快照自动入局);
             # 此处仅校验池非空并留启动信息
             _per.append([(ch, None)])

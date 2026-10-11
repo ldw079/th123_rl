@@ -33,7 +33,10 @@ STORE = os.environ.get('TH123_STORE', r'D:\temp\th123_models')
 LOCK = os.path.join(STORE, 'fleet.lock')
 SUPERVISION_LOG = os.path.join(STORE, 'fleet_supervision.log')
 
-CHARS = ('reimu', 'marisa', 'suika')
+CHARS = ('reimu', 'marisa', 'suika')   # 主角色(有learner); D3'(R65): --focus可配
+# D3'(R65): league对手周期 — 主角色块×LEAGUE_FOCUS_WEIGHT + 全量league角色
+# + COM(份额推导见league.league20_opps docstring)。
+LEAGUE_FOCUS_WEIGHT = 3
 STAGGER_S = 20
 MAX_RESTARTS = 20
 COOLDOWN_S = 30
@@ -52,16 +55,21 @@ def log(msg):
         f.write(line + '\n')
 
 
-def league_alloc(n_actors, stats=None):
-    """分配actor到角色。和恒=n_actors; n≥6时每角色保底2, 余量按
-    league权重(胜率低=更需练习的对手位); n<6时均分+余量轮转。"""
-    alloc = {ch: n_actors // 3 for ch in CHARS}
+def league_alloc(n_actors, chars=CHARS, stats=None):
+    """分配actor到主角色(有learner的角色位)。和恒=n_actors。
+
+    D3'(R65)泛化: 原硬编码3角色(n//3), 现 n//len(chars) 均分+余量按
+    league权重(本角色胜率低=更需练习位)。3角色3actor时与原行为逐位相等
+    (回归锚); chars数>actor数时base=0由余量轮转兜底(每角色至少有机会)。
+    """
+    n = len(chars)
+    alloc = {ch: n_actors // n for ch in chars}
     rem = n_actors - sum(alloc.values())
-    order = list(CHARS)
+    order = list(chars)
     if rem > 0 and stats:
         # league权重: 本角色胜率越低 → 越需要actor(练习位)
         weights = []
-        for ch in CHARS:
+        for ch in chars:
             w_total = 0
             n_total = 0
             for label, (w, l) in stats.items():
@@ -156,11 +164,46 @@ def reap_orphans():
     return n
 
 
+def _spawn_actor(ch, aid, port, opp_specs):
+    """启动一个actor(boot与重启共用同一构造 — 防双拷贝漂移)。
+
+    D3'(R65): opp_specs=league20_opps产物(20角色对手周期), 显式--opp
+    下发(与actor_worker独立运行时的默认构建同源)。
+    """
+    from portmap import fleet_port
+    cmd = [PY, '-X', 'utf8', '-u', 'actor_worker.py',
+           '--char', ch, '--actor', str(aid),
+           '--port', str(port),
+           '--episodes', str(ACTOR_EPISODES)]
+    for spec in opp_specs:
+        cmd += ['--opp', spec]
+    p = subprocess.Popen(
+        cmd, cwd=HERE, creationflags=CG,
+        stdout=open(r'D:\temp\actor_%s_%d.log' % (ch, aid),
+                    'a', encoding='utf8'),
+        stderr=subprocess.STDOUT)
+    return p
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--actors', type=int, default=8)
+    ap.add_argument('--focus', default=','.join(CHARS),
+                    help='主角色位(有learner, 逗号分隔; 默认%s)'
+                         % ','.join(CHARS))
+    ap.add_argument('--league-weight', type=int, default=LEAGUE_FOCUS_WEIGHT,
+                    help='对手周期中主角色块倍率(D3\')')
     args = ap.parse_args()
     n_actors = args.actors
+    chars = tuple(c.strip() for c in args.focus.split(',') if c.strip())
+
+    # D3'(R65): 20角色league对手周期(单源构建器, actor_worker默认同源)
+    from league import league20_opps
+    opp_specs = league20_opps(None, focus=chars, weight=args.league_weight)
+    log('league对手周期: %d位(主角色块×%d+league%d+COM) %s...'
+        % (len(opp_specs), args.league_weight,
+           len(opp_specs) - len(chars) * args.league_weight - 1,
+           '+'.join(opp_specs[:6])))
 
     actors = {}   # (char, actor_id) -> proc
     learners = {}  # char -> proc
@@ -196,11 +239,11 @@ def main():
 
     try:
         # league分配
-        alloc = league_alloc(n_actors)
+        alloc = league_alloc(n_actors, chars)
         log('league分配: %s (共%d actor)' % (alloc, sum(alloc.values())))
 
         # 启动learner(每角色一个, 先启动)
-        for ch in CHARS:
+        for ch in chars:
             cmd = [PY, '-X', 'utf8', '-u', 'learner_hub.py',
                    '--char', ch]
             p = subprocess.Popen(cmd, cwd=HERE, creationflags=CG,
@@ -213,21 +256,12 @@ def main():
             time.sleep(5)
 
         # 错峰启动actor
+        from portmap import fleet_port
         actor_id = 0
         for ch, count in alloc.items():
             for i in range(count):
-                from portmap import fleet_port
                 port = fleet_port(actor_id)
-                cmd = [PY, '-X', 'utf8', '-u', 'actor_worker.py',
-                       '--char', ch, '--actor', str(actor_id),
-                       '--port', str(port),
-                       '--episodes', str(ACTOR_EPISODES)]
-                p = subprocess.Popen(
-                    cmd, cwd=HERE, creationflags=CG,
-                    stdout=open(
-                        r'D:\temp\actor_%s_%d.log' % (ch, actor_id),
-                        'a', encoding='utf8'),
-                    stderr=subprocess.STDOUT)
+                p = _spawn_actor(ch, actor_id, port, opp_specs)
                 actors[(ch, actor_id)] = p
                 log('启动 actor_%s_%d PID=%d port=%d' % (
                     ch, actor_id, p.pid, port))
@@ -238,7 +272,7 @@ def main():
 
         # 监督循环
         restarts = {k: 0 for k in list(actors) + [
-            ('learner', ch) for ch in CHARS]}
+            ('learner', ch) for ch in chars]}
         last_league = time.time()
         while actors or learners:
             time.sleep(10)
@@ -275,18 +309,7 @@ def main():
                 log('%s 退出(code=%s) — %ds后重启' % (
                     str(key), p.returncode, COOLDOWN_S))
                 time.sleep(COOLDOWN_S)
-                from portmap import fleet_port
-                port = fleet_port(aid)
-                cmd = [PY, '-X', 'utf8', '-u', 'actor_worker.py',
-                       '--char', ch, '--actor', str(aid),
-                       '--port', str(port),
-                       '--episodes', str(ACTOR_EPISODES)]
-                p2 = subprocess.Popen(
-                    cmd, cwd=HERE, creationflags=CG,
-                    stdout=open(
-                        r'D:\temp\actor_%s_%d.log' % (ch, aid),
-                        'a', encoding='utf8'),
-                    stderr=subprocess.STDOUT)
+                p2 = _spawn_actor(ch, aid, fleet_port(aid), opp_specs)
                 actors[key] = p2
                 restarts[key] = rk + 1
                 log('%s 已重启 PID=%d' % (str(key), p2.pid))

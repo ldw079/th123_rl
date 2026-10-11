@@ -1923,3 +1923,43 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     fleet_supervisor CHARS 硬编码三角色 + 每角色 1 learner 的 CPU 上限
     (本机 4actor 已满) → 20 角色 league 需 learner 分时/轮换架构设计,
     非配置改动, 登记为下轮设计项。
+
+- 2.66 (2026-10-11, **R65 D3' 落地: 20角色league对手生态** — 用户指令
+  "把D3推进完成"):
+  - **形态裁定(本地容量下)**: "满配actor"=本机容量上限已达成(3 fleet
+    actor+剥削者=4游戏实例, 6actor实测饱和); 20角色league的本地正确
+    形态 = **对手生态扩容**(league角色作静态锚点对手), 非20个learner。
+    league17角色无learner=快照永不换代 → 标签稳定 → stats跨天累积,
+    恰是league加权(R48 fictitious play)需要的慢变量。
+  - **落地件**: ①league.league20_opps(单源对手周期构建器: 主角色块
+    ×3交错+league17+COM, 周期27位; 份额: 主37%/league63%/COM 3.7% —
+    COM从25%降档: 0-16L无梯度, C对抗池VS_PLAYER才是主信号); ②
+    seed_league_pool(种子工具: 维度守卫拒收/幂等跳过/refresh重种/
+    v-pi成对先v后pi; train_start前置自动补种=点火自愈); ③
+    fleet_supervisor --focus/--league-weight + league_alloc 泛化到
+    N角色(3角色3actor逐位回归锚保持) + actor命令构造抽_spawn_actor
+    单源(boot/重启双拷贝终结); ④actor默认opps接league20_opps。
+  - **集成缝×2(实施中挖出, 皆结构性)**: ①build_opp_cycle启动校验恒查
+    **生产池根**而运行时_resolve_pool读注入的**fleet池根**=校验与解析
+    脱节(现3角色靠生产池恰好有trio快照侥幸通过); 且池空SystemExit会
+    炸actor启动。修: pool_root参数(fleet传同根)+strict=False降级跳过
+    (league未种齐不炸, 运行时安全跳过兜底)。②build_newchar_models
+    n_side硬编码"+308" — CORE_DIMS两变(308→316→330)皆未同步到该工具
+    =**常量横扫SOP的漏网面**(工具类脚本不grep就漏); 且旧17角色模型
+    是66宏/308核代际, 维度守卫正确拒收(守卫按设计工作)。修: 改
+    FeatureBuilder.CORE_DIMS派生+17模型重建归档(_archive_newchar66_
+    20261011; 旧档=init_fresh从未训练的随机网, 重建**无损**)。
+  - **池常量重标定(推导入册, 数值维持)**: 实测吞吐~5min/局/actor≈
+    12局/h/角色 → POOL_SNAPSHOT_EVERY=50聚合局≈4.2h/池快照; POOL_K=3
+    对手窗≈12.6h; 对手周期27位×5局=135局/轮≈11h/轮, 主角色位每轮命中
+    1-2快照代(分辨率匹配不浪费); league静态位标签永不变, fleet聚合
+    stats下约1轮命中即过min_games=5中性期。**重标定交付物=推导本身**
+    (train_tm.POOL_*注释), 下次吞吐变化按式重算。learner_hub SNAP_KEEP/
+    POOL_EVERY同批注。
+  - **验证**: test_league20_d3 18/18(周期组成/分配回归/种子守卫幂等/
+    池根注入/严格性)入C15; 门禁568/0/0(F4锚随语义演进: 单一实现+fleet
+    池根双断言); SideDriver(alice/suwako)载重建档贯通; 部署21:22起
+    三重启(交错序): supervisor/actor横幅27位全现, 种子自愈"已有17拒0"。
+  - **观察项**: 首个league位命中在第10轮换(ep50≈4h后, sakuya位);
+    overnight后查: league对局胜率分布(vs init_fresh随机网应显著>50%,
+    若≈50%=主策略弱于预期的红灯)、league重算行的新角色标签stats累积。

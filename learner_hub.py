@@ -49,8 +49,10 @@ EP_DIR = os.path.join(FLEET_DIR, 'episodes')
 
 BATCH_K = 4          # 默认摸批局数(上限8 — §6陈旧度论证)
 BATCH_TIMEOUT = 60   # 超时秒数
-SNAP_KEEP = 3        # 快照滚动保留版本数
-POOL_EVERY = 50      # 池快照周期(聚合局数)
+SNAP_KEEP = 3        # 快照滚动保留版本数(批间隔~10-60min → 保留窗~45min,
+                     # actor局边界轮询(~5min)远快于窗口, 无空窗)
+POOL_EVERY = 50      # 池快照周期(聚合局数) — D3'(R65)重标定推导见
+                     # train_tm.POOL_SNAPSHOT_EVERY注释(≈4.2h/快照@12局/h/角色)
 DISK_MIN_GB = 2.0    # R61f(F3/D5): 磁盘满降级阈值(低于则清旧episode+告警)
 
 

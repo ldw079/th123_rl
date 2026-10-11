@@ -60,6 +60,15 @@ def pre_flight():
         'D:\\', None, None, ctypes.byref(free))
     gb = free.value / 2 ** 30
     print('[前置] D盘剩余 %.1fGB %s' % (gb, 'OK' if gb > 2 else '!!低'))
+    # D3'(R65): league对手生态种子幂等补种(缺的补, 已有跳过; 失败不阻断
+    # — actor侧非严格build_opp_cycle+轮换安全跳过双兜底)
+    try:
+        from tools.seed_league_pool import seed_league_pool
+        _seeded, _skip, _rej = seed_league_pool(verbose=False)
+        print('[前置] league种子: 补%d 已有%d 拒%d' % (
+            len(_seeded), len(_skip), len(_rej)))
+    except Exception as e:
+        print('[前置] league种子异常(%s) — 继续(双兜底)' % e)
     r = subprocess.run([PY, '-X', 'utf8',
                         os.path.join(ROOT, 'test_fleet_protocol.py')],
                        capture_output=True, cwd=ROOT)

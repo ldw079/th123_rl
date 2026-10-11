@@ -89,3 +89,31 @@ def league_report(stats: dict, top: int = 5) -> str:
         lines.append('  %-30s %3dW-%3dL (%.0f%%) 权重%.2f'
                      % (label, w, l, wr * 100, wt))
     return '\n'.join(lines)
+
+
+def league20_opps(char, focus=('reimu', 'marisa', 'suika'), weight=3):
+    """D3'(R65): 20角色league的actor对手周期构建(单源, supervisor+actor共用).
+
+    组成: 主角色块(focus全角色, 含镜像)×weight + league角色(focus外全量)
+    + COM。份额示例(focus=3, weight=3): 周期长27 — 镜像/每个主角色各11%,
+    17个league角色各3.7%, COM 3.7%。
+
+    设计要点:
+    - 主角色位是"活"对手(learner持续发池快照, league加权在快照间起作用);
+      league位是"静"对手(seed_league_pool一次性种子, 标签永不变=stats
+      可跨天累积, 中性期(min_games=5)过后league权重对静态位同样生效)。
+    - 镜像位保留在主角色块内(自对弈语义不变, 与exploiter的锁死镜像互不干扰)。
+    - COM位保留但降份额(原25%→3.7%): COM已0-16L无梯度, C对抗池的
+      VS_PLAYER卡组对手才是主训练信号。
+    - 池空安全: league角色无快照时_resolve_pool返回None → 轮换跳过
+      (train_tm既有语义), 不炸局。
+    """
+    # 交错而非连排: [r,m,s]*3 而非 [r,r,r,m,m,m,s,s,s] — 计数相同,
+    # 但同对手最长连打1轮(5局)而非3轮(15局), 轮换多样性更好。
+    block = list(focus) * int(weight)
+    league = []
+    from train_tm import CHAR_LIBS
+    for ch in CHAR_LIBS:
+        if ch not in focus:
+            league.append(ch)
+    return block + league + ['COM']

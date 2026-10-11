@@ -72,7 +72,8 @@
 |  | *状态(10-11 ✅补章): 10-06 已切换(fleet即主训练, _fleet后缀); A/B对照期直接跳过; 验收读数: 10-11重启后learner首批17.7s/批=安静机量级✓, 陈旧≤2✓; 吞吐对照未正式量化(6actor容量数据见METHODOLOGY 2.59)* | | | |
 | D2' | 本地容量阶梯: 4→6→8 actor 逐级试跑（每级 12h, 盯 learner 占空/游戏实例 boot 排队/队列滞后）, 定出本机 actor 上限与最优 K | 主规划修订; A5 数据 | 2 天 | 容量结论入档（预期 2-5× 基线） |
 | D3' | 满配 actor + 20 角色 league 分配 + **池常量按实际吞吐重标定**（快照周期/k=3/league 中性期——"失衡以 1/N 墙钟演化"防线, 本地吞吐下重算） | fleet 设计 P3; league | 3 天 | league 生态无单角色碾压固化 |
-|  | *状态(10-11 可行性侦察): 20角色模型全在位✓(资源前提满足); 阻塞=fleet_supervisor CHARS硬编码3角色+每角色1learner(本机4actor已饱和) → 需learner分时/轮换架构设计, 非配置改动; 登记为下轮设计项* | | | |
+|  | *状态(10-11 可行性侦察): 20角色模型全在位✓(资源前提满足); 阻塞=fleet_supervisor CHARS硬编码3角色+每角色1learner(本机4actor已饱和) → 需learner分时/轮换架构设计, 非配置改动; 登记为下轮设计项* |
+|  | *状态(10-11 ✅R65落地, 本地形态裁定): "满配actor"=本机容量已满(3actor+剥削者=4游戏实例); 20角色league落地为**对手生态扩容** — league17角色静态种子入fleet池(seed_league_pool, 点火自愈), 对手周期27位(主角色块×3交错+league17+COM, 份额37/63/3.7), league加权对静态位慢变量生效; 池常量按实测吞吐推导入册(数值维持, 推导=交付物); 实施挖出集成缝×2(build_opp_cycle池根脱节+build_newchar_models硬编码308=常量横扫漏网, 17模型无损重建); supervisor --focus/--league-weight泛化; test 18/18, 门禁568/0/0; 21:22部署. league角色自身可训练化(learner轮换)另立后续项* | | | |
 | D4 | 剥削者位（exploiter agents）——AlphaStar 式联赛完备件 | 可行性天花板 5 | 3 天 | 剥削者对主策略胜率仪表 |
 |  | *状态(10-07 ✅机制): exploiter.py落地 — 镜像锁死打主策略最新快照(fictitious play剥削形态), exploit_前缀快照入主读池(输给剥削者=高信号修弱点), 滚动保留前缀分流, exploiter_gauge胜率仪表(主胜率<40%=弱点暴露); test 6/6+变异钉, 门禁533/0; 实战点火待训练恢复(python exploiter.py --char X --fleet) | | | |
 | D5 | fleet 加固尾巴: 双 learner 守卫 / learner 无限重启上限 / 磁盘满降级 / supervisor 孤儿回收 / Ctrl-C 演员先停 | 从零审计 P2 | 2 天 | 故障注入演练通过 |

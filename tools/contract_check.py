@@ -1474,10 +1474,13 @@ chk('fname + ".tmp.npz"' in ec,
 chk("for i, L in enumerate(ep_lens):" in src("ppo_gpu.py"),
     "R56: ppo_gpu._gae按局索引ep_terms(多局批原行索引越界)")
 # F4共享: 对手池构造单一实现
-chk("def build_opp_cycle(specs):" in tt
+# R65(D3')锚随语义演进: 签名加pool_root/strict(启动校验与运行时同池),
+# actor侧锚定fleet池根注入 — 单一实现+同池双断言
+chk("def build_opp_cycle(specs, pool_root=None, strict=True):" in tt
     and "opp = build_opp_cycle(args.opp)" in tt
-    and "build_opp_cycle(opps)" in aw,
-    "R56-F4: 对手池构造单一实现(train_tm/actor共用)")
+    and "build_opp_cycle(" in aw
+    and "pool_root=os.path.join(FLEET_DIR, 'pool')" in aw,
+    "R56-F4: 对手池构造单一实现(train_tm/actor共用; R65: actor传fleet池根)")
 # fleet车道
 try:
     import portmap as _PM
@@ -1823,6 +1826,9 @@ _BEHAVIOR_TESTS = [
     # R64(教训×3): train_start清理自杀修复
     ("test_trainstart_cleanup.py",
      "R64: 清理特征串'exploiter'匹配自身命令行→taskkill自杀; 排除自身PID后 命中者死/排除者活/无干者不连坐"),
+    # D3'(R65): 20角色league对手生态
+    ("test_league20_d3.py",
+     "D3': league20_opps组成/league_alloc泛化回归/种子维度守卫幂等/build_opp_cycle池根注入+严格性"),
 ]
 for _tname, _tdesc in _BEHAVIOR_TESTS:
     _tp = os.path.join(ROOT, _tname)

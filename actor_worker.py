@@ -70,10 +70,12 @@ def run_actor(char, actor_id, port, tps=480, episodes=1000,
     portmap.rebuild_port = (lambda slot, ep: fleet_port(actor_id, ep))
     portmap.rebuild_lane = lambda slot: fleet_lane(actor_id)
 
-    # 对手池与run_parallel同构: 镜像首位+其余角色+COM(league动态解析)
+    # 对手周期: D3'(R65) league20 — 主角色块×3+league17+COM(与supervisor
+    # 下发的--opp同源; 池空角色在轮换时安全跳过)。原3角色默认保留在
+    # league20_opps的focus参数里。
     if opps is None:
-        others = [c for c in ('reimu', 'marisa', 'suika') if c != char]
-        opps = [char] + others + ['COM']
+        from league import league20_opps
+        opps = league20_opps(char)
 
     # R63(P1-5): 与learner同源(默认_fleet后缀=历史路径)
     snap_dir = fleet_snap_dir(FLEET_DIR, char, '_fleet')
@@ -82,7 +84,13 @@ def run_actor(char, actor_id, port, tps=480, episodes=1000,
 
     tr = TMTrainer(char, port, tps=tps, episodes=episodes,
                    ep_timeout=ep_timeout, slot=actor_id,
-                   opp=train_tm.build_opp_cycle(opps), com_difficulty=0)
+                   # D3'(R65): 启动校验查fleet池根(与运行时_resolve_pool
+                   # 同一个池 — 原查生产池根=校验与解析脱节); 非严格模式
+                   # =league角色未种齐时降级不炸启动
+                   opp=train_tm.build_opp_cycle(
+                       opps, pool_root=os.path.join(FLEET_DIR, 'pool'),
+                       strict=False),
+                   com_difficulty=0)
 
     # ---- 注入点4: 单写者纪律(actor不写任何共享档) ----
     tr.macro_counts_path = os.path.join(scratch, 'macro_counts.npy')

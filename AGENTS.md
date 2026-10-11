@@ -5,7 +5,7 @@
 >
 > 两条最高教义: **非想天则是 62 帧游戏**(帧↔秒一律 /62, 禁 60); **用户报告的观察是地面真相**。
 > 修订 2026-10-08: fleet 架构 + DCB(流派适应三件) + B 风格估计器 + 剥削者。
-> 修订 2026-10-11: 交接对账+接手推进 — 门禁实测 567/0/0; 训练 20:22 恢复(fleet 3 actor + 剥削者; train_start 自杀 bug 已修, METHODOLOGY 2.65)。
+> 修订 2026-10-11: 交接对账+接手推进 — 门禁实测 568/0/0; 训练 21:22 起带 20 角色 league 对手生态(D3'/R65); train_start 自杀 bug 已修(METHODOLOGY 2.65-2.66)。
 
 ## 0. 当前通道(fleet 架构, 2026-10-08)
 
@@ -16,6 +16,7 @@
 | learner | `learner_hub.py --char X`(ppo_gpu 批更新, episode npz 消费, 快照发布) |
 | actor | `actor_worker.py --char X --actor N --port P`(train_tm 组合复用, episode npz 写入) |
 | 剥削者 | `exploiter.py --char X --fleet`(镜像锁死打主策略, exploit_ 前缀入池) |
+| league20 | 对手周期27位=主角色块×3交错+league17静态种子+COM(D3'/R65); `tools/seed_league_pool.py` 点火自愈 |
 | 环境 | `tm_env.py`(TCP 锁步, 同进程续局, 崩溃重启车道环回) |
 | 学习 | `ppo.py`(numpy, 单实例) / `ppo_gpu.py`(torch, fleet learner) |
 | 特征 | `feat_builder.py`(**CORE_DIMS=330**, 含 14 维对手风格段) |
@@ -51,7 +52,7 @@ D:\temp\pyenv\python.exe -X utf8 tools\contract_check.py
 
 - 必须 0 FAIL 才能提交
 - 变异自检: `SELFTEST_TAGS=<标签> python tools/gate_selftest.py`
-- 当前断言: 567(2026-10-11 实测), 变异钉 150+
+- 当前断言: 568(2026-10-11 实测), 变异钉 150+
 
 ## 2. 奖励体系(当前)
 

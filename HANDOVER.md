@@ -92,9 +92,10 @@ fleet_supervisor.py --actors 3
 数据流: actor 写 episode npz → learner 摸批 → GPU 更新 → 快照发布 → actor 轮换载新
 ```
 
-**维度**: CORE_DIMS=330(316+14 风格段), 三角色宏数 70/76/77, n_side=680/710/715
+**维度**: CORE_DIMS=330(316+14 风格段), 三角色宏数 70/76/77, n_side=680/710/715, league17新角色各70宏
 
 **关键机制(按重要度)**:
+- **D3' league20 对手生态(R65)**: 对手周期27位(主角色块×3交错+league17静态种子+COM); seed_league_pool 点火自愈
 - **R62 胜负挂钩**: 败回合追扣 70% 微收入(擦弹+规避)
 - **C 对抗性卡组池**: 四层逐卡加权(流派→必杀→SC→系统卡)
 - **B 风格估计器**: 对手已出卡差分 → 14 维风格特征
@@ -103,8 +104,9 @@ fleet_supervisor.py --actors 3
 
 ## 七、当前状态
 
-- **训练**: **运行中** — 2026-10-11 20:22 重新点火(fleet 3 actor + reimu 剥削者, 8 python + 4 th123)。曾于 10-08 22:47 ~ 10-11 20:22 停摆 3 天(停因未记录); 恢复时挖出并修复 train_start 自杀 bug(清理特征串'exploiter'匹配自身 --exploiter 参数 → taskkill 连树自杀, METHODOLOGY 2.65)
-- **点火后健康读数**: learner 首批 17.7s/批(安静机量级)/快照 v133/KL 0.149/陈旧2; episode 正常流入
+- **训练**: **运行中** — 2026-10-11 21:22 起带 **20 角色 league 对手生态**(D3'/R65: 对手周期 27 位 = 主角色块×3 交错 + 17 league 静态种子 + COM; fleet 3 actor + reimu 剥削者)。当日早些时候完成 train_start 自杀 bug 修复后恢复训练(20:22 首启)
+- **D3'(R65)观察项**: 首个 league 位命中在 ep50≈4h(sakuya 位); overnight 后查 league 对局胜率(vs init_fresh 随机网应显著>50%)与 league 重算行的新角色标签累积
+- **点火后健康读数**: learner 首批 17.7s/批(安静机量级)/快照滚动/KL 0.09-0.16/陈旧≤2; episode 正常流入
 - **R63 修复已生效**: 10-08 20:18 fleet 重启载入 R63 后代码(随 04499b2 入库), 该轮 episode 零 failed
 - **上轮末期读数**(10-08 22:46 league 重算): COM 0W-16L(主策略全胜) / 剥削者快照 0W-5L(gauge 健康) / 镜像对手 0W-7L
 - **F6 新基线**(10-11, R63 后语义): reimu 弱侧(vs marisa 1-3, vs suika 0-4); 全对局顶时判定 = 双模型侧被动不接敌

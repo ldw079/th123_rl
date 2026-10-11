@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 """R44: 六新角色模型文件构建 — init_fresh → STORE。
 
-PPOTrainer 的 n_side=5N+308 / n_out=N(N=宏数66); 网络规模与三现役
-同构(共享conv主干+侧路径+对手子网络+预测头)。已存在则跳过(幂等)。
+PPOTrainer 的 n_side=5N+CORE_DIMS / n_out=N(N=当前宏库宏数); 网络规模
+与三现役同构(共享conv主干+侧路径+对手子网络+预测头)。已存在则跳过(幂等)。
+R65(D3'): n_side原硬编码"+308"是CORE_DIMS变更的漏网常量(F5 308→316,
+B 316→330两次都没同步到本工具; 常量横扫SOP的漏网面) — 改为
+FeatureBuilder.CORE_DIMS派生随库自动正确; 同批重建17角色模型
+(旧档66宏/308核=init_fresh未训练随机网, 重建无损)。
 用法: python tools/build_newchar_models.py [--force]
 """
 import os
@@ -19,13 +23,14 @@ NEW = ['sakuya', 'patchouli', 'yuyuko', 'reisen', 'komachi', 'tenshi',
        'cirno', 'meiling', 'utsuho', 'suwako']
 
 from train_tm import CHAR_LIBS  # noqa: E402
+from feat_builder import FeatureBuilder  # noqa: E402
 from ppo import PPOTrainer  # noqa: E402
 
 force = '--force' in sys.argv
 for ch in NEW:
     lib = CHAR_LIBS[ch]
     n = len(lib['macros'])
-    n_side = 5 * n + 308
+    n_side = 5 * n + FeatureBuilder.CORE_DIMS   # R65: 派生非硬编码
     pi = os.path.join(STORE, 'model_ppo_%s.npz' % ch)
     vv = os.path.join(STORE, 'model_ppo_%s_v.npz' % ch)
     if os.path.exists(pi) and not force:
