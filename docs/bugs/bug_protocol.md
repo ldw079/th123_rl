@@ -30,4 +30,4 @@
 ## 索引(按时间序)
 
 - `bug_2026-10-12_b3_adx_column.md` — B3 距离列号误用站位(R67c 修复, 溯及归档)
-- `bug_2026-10-12_b3_empty_window_keyerror.md` — B3 报告空窗 KeyError(未修)
+- `bug_2026-10-12_b3_empty_window_keyerror.md` — B3 报告空窗 KeyError(R67d 已修, 顺带修出delta-0.0误报None)

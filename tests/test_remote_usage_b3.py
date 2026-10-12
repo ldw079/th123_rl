@@ -145,6 +145,53 @@ def main():
            "涌现判定delta=+0.5")
         ok(list(w1['top_far_bullets'])[0] == names[b],
            "远程Top弹幕=合成的那个宏名")
+
+        # --- R67d(bug档回填): 空窗路径 + delta恰为0 ---
+        # marisa只有1局, windows=2 → 次窗空(原KeyError崩溃点)
+        n_m = len(CHAR_LIBS['marisa']['macros'])
+        m_names = [m[0] for m in CHAR_LIBS['marisa']['macros']]
+        m_nb = [i for i, nm in enumerate(m_names)
+                if nm not in CHAR_LIBS['marisa']['bullet']][0]
+        sides_m = np.zeros((6, 5 * n_m + 330), dtype=np.float32)
+        sides_m[:, 2 * n_m + 4] = 0.5   # 300px 近距
+        arrays_m = dict(
+            feats=np.zeros((6, 14400), dtype=np.uint8), sides=sides_m,
+            acts=np.full(6, m_nb, dtype=np.int64),
+            rews=np.zeros(6, dtype=np.float32),
+            masks=np.ones((6, n_m), dtype=np.float32),
+            bc_targets=np.zeros(6, dtype=np.int64),
+            opp_next=np.zeros(6, dtype=np.int64),
+            logps=np.zeros(6, dtype=np.float32),
+            ep_terms=np.zeros(6, dtype=np.float32),
+            distill=np.zeros((0, 11), dtype=np.float32))
+        save_synthetic(tmp, 'marisa', 9, [300.0] * 6, [m_nb] * 6,
+                       ts='20261012_130000')
+        rep2 = report(tmp, bucket=330.0, windows=2)
+        wm = rep2['chars']['marisa']['windows']
+        ok(wm[0]['decisions'] == 0
+           and wm[0]['far_bullet_share'] is None,
+           '空窗路径不炸且键齐(bug回填: 原此处KeyError; n=1时首窗[0:0]空)')
+        ok(rep2['chars']['marisa']['far_share_delta'] is None,
+           '单局角色delta=None(无数据不伪造)')
+        ok(rep2['chars']['reimu']['far_share_delta'] == 0.5,
+           '正常角色delta不受影响')
+        # delta恰为0.0: suika两局远弹份额相等 → 0.0而非None(and/or惯用法
+        # 原把真零变化误标无数据)
+        n_s = len(CHAR_LIBS['suika']['macros'])
+        s_names = [m[0] for m in CHAR_LIBS['suika']['macros']]
+        s_b = [i for i, nm in enumerate(s_names)
+               if nm in CHAR_LIBS['suika']['bullet']][0]
+        s_nb = [i for i, nm in enumerate(s_names)
+                if nm not in CHAR_LIBS['suika']['bullet']][0]
+        save_synthetic(tmp, 'suika', 21,
+                       [450.0] * 4, [s_b, s_nb, s_b, s_nb],
+                       ts='20261012_131000')
+        save_synthetic(tmp, 'suika', 22,
+                       [450.0] * 4, [s_b, s_nb, s_b, s_nb],
+                       ts='20261012_132000')
+        rep3 = report(tmp, bucket=330.0, windows=2)
+        ok(rep3['chars']['suika']['far_share_delta'] == 0.0,
+           'delta恰为0.0时报0.0不报None(真零变化≠无数据)')
     finally:
         import shutil
         shutil.rmtree(tmp, ignore_errors=True)

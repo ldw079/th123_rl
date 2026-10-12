@@ -124,7 +124,15 @@ def report(ep_dir=EP_DIR, bucket=330.0, windows=2):
             hi = n * (w + 1) // windows
             chunk = ces[lo:hi]
             if not chunk:
-                win_reports.append({'range': [lo, hi], 'decisions': 0})
+                # R67d(bug_2026-10-12_b3_empty_window_keyerror): 空窗补齐
+                # 键集 — 原只写range/decisions, far_share_delta下标即KeyError
+                # (触发: 单角色episode数<windows; 打印路径考虑过空窗而计算
+                # 路径漏了 = 防御不对称型)
+                win_reports.append({'range': [lo, hi], 'decisions': 0,
+                                    'far_decisions': 0,
+                                    'near_bullet_share': None,
+                                    'far_bullet_share': None,
+                                    'top_far_bullets': {}})
                 continue
             adx = np.concatenate([e['adx'] for e in chunk])
             bul = np.concatenate([e['bullet'] for e in chunk])
@@ -149,15 +157,16 @@ def report(ep_dir=EP_DIR, bucket=330.0, windows=2):
                     bul[far].mean()) if far.any() else None,
                 'top_far_bullets': top_far,
             })
+        # R67d: 原and/or惯用法在delta恰为0.0时误入or None分支("无数据"
+        # 误标真零变化); 改显式判空 — 与空窗键集补齐同批(bug档两处一起清)
+        _d0 = win_reports[0].get('far_bullet_share')
+        _d1 = win_reports[-1].get('far_bullet_share')
         result['chars'][c] = {
             'episodes': n,
             'windows': win_reports,
-            'far_share_delta': (
-                (win_reports[-1]['far_bullet_share'] is not None
-                 and win_reports[0]['far_bullet_share'] is not None)
-                and round(win_reports[-1]['far_bullet_share']
-                         - win_reports[0]['far_bullet_share'], 4)
-                or None),
+            'far_share_delta': (round(_d1 - _d0, 4)
+                                if (_d0 is not None and _d1 is not None)
+                                else None),
         }
     return result
 
