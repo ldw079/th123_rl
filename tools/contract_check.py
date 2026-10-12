@@ -1829,6 +1829,9 @@ _BEHAVIOR_TESTS = [
     # D3'(R65): 20角色league对手生态
     ("test_league20_d3.py",
      "D3': league20_opps组成/league_alloc泛化回归/种子维度守卫幂等/build_opp_cycle池根注入+严格性"),
+    # E阶段1(系列方案§3): SeriesManager
+    ("test_series_stage1_e1.py",
+     "E1: BO15语义(8胜早停/场数封顶/7-7决胜同拍)/系列边界/画像携带/meta字段/legacy默认"),
     # D1-2(未决方案§D): 剥削者定向对手
     ("test_exploiter_target_d12.py",
      "D1-2: --target定向(cycle=[目标])/镜像缺省兼容/specialist身份不变"),

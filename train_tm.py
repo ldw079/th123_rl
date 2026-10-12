@@ -534,6 +534,9 @@ class TMTrainer:
         self._opp_i = 0
         self._opp_stats = {}      # label → [wins, losses]
         self._pool_rot = {}       # R43: 角色→池轮转指针(动态解析用)
+        # E阶段1(系列方案§3.1): series_len=0=legacy(逐位现行), >0=系列赛
+        # 轮换由SeriesManager发令(归因隔离: A/B期间保持legacy)
+        self._series_mgr = None
         self._com_hist = []       # R43方案B: COM对局胜负序列(1胜0负)
         if self.opp_cycle:
             from side_driver import SideDriver
@@ -1000,6 +1003,7 @@ class TMTrainer:
             return
         self.env.last_match = None
         _w, ls, rs = lm
+        self._last_match_win = ls > rs   # E阶段1: 系列计分源
         lab = self._opp_label() if self.opp_cycle else "COM"
         st = self._opp_stats.setdefault(lab, [0, 0])
         if ls > rs:
@@ -1091,9 +1095,15 @@ class TMTrainer:
 
     def _rotate_opp(self, ep):
         """每5局轮换对手池下一条(跨角色需重建环境)。
-        2026-09-27: "COM"条目=切VS_COM模式(游戏COM驱动P2, 无SideDriver)。"""
+        2026-09-27: "COM"条目=切VS_COM模式(游戏COM驱动P2, 无SideDriver)。
+        E阶段1(系列方案§3.1): 系列模式下轮换发令人=SeriesManager —
+        系列内(未到8胜未满15场)抑制轮换(同对手连打, 画像跨场携带)。"""
         if not self.opp_cycle or len(self.opp_cycle) < 2:
             return
+        if self._series_mgr is not None:
+            if self._series_mgr.in_series:
+                return          # 系列内: 同对手继续
+            # 系列刚结束/新系列: 正常轮换下一条(下方逻辑照走)
         if (ep + 1) % 5:
             return
         old = self._opp_label()
@@ -1147,6 +1157,11 @@ class TMTrainer:
                 _consec_fail = 0 if _ok else _consec_fail + 1
                 self._ep_count += 1   # R47: deck课程进度
                 self._settle_match()
+                # E阶段1: 场结束喂系列管理器(计分; legacy跳过)
+                if self._series_mgr is not None:
+                    self._series_mgr.on_match_end(
+                        self._last_match_win if hasattr(
+                            self, '_last_match_win') else False)
                 self._rotate_opp(ep)
                 # R43方案A: 每50局本角色快照入池(对手动态解析自动可见)
                 if self.opp_cycle and (ep + 1) % POOL_SNAPSHOT_EVERY == 0:
@@ -1234,7 +1249,10 @@ class TMTrainer:
         opp_acts = []          # R17④: 每决策拍对手动作类(action//128) —
                                # 下一拍作辅助预测标签(末拍-1)
         # R16: 奖励槽在决策点append(0.0), 区间奖励经rews[-1]+=记给上一动作
-        self.feat_builder.reset_match()   # 对手模型/弹速缓存/擦弹计数重置
+        # E阶段1: 系列模式下画像仅系列首场重置(跨场携带对手画像=适应基础);
+        # legacy(无series_mgr)逐位不变
+        if self._series_mgr is None or self._series_mgr.should_reset_profiles():
+            self.feat_builder.reset_match()   # 对手模型/弹速缓存/擦弹计数重置
         self._guard_frames_ep = 0         # R33: 防御递减计数(每局重置)
         self._cur_bullets = []
         distill_rows = []      # [dx, spirit, close, macro_id, game_frame,
@@ -1283,7 +1301,8 @@ class TMTrainer:
         # 外环训练半环: 对手侧状态(P2只读驱动, 上帧状态算本帧输入=与P1同拍)
         self._opp_inp = {}
         if self.opp is not None:
-            self.opp.reset_match()
+            if self._series_mgr is None                     or self._series_mgr.should_reset_profiles():
+                self.opp.reset_match()
         # P0-6修复: 采样前刷新快照(原在_submit_update入口, 行为策略滞后1-2拍)
         # R60(F-1): 原刷新被_upd_thread门控 — actor模式替换了_submit_update
         # 不再有更新线程 → 门永不开 → _ppo_act冻结在启动权重(快照死链,

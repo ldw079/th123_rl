@@ -2313,3 +2313,19 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     裹带对方半成品 = 提交消息与内容错位(本次双向各中一次)。规则:
     一律git add <自己改动的具体文件>, 禁用add -A/add .; 提交前
     git status核对暂存清单非己改动即剔除。
+
+- 2.83 (2026-10-12, **R73 E阶段1 SeriesManager落地(构建不部署)**):
+  - **series_manager.py**: BO15语义(15场先到8胜, 用户修订口径) —
+    8胜早停/场数封顶/7-7决胜场封顶与第8胜同拍(测试钉死); 系列边界
+    推进series_id/画像重置翻转; meta附加字段(series_id/
+    match_in_series/opp_tag, **加法式不动EP_SCHEMA** — 布局未变,
+    双向兼容: 老读者忽略新字段/新读者缺字段回退(position_from_meta
+    在位), A/B积累的episode不受部署冲击)。
+  - **train_tm接线(flag门控)**: _series_mgr=None(默认)=legacy逐位
+    现行(5局轮换+每局画像重置); 系列模式=轮换发令人改SeriesManager
+    (系列内抑制轮换)+画像仅系列首场重置(跨场携带=适应基础)+
+    _settle_match计分源(_last_match_win)。**归因隔离**: A/B验收前
+    不启用(方案§7前置), 启用=训练器构造时set _series_mgr。
+  - **验证**: test 10/10入C15(含legacy构造默认钉); 门禁576/0/0。
+    eval --series(同快照BO-N评估)与meta落盘接线留E阶段1b(启用时
+    同批)。
