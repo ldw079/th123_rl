@@ -77,7 +77,7 @@ def pre_flight():
     return ok and gb > 2
 
 
-def start(mode, actors, exploiter):
+def start(mode, actors, exploiter, tps=480):
     if not pre_flight():
         return 1
     if mode == 'single':
@@ -89,7 +89,7 @@ def start(mode, actors, exploiter):
     print('[启动] fleet %d actor...' % actors)
     p = subprocess.Popen(
         [PY, '-X', 'utf8', '-u', 'fleet_supervisor.py',
-         '--actors', str(actors)],
+         '--actors', str(actors), '--tps', str(tps)],
         cwd=ROOT)
     if exploiter:
         print('[启动] 剥削者 %s (30s后错峰)...' % exploiter)
@@ -114,6 +114,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--mode', default='fleet', choices=['fleet', 'single'])
     ap.add_argument('--actors', type=int, default=4)
+    ap.add_argument('--tps', type=int, default=480,
+                    help='actor tps(R14 CPU红线: 建议360)')
     ap.add_argument('--exploiter', default=None,
                     help='剥削者角色(如 reimu) — 与fleet同池弱侧专项')
     ap.add_argument('--stop', action='store_true')
@@ -121,7 +123,7 @@ def main():
     if a.stop:
         stop_all()
     else:
-        sys.exit(start(a.mode, a.actors, a.exploiter))
+        sys.exit(start(a.mode, a.actors, a.exploiter, a.tps))
 
 
 if __name__ == '__main__':

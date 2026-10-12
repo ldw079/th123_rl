@@ -5,6 +5,7 @@
 >
 > 两条最高教义: **非想天则是 62 帧游戏**(帧↔秒一律 /62, 禁 60); **用户报告的观察是地面真相**。
 > 修订 2026-10-08: fleet 架构 + DCB(流派适应三件) + B 风格估计器 + 剥削者。
+> 修订 2026-10-12: R14 CPU红线≤75%(torch限2/低优先级/看门狗自动降容/--tps透传); 门禁570/0/0
 > 修订 2026-10-11: 交接对账+接手推进 — 门禁实测 568/0/0; 训练 21:22 起带 20 角色 league 对手生态(D3'/R65); train_start 自杀 bug 已修(METHODOLOGY 2.65-2.66)。
 
 ## 0. 当前通道(fleet 架构, 2026-10-08)
@@ -98,6 +99,7 @@ D:\temp\pyenv\python.exe -X utf8 tools\contract_check.py
 5. 共享档单写者纪律
 6. 原子落盘(tmp+replace)
 7. 62fps 教义(帧↔秒 /62)
+8. **CPU负载红线(R14)**: 训练全家总CPU ≤75% — learner torch限2线程(TH123_TORCH_THREADS可调)/全树BELOW_NORMAL/supervisor看门狗(连续3次>75%自动降容)/--tps 360降载
 
 ## 6. 工具速查
 

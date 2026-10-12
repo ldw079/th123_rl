@@ -20,6 +20,23 @@ import time
 
 # 子进程用新进程组启动, 这样可发CTRL_BREAK_EVENT优雅停机(learner存档后再退)
 CG = getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0)
+# R14(CPU红线<=75%, 用户明令): 全树低优先级(子进程继承), 用户态应用先行
+PRIORITY = 0x4000  # BELOW_NORMAL_PRIORITY_CLASS
+CPU_RED_LINE = 75.0
+CPU_HOT_STRIKES = 3   # 连续3次采样超线才降容(躲瞬时峰)
+
+
+def cpu_load_pct():
+    try:
+        out = subprocess.run(
+            ['powershell', '-NoProfile', '-Command',
+             '(Get-CimInstance Win32_Processor | '
+             'Measure-Object -Property LoadPercentage -Average)'
+             '.Average'],
+            capture_output=True, text=True, timeout=20)
+        return float(out.stdout.strip())
+    except Exception:
+        return None
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # 首跑缺陷(2026-10-06点火): 本机解释器safe-path模式(sys.path[0]=
@@ -191,7 +208,7 @@ def reap_orphans():
     return n
 
 
-def _spawn_actor(ch, aid, port, opp_specs):
+def _spawn_actor(ch, aid, port, opp_specs, tps=480):
     """启动一个actor(boot与重启共用同一构造 — 防双拷贝漂移)。
 
     D3'(R65): opp_specs=league20_opps产物(20角色对手周期), 显式--opp
@@ -201,11 +218,12 @@ def _spawn_actor(ch, aid, port, opp_specs):
     cmd = [PY, '-X', 'utf8', '-u', 'actor_worker.py',
            '--char', ch, '--actor', str(aid),
            '--port', str(port),
+           '--tps', str(tps),
            '--episodes', str(ACTOR_EPISODES)]
     for spec in opp_specs:
         cmd += ['--opp', spec]
     p = subprocess.Popen(
-        cmd, cwd=HERE, creationflags=CG,
+        cmd, cwd=HERE, creationflags=CG | PRIORITY,
         stdout=open(r'D:\temp\actor_%s_%d.log' % (ch, aid),
                     'a', encoding='utf8'),
         stderr=subprocess.STDOUT)
@@ -218,6 +236,8 @@ def main():
     ap.add_argument('--focus', default=','.join(CHARS),
                     help='主角色位(有learner, 逗号分隔; 默认%s)'
                          % ','.join(CHARS))
+    ap.add_argument('--tps', type=int, default=480,
+                    help='actor游戏tps(R14红线降载: 360≈75%%功耗)')
     ap.add_argument('--league-weight', type=int, default=LEAGUE_FOCUS_WEIGHT,
                     help='对手周期中主角色块倍率(D3\')')
     args = ap.parse_args()
@@ -285,7 +305,7 @@ def main():
         for ch in chars:
             cmd = [PY, '-X', 'utf8', '-u', 'learner_hub.py',
                    '--char', ch]
-            p = subprocess.Popen(cmd, cwd=HERE, creationflags=CG,
+            p = subprocess.Popen(cmd, cwd=HERE, creationflags=CG | PRIORITY,
                                  stdout=open(
                                      r'D:\temp\learner_%s.log' % ch,
                                      'a', encoding='utf8'),
@@ -300,7 +320,8 @@ def main():
         for ch, count in alloc.items():
             for i in range(count):
                 port = fleet_port(actor_id)
-                p = _spawn_actor(ch, actor_id, port, opp_specs)
+                p = _spawn_actor(ch, actor_id, port, opp_specs,
+                                args.tps)
                 actors[(ch, actor_id)] = p
                 log('启动 actor_%s_%d PID=%d port=%d' % (
                     ch, actor_id, p.pid, port))
@@ -315,11 +336,34 @@ def main():
         last_league = time.time()
         report_offline_gap()
         _hb = 0
+        _hot = 0
+        _cool = 0
         while actors or learners:
             time.sleep(10)
             _hb += 1
             if _hb % HEARTBEAT_EVERY == 0:
                 write_heartbeat()
+                _cpu = cpu_load_pct()
+                if _cpu is not None:
+                    if _cpu > CPU_RED_LINE:
+                        _hot += 1
+                        log('CPU %.0f%% > 红线%.0f%% (strike %d/%d)'
+                            % (_cpu, CPU_RED_LINE, _hot, CPU_HOT_STRIKES))
+                        if _hot >= CPU_HOT_STRIKES and actors:
+                            _k = sorted(actors)[-1]
+                            log('CPU红线降容: 停 %s (杀最新actor, 恢复走重启)'
+                                % str(_k))
+                            _kill_tree(actors[_k].pid)
+                            del actors[_k]
+                            _hot = 0
+                    elif _cpu <= 70.0:
+                        # 双低才复位(负载在75附近震荡时单低不重置计数)
+                        _cool += 1
+                        if _cool >= 2:
+                            _hot = 0
+                            _cool = 0
+                    else:
+                        _hot = 0
             # R57(2.6): league周期重算 — 聚合actor stats重定余量分配
             # (只影响未来重启的actor, 运行中的actor不中断)
             if time.time() - last_league > LEAGUE_INTERVAL:
@@ -353,7 +397,8 @@ def main():
                 log('%s 退出(code=%s) — %ds后重启' % (
                     str(key), p.returncode, COOLDOWN_S))
                 time.sleep(COOLDOWN_S)
-                p2 = _spawn_actor(ch, aid, fleet_port(aid), opp_specs)
+                p2 = _spawn_actor(ch, aid, fleet_port(aid), opp_specs,
+                                 args.tps)
                 actors[key] = p2
                 restarts[key] = rk + 1
                 log('%s 已重启 PID=%d' % (str(key), p2.pid))
@@ -373,7 +418,7 @@ def main():
                 cmd = [PY, '-X', 'utf8', '-u', 'learner_hub.py',
                        '--char', ch]
                 p2 = subprocess.Popen(
-                    cmd, cwd=HERE, creationflags=CG,
+                    cmd, cwd=HERE, creationflags=CG | PRIORITY,
                     stdout=open(
                         r'D:\temp\learner_%s.log' % ch,
                         'a', encoding='utf8'),

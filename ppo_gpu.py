@@ -26,6 +26,11 @@ try:
     import torch.nn.functional as F
     HAS_TORCH = True
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # R14(CPU红线, 用户2026-10-12明令<=75%): torch默认intra-op线程数
+    # =全部核心, 3个learner并发即饱和整机 — 限3线程/learner(批耗时
+    # 影响轻微); TH123_TORCH_THREADS环境变量可调。
+    import os as _os
+    torch.set_num_threads(int(_os.environ.get('TH123_TORCH_THREADS', '2')))
 except ImportError:
     HAS_TORCH = False
     DEVICE = None
