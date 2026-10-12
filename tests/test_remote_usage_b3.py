@@ -46,7 +46,7 @@ def save_synthetic(ep_dir, char, ep_idx, adx_rows, act_ids,
     n_side = 5 * n_macros + 330
     n = len(act_ids)
     sides = np.zeros((n, n_side), dtype=np.float32)
-    sides[:, 2 * n_macros + 5] = np.clip(
+    sides[:, 2 * n_macros + 4] = np.clip(
         np.array(adx_rows, dtype=np.float32) / 600.0, 0, 1)
     arrays = {
         "feats": np.zeros((n, 14400), dtype=np.uint8),
@@ -69,7 +69,30 @@ def save_synthetic(ep_dir, char, ep_idx, adx_rows, act_ids,
     return dst
 
 
+def calibrate_adx_col():
+    """R67c: 列号经feat_builder独立标定 — 合成已知几何(left.x=100,
+    right.x=580 → adx=480), 找到core里*600≈480的列, 必须等于工具常量.
+    (教训: 原测试手写同错列号, 断言与实现同错=变异也测不出.)"""
+    from feat_builder import FeatureBuilder
+    from tools.remote_usage_report import ADX_COL_IN_CORE
+    mk = dict(action=0, airBorne=0, cardGauge=0xFFFF, comboDamage=0,
+              direction=1, hand=[0xFF] * 10, hitStop=0, hp=10000, score=0,
+              spirit=1000, timeStop=0, untech=0)
+    # 反转几何(left在右): dx=-480(带符号col2为负), adx=+480(col4恒正)
+    # — 单位幅标定无法区分dx/adx, 符号消歧后唯一命中adx列.
+    L = dict(mk, **{"position.x": 580.0, "position.y": 0.0})
+    R = dict(mk, **{"position.x": 100.0, "position.y": 0.0})
+    core = FeatureBuilder(4).build(L, R, {"id": 0, "active": 0, "displayed": 0}, [])
+    hits = [i for i in range(16)
+            if abs(float(core[i]) * 600.0 - 480.0) < 1.0]
+    assert hits == [ADX_COL_IN_CORE], (
+        "adx标定列=%r != 工具常量%d (core前16=%s)"
+        % (hits, ADX_COL_IN_CORE, np.round(core[:16].astype(float), 3)))
+    print("[PASS] adx列经feat_builder标定=col%d(独立于工具实现)" % hits[0])
+
+
 def main():
+    calibrate_adx_col()
     char = "reimu"
     names = [m[0] for m in CHAR_LIBS[char]["macros"]]
     bullet_names = set(CHAR_LIBS[char]["bullet"])

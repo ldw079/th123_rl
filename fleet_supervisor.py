@@ -32,6 +32,33 @@ PY = sys.executable
 STORE = os.environ.get('TH123_STORE', r'D:\temp\th123_models')
 LOCK = os.path.join(STORE, 'fleet.lock')
 SUPERVISION_LOG = os.path.join(STORE, 'fleet_supervision.log')
+# C1-1(未决方案§C): 墙钟心跳 — 把'深夜无日志全灭'从推断变为账目
+HEARTBEAT = os.path.join(STORE, 'fleet_heartbeat')
+HEARTBEAT_EVERY = 3   # 每3个监督循环(30s)写一次
+
+
+def write_heartbeat():
+    try:
+        tmp = HEARTBEAT + '.tmp'
+        with open(tmp, 'w') as f:
+            f.write(str(time.time()))
+        os.replace(tmp, HEARTBEAT)
+    except OSError:
+        pass
+
+
+def report_offline_gap():
+    """启动时读上次心跳 → 间隙>90s=离线时段(睡眠/关机/灭队), 入账。"""
+    try:
+        last = float(open(HEARTBEAT).read().strip())
+    except (OSError, ValueError):
+        return
+    gap = time.time() - last
+    if gap > 90:
+        log('离线时段报告: 上次心跳 %s → 本次启动, 间隔 %.1fh '
+            '(主机睡眠/关机或灭队 — C1-1记账)'
+            % (time.strftime('%m-%d %H:%M:%S', time.localtime(last)),
+               gap / 3600.0))
 
 CHARS = ('reimu', 'marisa', 'suika')   # 主角色(有learner); D3'(R65): --focus可配
 # D3'(R65): league对手周期 — 主角色块×LEAGUE_FOCUS_WEIGHT + 全量league角色
@@ -286,8 +313,13 @@ def main():
         restarts = {k: 0 for k in list(actors) + [
             ('learner', ch) for ch in chars]}
         last_league = time.time()
+        report_offline_gap()
+        _hb = 0
         while actors or learners:
             time.sleep(10)
+            _hb += 1
+            if _hb % HEARTBEAT_EVERY == 0:
+                write_heartbeat()
             # R57(2.6): league周期重算 — 聚合actor stats重定余量分配
             # (只影响未来重启的actor, 运行中的actor不中断)
             if time.time() - last_league > LEAGUE_INTERVAL:

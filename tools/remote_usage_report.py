@@ -37,8 +37,11 @@ sys.stdout.reconfigure(encoding='utf8')
 EP_DIR = os.environ.get(
     'TH123_EP_DIR', r'D:\temp\th123_models\fleet\episodes')
 
-# 核心标量段布局(feat_builder.build vals16): col5 = clip(|dx|/600, 0, 1)
-ADX_COL_IN_CORE = 5
+# 核心标量段布局(feat_builder.build vals16): col4 = clip(|dx|/600, 0, 1)
+# R67c(2026-10-12)修正: 原误用col5(=own_x/620, 己方站位)当距离 — B3首份
+# 基线(b3_baseline_20261011.json)实测的是"站位在舞台右半"而非"远程",
+# 结论作废待重测; col4经feat_builder标定测试钉死(tests/test_remote_usage_b3).
+ADX_COL_IN_CORE = 4
 ADX_SCALE = 600.0
 
 _TS_RE = re.compile(r'_(\d{8})_(\d{6})\.npz$')

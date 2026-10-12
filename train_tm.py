@@ -269,7 +269,11 @@ def micro_tax(micro_bank, round_won):
 #   → "站防刷防御分"/"擦弹刷graze分"类exploit结构性不可能
 # 权重从现有通道值映射(保持学习信号量级不变):
 POT_W = {
-    'opp_hp': 0.004,      # 对手HP降=正(映射R_DMG)
+    # A1-2(未决方案§A1-2, 10-12): 原opp_hp=+0.004 vs own_hp=-0.005 — 自保
+    # 价值>伤害价值, 防御数学占优=被动性是奖励结构的正确解(F6全顶时/E1互证)。
+    # 对称化±0.005(值域同量级, KO±10主通道不动); A/B: 24h对照F6 quick,
+    # 顶时判负率<20%为目标, 净分下滑则回滚改走A1-4(反康对称项)。
+    'opp_hp': 0.005,      # 对手HP降=正(映射R_DMG)
     'own_hp': -0.005,     # 我方HP降=负(映射R_TAKEN)
     'own_spirit': 0.0004, # 灵力高=好(映射SPIRIT_KEEP方向)
     'opp_corner': 0.003,  # 对手被角=好(映射R_CORNER_ADV)
@@ -1352,9 +1356,12 @@ class TMTrainer:
                     self._sc_reset()
                     self._frame_event_mask = _rmask
                     self._in_frame_reaction = True
-                    print("[帧级事件] %s→策略决策(掩码%d) (第%d次)" % (
+                    # J(未决方案§J裁定): _fwin显式消费入日志 — 反应采B2
+                    # 即时掩码语义, 延迟执行路线被取代; 事件窗作元数据可见
+                    print("[帧级事件] %s→策略决策(掩码%d,窗%d) (第%d次)" % (
                         _FRAME_EV_NAMES.get(_fev, _fev),
                         int(_rmask.sum()),
+                        int(_fwin),
                         self._frame_ev_count))
                     self._frame_ev_count = (getattr(
                         self, '_frame_ev_count', 0) + 1)

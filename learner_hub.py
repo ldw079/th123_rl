@@ -196,6 +196,8 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
     # 阶段0仪表(系列预测方案§2): episode消费即删(P1-C) → 批路径是唯一
     # 可持续测量点; no_grad前向不改训练语义
     series_recs = []
+    # A1-1(未决问题方案§A): 被动性仪表 — 同挂点
+    passivity_recs = []
     max_ver = 0
     for ep_path in eps:
         try:
@@ -245,6 +247,11 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
                                     decode_match_outcome(arr['rews'])))
             except Exception:
                 pass
+        try:
+            from passivity_meter import episode_passivity
+            passivity_recs.append(episode_passivity(char, arr))
+        except Exception:
+            pass
         max_ver = max(max_ver, int(meta.get('snap_ver', 0)))
         distill_batches.append(arr['distill'])
         ok_paths.append(ep_path)
@@ -540,6 +547,14 @@ def run_learner(char, batch_k=BATCH_K, suffix='_fleet'):
         if stats.get('series_curve'):
             print('[learner] %s 系列曲线 %s'
                   % (char, stats['series_curve']))
+        # A1-1: 被动曲线(远弹/逼近/开局攻)随批留档
+        try:
+            from passivity_meter import passivity_line
+            if passivity_recs:
+                print('[learner] %s 被动曲线 %s'
+                      % (char, passivity_line(passivity_recs)))
+        except Exception:
+            pass
 
         # 宏计数原子落盘
         _mc_tmp = counts_path + '.tmp.npy'

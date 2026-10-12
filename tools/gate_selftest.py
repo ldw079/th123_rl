@@ -76,10 +76,13 @@ FILES = [
          "actor_worker.py",
          "learner_hub.py",
          "fleet_supervisor.py",
-         "series_meter.py"]
+         "series_meter.py",
+         "passivity_meter.py"]
 
 # (文件, 原文, 变异文, 防的回归)
 MUTATIONS = [
+    ("train_tm.py", "'opp_hp': 0.005,", "'opp_hp': 0.0044,",
+     "A1-2: 势函数伤害/承伤不对称回归(防御占优) → 对称断言必须红"),
     ("series_meter.py", "r >= ROUND_WIN", "rews >= 3000.0",
      "S0仪表: 胜负解码阈值废(全解码L) → 胜率曲线断言必须红"),
     ("series_meter.py", "% SERIES_LEN + 1", "% SERIES_LEN + 2",

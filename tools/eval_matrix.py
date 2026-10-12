@@ -69,6 +69,9 @@ def run_matchup(char_a, char_b, port, games=2, tps=480):
 
     a_wins = 0
     b_wins = 0
+    timeout_n = 0        # A1-1: 顶时局数(被动性仪表的评估侧)
+    timeout_loss = 0     # 顶时判负(a侧视角)
+    hp_diffs = []        # 顶时HP差
     for g in range(games):
         env = EvalEnv(port, char_left=char_a, char_right=char_b,
                       vs_com=False, tps=tps)
@@ -101,17 +104,21 @@ def run_matchup(char_a, char_b, port, games=2, tps=480):
                 inp_b = driver_b.frame_input(right, left, weather,
                                              objs, [])
             else:
+                timeout_n += 1
                 if _sl != _sr:
                     if _sl > _sr:
                         a_wins += 1
                     else:
                         b_wins += 1
+                        timeout_loss += 1
                     print('  [eval] 顶时判定: 回合比分%d-%d' % (_sl, _sr))
                 elif left.get("hp", 0) != right.get("hp", 0):
+                    hp_diffs.append(left["hp"] - right["hp"])
                     if left["hp"] > right["hp"]:
                         a_wins += 1
                     else:
                         b_wins += 1
+                        timeout_loss += 1
                     print('  [eval] 顶时判定: 比分平, HP差判')
                 else:
                     print('  [eval] 顶时且无比分/HP差 — 不计')
@@ -124,7 +131,10 @@ def run_matchup(char_a, char_b, port, games=2, tps=480):
             except Exception:
                 pass
 
-    return {'a_wins': a_wins, 'b_wins': b_wins, 'games': games}
+    return {'a_wins': a_wins, 'b_wins': b_wins, 'games': games,
+            'timeout_n': timeout_n, 'timeout_loss': timeout_loss,
+            'timeout_hp_mean': (sum(hp_diffs) / len(hp_diffs)
+                                if hp_diffs else None)}
 
 
 def build_matrix(chars, games=2, full=False):
@@ -170,6 +180,17 @@ def analyze(matrix, chars):
         'caveat': g['caveat'],
     }
     d = g['dominance']
+    # A1-1: 被动性汇总(评估侧) — 顶时率/顶时判负率/顶时HP差
+    tn = sum(v.get('timeout_n', 0) for v in matrix.values())
+    tg = sum(v.get('games', 0) for v in matrix.values())
+    tl = sum(v.get('timeout_loss', 0) for v in matrix.values())
+    hps = [v['timeout_hp_mean'] for v in matrix.values()
+           if v.get('timeout_hp_mean') is not None]
+    report['passivity'] = {
+        'timeout_rate': (tn / tg if tg else None),
+        'timeout_loss_share': (tl / tn if tn else None),
+        'timeout_hp_mean_avg': (sum(hps) / len(hps) if hps else None),
+    }
     report['superhuman_distance'] = {
         'metric': d['worst_lower'],          # None = 样本不足(不再伪造数值)
         'metric_name': 'worst_matchup_wilson_lower',

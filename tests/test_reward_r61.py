@@ -15,6 +15,7 @@ try:
 except Exception:
     pass
 
+from train_tm import POT_W  # noqa: E402
 from train_tm import (graze_low_rate, fastwin_bonus,  # noqa: E402
                       ko_round_reward, R_KO_ROUND,
                       GRAZE_LOW_RATE, GRAZE_SAT_F, R_FASTWIN,
@@ -111,6 +112,12 @@ def main():
     # 7. 追扣只影响败侧: 赢局回报与R61完全一致(不回退)
     check("胜侧零改动", micro_tax(_micro_match, True) == 0.0
           and _win_net == _win_ko)
+
+    # A1-2(未决方案A1-2): 伤害/承伤势差对称性 — 原+0.004/-0.005防御数学
+    # 占优(被动性的奖励根源), 对称化后必须保持
+    check("势函数伤害/承伤对称(A1-2)", POT_W['opp_hp'] == -POT_W['own_hp'],
+          "opp_hp=%s own_hp=%s — 不对称=防御占优回归" % (
+              POT_W['opp_hp'], POT_W['own_hp']))
 
     print("\n==== %d PASS / %d FAIL ====" % (len(PASS), len(FAIL)))
     if FAIL:
