@@ -2134,3 +2134,6 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
   - 结论作废纪律首次执行: docs/audit/audit_2026-10-11结论6的B3数字
     补更正注指向bug档(归档原文不改写)。
   - **验证**: 门禁570/0/0(纯文档新增, 不触断言, 改后复核)。
+- 2.74 (2026-10-12, 目录整理: bug文档统一入docs/bugs/(用户指令) —
+  bug_protocol.md随档迁入, HANDOVER索引两行并一行; 2.73所记旧路径
+  docs/bug_protocol.md以现路径docs/bugs/bug_protocol.md为准)。
