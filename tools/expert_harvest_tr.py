@@ -54,6 +54,8 @@ def scan(kind='both'):
                 continue
             p = os.path.join(dirpath, fn)
             try:
+                if os.path.getsize(p) < 121:   # R81b: 截断rep预过滤
+                    continue
                 with open(p, 'rb') as f:
                     b = f.read(64)
                 if len(b) < 64 or b[0] != 0xD2:
@@ -147,7 +149,21 @@ def main():
                 err, pkts, offsets, rounds, scores = 'exc:%s' % str(e)[:60], \
                     b'', [], [], []
                 dur = 0
-                rep = parse_rep_file(path)
+                rep = None
+                try:
+                    rep = parse_rep_file(path)
+                except Exception:
+                    # R81b: 截断rep连头都不完整 — 计放弃继续(原版
+                    # 兜底parse再炸, 坏文件崩整批: 576/958处止步)
+                    pass
+            if rep is None:
+                bad_n += 1
+                print('  [%d/%d] 放弃 %s err=%s (截断rep)' % (
+                    i + 1, len(todo), rel[:40], err))
+                for _st in (ilog_tmp,):
+                    if _st and os.path.exists(_st):
+                        os.remove(_st)
+                continue
             if len(offsets) <= 100 or err is not None:
                 bad_n += 1
                 print('  [%d/%d] 放弃 %s err=%s 帧数%d' % (
