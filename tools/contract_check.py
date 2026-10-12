@@ -1829,6 +1829,9 @@ _BEHAVIOR_TESTS = [
     # D3'(R65): 20角色league对手生态
     ("test_league20_d3.py",
      "D3': league20_opps组成/league_alloc泛化回归/种子维度守卫幂等/build_opp_cycle池根注入+严格性"),
+    # D1-1(未决方案§D): league周报
+    ("test_league_weekly_d11.py",
+     "D1-1: league块解析(含marker同行首行)/固化指数/char聚合/末位保护线"),
     # B2(未决方案§B, 裁定③): 顶端标尺人测协议(应急路线)
     ("test_human_match_b2.py",
      "B2: 键盘轮询安全路径/VK表/协议键名/报告追加往返"),

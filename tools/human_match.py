@@ -87,6 +87,9 @@ def run_match(char, bo=3, port=None, seed_note='', mode='mod'):
     games = []
     print('[human-match] 窗口置前后开始; 键位 W/A/S/D+J(A)/K(B)/L(C)/'
           'O(D)/U(符卡); 每场BO3小局')
+    # I(未决方案§I): 动作序列累积 — 供habit_detector会话后习惯报告
+    # (游戏态resolved action/灵力, 非键盘推断 — 语义正确源)
+    action_seq = []
     try:
         while human_w < bo and model_w < bo:
             t0 = time.time()
@@ -113,6 +116,9 @@ def run_match(char, bo=3, port=None, seed_note='', mode='mod'):
                 if r is None:
                     break
                 left, right, weather, objs = r
+                action_seq.append((frames, left.get('action', 0),
+                                   left.get('spirit', 0),
+                                   right.get('action', 0)))
                 # SideDriver P2同构: own=right(P2视角), opp=left
                 _opp_inp = opp.frame_input(right, left, weather, objs, [])
     finally:
@@ -120,8 +126,23 @@ def run_match(char, bo=3, port=None, seed_note='', mode='mod'):
             env.close()
         except Exception:
             pass
+    # I: 习惯报告(habit_detector消费真人动作流 — 教学产品化第一半)
+    habit_txt = ''
+    habits_out = []
+    try:
+        from habit_detector import detect_habits, habit_report
+        habits = detect_habits(action_seq) if action_seq else []
+        habits_out = habits
+        habit_txt = habit_report(habits, char)
+        print()
+        print(habit_txt)
+    except Exception as e:
+        print('[human-match] 习惯报告异常(%s) — 对局结果不受影响' % e)
     return {'char': char, 'bo': bo, 'human_wins': human_w,
             'model_wins': model_w, 'games': games,
+            'n_frames_obs': len(action_seq),
+            'habits': [k for k, _h, _r in habits_out],
+            'habit_report': habit_txt,
             'ts': time.strftime('%Y-%m-%d %H:%M:%S'),
             'note': seed_note,
             'protocol': ('mod P2-only(SOKUAI_P2_ONLY)' if mode == 'mod'

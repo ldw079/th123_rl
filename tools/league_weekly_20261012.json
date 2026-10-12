@@ -1,0 +1,32 @@
+{
+ "blocks": 4,
+ "total_games": 85,
+ "consolidation_index": 0.341,
+ "top_label": "COM",
+ "char_agg": {
+  "COM": {
+   "w": 0,
+   "l": 29,
+   "wr": 0.0
+  },
+  "marisa": {
+   "w": 7,
+   "l": 12,
+   "wr": 0.368
+  },
+  "reimu": {
+   "w": 11,
+   "l": 18,
+   "wr": 0.379
+  },
+  "suika": {
+   "w": 8,
+   "l": 0,
+   "wr": 1.0
+  }
+ },
+ "floor_breach": [
+  "COM 0%(0W-29L)"
+ ],
+ "floor": 0.3
+}

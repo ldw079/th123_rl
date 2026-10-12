@@ -144,10 +144,16 @@ def _detect_pressure_response(seq, resp_type, hot=12):
 
 
 def _detect_far_passive(seq):
-    """远距被动检测."""
+    """远距被动检测.
+
+    I项接线挖出(R70): 原按3元组解包 — detect_habits文档承诺4元组
+    (含对手action)向后兼容, 但此检测器与_empty_spirit漏改, 4元组输入
+    必炸(E5测试只用3元组=盲区). 修: 位置取前3位, 对手位忽略.
+    """
     passive = 0
     total = 0
-    for f, act, spirit in seq:
+    for item in seq:
+        f, act, spirit = item[0], item[1], item[2]
         # 简化: 立防+待机 = 被动
         if act == 0 or 150 <= act <= 153:
             passive += 1
@@ -156,10 +162,11 @@ def _detect_far_passive(seq):
 
 
 def _detect_empty_spirit(seq):
-    """空灵力出招检测."""
+    """空灵力出招检测(4元组兼容同上)."""
     attacks = 0
     empty_attacks = 0
-    for f, act, spirit in seq:
+    for item in seq:
+        f, act, spirit = item[0], item[1], item[2]
         if 300 <= act <= 598:   # 攻击动作
             attacks += 1
             if spirit < 100:

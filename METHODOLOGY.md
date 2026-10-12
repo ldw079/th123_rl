@@ -2258,3 +2258,20 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
   - **验证**: 门禁573/0/0(+1 B2测试); 下一步=用户首测会话
     (python tools/human_match.py --char X --bo 3, 窗口前台, 键位
     WASD+JKL/OU)。
+
+- 2.81 (2026-10-12, **R71 I项教学闭环第一半 + D1-1 league周报**):
+  - **A/B中期检查**: reimu逼近率9-12%→20-24%持续抬升(21条), marisa
+    开局攻50→62-88%(33条) — A1-2对称化积极信号, 待24h+双F6正式验收。
+  - **I项(教学产品化第一半)**: human_match会话累积游戏态动作序列
+    (left/right action+灵力, 语义正确源非键盘推断) → 会话后
+    detect_habits+habit报告入json。**接线挖出habit_detector真bug**:
+    far_passive/empty_spirit两检测器仍按3元组解包 — detect_habits
+    文档承诺4元组向后兼容但此二者漏改, 4元组输入必炸(E5测试只用
+    3元组=盲区)。修后4元组蹲防检出100%, E5测试12 PASS。
+  - **D1-1 league周报**: tools/league_weekly.py — league重算块解析
+    (含marker同行首行对手)/固化指数(单label局数份额>50%告警)/
+    char级聚合/末位保护线(<30%且≥4局)。test 5/5入C15。
+    **首份实盘读数**: 固化指数0.196(健康); ⚠末位保护线触发=
+    reimu 23%(5W-17L) — 弱侧实锤, D1-3均衡施治观察钩(裁定②)的
+    第一份数据。
+  - **验证**: 门禁574/0/0(+1 D1-1测试)。
