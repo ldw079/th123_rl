@@ -2237,3 +2237,24 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     会话有误伤风险); league可训练化挂起。
   - **验证**: 门禁(裸跑判绿, f4668e1教训执行); fleet 15:05起手动制
     运行(满配3actor+剥削者, 看门狗守红线)。
+
+- 2.80 (2026-10-12, **R70 B2-1 mod P2-only 编译部署(顶端标尺正路贯通)** —
+  用户授权下载工具链+亲任测量员裁定③):
+  - **工具链重建**: VS Build Tools 装入 D:/vsc(用户改目录并自改
+    build_tm.bat指向; 静默安装在26300内部版exit 1/87两次失败后交互式
+    安装成功); 旧D:/VS残壳让位改名。
+  - **B2-1 mod改动**: main.cpp KeymapManagerSetInputs — P1(left)分支
+    前置 s_p2Only 检查(GetEnvironmentVariableA("SOKUAI_P2_ONLY")启动
+    时缓存一次): 命中则return不覆写(物理键盘直通=真人P1); **env未设=
+    行为与原版逐位一致(向后兼容, fleet不受影响)**。
+  - **血统全流程**: 重编TM_EXIT=0 → 新MD5 1725B97C → 旧部署档备份
+    (.bak_pre_p2only) → **重命名换入部署**(运行中游戏锁DLL不可覆盖,
+    rename+copy零停机: 旧实例续用旧档, 新实例载新档) →
+    update_provenance 12哈希入档 → 门禁C9全绿。
+  - **兼容实证**: 16:25 fleet重启(新DLL实例), episode正常产出+被动
+    曲线滚动(远弹5%/逼近17%/开局攻50% — 较上午读数上升, 观察中)。
+  - **human_match双模式**: --mode mod(SOKUAI_P2_ONLY=1正路, 客户端
+    P1发{}) / poll(GetAsyncKeyState轮询应急回退保留)。test 4/4入C15。
+  - **验证**: 门禁573/0/0(+1 B2测试); 下一步=用户首测会话
+    (python tools/human_match.py --char X --bo 3, 窗口前台, 键位
+    WASD+JKL/OU)。

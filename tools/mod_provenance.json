@@ -1,6 +1,6 @@
 {
  "deployed_path": "D:\\touhou\\hisoutensoku2026-06-15\\th123_train\\modules\\SokuAIOfflinePlayer\\SokuAITrainer.dll",
- "deployed_md5": "386737DE01ACFDECE70A27F7F6842A26",
+ "deployed_md5": "1725B97CB6F16A2D19655C1034D218DF",
  "built_path": "D:\\temp\\build\\SokuAITrainer.dll",
  "build_script": "D:\\temp\\build\\build_tm.bat",
  "source_root": "D:\\temp\\build\\SokuAI-master",
@@ -21,7 +21,7 @@
   "SokuLib\\src\\Character.hpp"
  ],
  "source_md5": {
-  "Training\\TrainingMod\\main.cpp": "70C1013F7E01CBBC860614A4790E04A4",
+  "Training\\TrainingMod\\main.cpp": "F2B8EE231F7C904927D90434E69E4C0E",
   "Training\\TrainingMod\\network.cpp": "1215E7D65A04C78596BC70BD9F234300",
   "Training\\TrainingMod\\sokuData.cpp": "6E6EC730CAB0299028571F20541086E4",
   "Training\\TrainingMod\\state.cpp": "E75D27D02F77D99611880DDB0FCD8B60",
