@@ -24,6 +24,63 @@ CG = getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0)
 PRIORITY = 0x4000  # BELOW_NORMAL_PRIORITY_CLASS
 CPU_RED_LINE = 75.0
 CPU_WINDOW = 6        # 滚动窗口: 近6次采样(3min)均值>红线才降容
+# R75(2026-10-12全灭事故): 降容曾=del actor且无任何恢复路径 — 三actor
+# 全灭后车队空转55min(learner无数据, A/B断流, 日志却显示"恢复走重启")。
+# 降容语义改为**可恢复暂停**: 均值<回入场线持续满窗 → 恢复最早暂停的
+# actor(一次一个); 滞后带[REENTER, RED_LINE]防抖动。
+CPU_REENTER = 65.0
+SUSPEND_MIN_S = 180.0
+
+
+class CpuWatchdog:
+    """R75: CPU红线降容/恢复策略(纯逻辑, tests/test_fleet_watchdog_r74钉死).
+
+    - sample(cpu, now) → ('kill'|'resume'|None, avg): kill=应暂停一个
+      actor(选哪个由调用方定, 通常最新), resume=可恢复一个; 两个判定都
+      要求窗口满, 且降容判定后窗口重置(防连环杀/防抖);
+    - suspend(key, now)/pop_resumable(now): 暂停簿记, 恢复取最早且
+      已满SUSPEND_MIN_S的;
+    - 全灭告警由调用方按 not actors and watchdog.suspended_at 触发。
+    """
+
+    def __init__(self, red_line=CPU_RED_LINE, reenter=CPU_REENTER,
+                 window=CPU_WINDOW, min_suspend_s=SUSPEND_MIN_S):
+        self.red_line = red_line
+        self.reenter = reenter
+        self.window = window
+        self.min_suspend_s = min_suspend_s
+        self.win = []
+        self.suspended_at = {}
+        self.avg = None
+
+    def sample(self, cpu, now=0.0):
+        """喂一次CPU采样(心跳节奏), 返回(决策, 均值)。"""
+        self.avg = None
+        if cpu is None:
+            return None, None
+        self.win.append(cpu)
+        if len(self.win) > self.window:
+            self.win.pop(0)
+        if len(self.win) < self.window:
+            return None, None
+        self.avg = sum(self.win) / len(self.win)
+        if self.avg > self.red_line:
+            self.win = []   # 降容判定后窗口重置: 新均值再判(防连环杀)
+            return 'kill', self.avg
+        if self.avg < self.reenter:
+            return 'resume', self.avg
+        return None, self.avg
+
+    def suspend(self, key, now):
+        self.suspended_at[key] = now
+
+    def pop_resumable(self, now):
+        """返回最早且暂停已满min_suspend_s的key(无则None), 并移出簿记。"""
+        for k in sorted(self.suspended_at, key=lambda x: self.suspended_at[x]):
+            if now - self.suspended_at[k] >= self.min_suspend_s:
+                del self.suspended_at[k]
+                return k
+        return None
 
 
 def cpu_load_pct():
@@ -364,7 +421,8 @@ def main():
         last_league = time.time()
         report_offline_gap()
         _hb = 0
-        _cpu_win = []
+        _wd = CpuWatchdog()
+        _last_alarm = 0.0
         # C1-2(用户裁定①窗口制): 窗口尾干净收队 — 任务计划程序负责窗口头
         win_end = None
         if args.hours:
@@ -387,23 +445,35 @@ def main():
             if _hb % HEARTBEAT_EVERY == 0:
                 write_heartbeat()
                 _cpu = cpu_load_pct()
-                if _cpu is not None:
-                    # R68b: 滚动均值判降容 — 原连续strike+双低复位在
-                    # 震荡负载下永不触发(实测14:16-14:22连续82-99%仅到
-                    # strike2即被复位)。近CPU_WINDOW次采样均值>红线即降,
-                    # 单次深蹲只稀释均值不复位 — 红线的忠实执行。
-                    _cpu_win.append(_cpu)
-                    if len(_cpu_win) > CPU_WINDOW:
-                        _cpu_win.pop(0)
-                    _avg = sum(_cpu_win) / len(_cpu_win)
-                    if _avg > CPU_RED_LINE and len(_cpu_win) >= CPU_WINDOW                             and actors:
-                        _k = sorted(actors)[-1]
-                        log('CPU红线降容: 均值%.0f%%(近%d采样) — 停 %s '
-                            '(杀最新actor, 恢复走重启)'
-                            % (_avg, len(_cpu_win), str(_k)))
-                        _kill_tree(actors[_k].pid)
-                        del actors[_k]
-                        _cpu_win = []
+                # R75: 策略在CpuWatchdog(纯逻辑), 进程管理在此。
+                # 降容=可恢复暂停(非移除) — 全灭事故修正。
+                _dec, _avg = _wd.sample(_cpu, time.time())
+                if _dec == 'kill' and actors:
+                    _k = sorted(actors)[-1]
+                    log('CPU红线降容: 均值%.0f%% — 暂停 %s (均值<%d%%'
+                        '满窗后恢复)' % (_avg, str(_k), CPU_REENTER))
+                    _kill_tree(actors[_k].pid)
+                    del actors[_k]
+                    _wd.suspend(_k, time.time())
+                elif _dec == 'resume' and _wd.suspended_at:
+                    _k = _wd.pop_resumable(time.time())
+                    if _k is not None:
+                        ch, aid = _k
+                        p2 = _spawn_actor(ch, aid, fleet_port(aid),
+                                          opp_specs, args.tps)
+                        actors[_k] = p2
+                        log('CPU恢复(均值%.0f%%) — 重启 %s PID=%d'
+                            % (_avg, str(_k), p2.pid))
+                # 全灭告警: 10min周期(一次性首报+周期状态 — 今日事故
+                # 形态下必须显眼, 不能只靠人翻日志发现空转)
+                if not actors and _wd.suspended_at and \
+                        time.time() - _last_alarm > 600:
+                    _last_alarm = time.time()
+                    log('[告警] 车队actor全灭(降容) — 均值%.0f%% '
+                        '恢复线%d%% 暂停中:%s' % (
+                            _wd.avg if _wd.avg is not None else -1,
+                            CPU_REENTER,
+                            sorted(_wd.suspended_at)))
             # R57(2.6): league周期重算 — 聚合actor stats重定余量分配
             # (只影响未来重启的actor, 运行中的actor不中断)
             if time.time() - last_league > LEAGUE_INTERVAL:
