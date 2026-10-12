@@ -2441,3 +2441,17 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     副作用。
   - 制度落点: 新模块入库检查单增"同步gate_selftest FILES"(P1-①
     直接防复发)。门禁583/0/0。
+
+- 2.91 (2026-10-12, **R81 专家库扩容启动: TR等七段+高手rep集合接入**):
+  - **资产**: 用户赠 D:\TR丹尼尔棉咖啡等录像精选(61,572个有效rep,
+    2.8GB, 国内/日本/其他按玩家夹组织, 含TR/丹尼尔/mian等顶级)。
+    二进制盘点: 全角色覆盖; 现役三角相关13,235个(双边互打964 +
+    单边12,271)。
+  - **tools/expert_harvest_tr.py**: 复用oracle观测管线(run_one),
+    优先双边(双侧可采)→单边(体量裁定存储后再启); 内容md5去重
+    (vs旧expert_reps 1521个+已采manifest); shard名tr前缀+manifest
+    增md5/kind/folder溯源字段(bc_build契约加法式)。试点6/6成
+    (均34s/rep), 全量双边958个后台过夜(~9h)。
+  - **归因隔离**: 采集=惰性数据; **BC库重建在A/B裁定后**(新先验
+    入训练属训练侧变更)。单边12k批(≈50GB)待D盘存储方案裁定。
+    portmap.RESERVED增expert_harvest(20971/probe)。

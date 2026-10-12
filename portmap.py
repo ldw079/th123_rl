@@ -70,6 +70,7 @@ RESERVED = {
     "habit_punish_demo": ("hitlab", 20936),
     "human_match":       ("probe", 20975),
     "human_solo_oracle": ("probe", 20970),
+    "expert_harvest":    ("probe", 20971),
 }
 
 
