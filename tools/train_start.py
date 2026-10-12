@@ -77,7 +77,8 @@ def pre_flight():
     return ok and gb > 2
 
 
-def start(mode, actors, exploiter, tps=480, hours=None):
+def start(mode, actors, exploiter, tps=480, hours=None,
+          exploit_target=None):
     if not pre_flight():
         return 1
     if mode == 'single':
@@ -93,12 +94,15 @@ def start(mode, actors, exploiter, tps=480, hours=None):
         + (['--hours', hours] if hours else []),
         cwd=ROOT)
     if exploiter:
-        print('[启动] 剥削者 %s (30s后错峰)...' % exploiter)
+        print('[启动] 剥削者 %s%s (30s后错峰)...' % (
+            exploiter,
+            ' →定向%s' % exploit_target if exploit_target else '(镜像)'))
         time.sleep(30)
-        subprocess.Popen(
-            [PY, '-X', 'utf8', '-u', 'exploiter.py',
-             '--char', exploiter, '--fleet'],
-            cwd=ROOT)
+        _cmd = [PY, '-X', 'utf8', '-u', 'exploiter.py',
+                '--char', exploiter, '--fleet']
+        if exploit_target:
+            _cmd += ['--target', exploit_target]
+        subprocess.Popen(_cmd, cwd=ROOT)
     print('\n[监控] python tools/audit_all.py  (手动审计)')
     print('[停机] python tools/train_start.py --stop')
     print('[监督日志] D:\\temp\\th123_models\\fleet_supervision.log')
@@ -119,6 +123,8 @@ def main():
                     help='运营窗口(C1-2, 如 9:00-23:00)')
     ap.add_argument('--tps', type=int, default=480,
                     help='actor tps(R14 CPU红线: 建议360)')
+    ap.add_argument('--exploit-target', default=None,
+                    help='D1-2定向对手(如suika; 缺省镜像)')
     ap.add_argument('--exploiter', default=None,
                     help='剥削者角色(如 reimu) — 与fleet同池弱侧专项')
     ap.add_argument('--stop', action='store_true')
@@ -126,7 +132,8 @@ def main():
     if a.stop:
         stop_all()
     else:
-        sys.exit(start(a.mode, a.actors, a.exploiter, a.tps, a.hours))
+        sys.exit(start(a.mode, a.actors, a.exploiter, a.tps, a.hours,
+                 a.exploit_target))
 
 
 if __name__ == '__main__':
