@@ -33,6 +33,11 @@ def check(name, cond, detail=''):
 
 tmp = tempfile.mkdtemp(prefix='hs_b2_')
 
+# ---- 0. R77b: PORT必须是int(G2首版元组bug — bind当场TypeError) ----
+check('PORT为int端口(reserved_port访问器)',
+      isinstance(H.PORT, int) and 20800 <= H.PORT <= 21299,
+      repr(H.PORT))
+
 # ---- 1. _archive: 归档复制 ----
 H.ARCHIVE = os.path.join(tmp, 'arch')
 src_rep = os.path.join(tmp, 'a.rep')
@@ -105,4 +110,4 @@ print()
 if FAILS:
     print('FAIL(%d): %s' % (len(FAILS), ', '.join(FAILS)))
     sys.exit(1)
-print('ALL PASS (9)')
+print('ALL PASS (10)')

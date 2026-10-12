@@ -27,11 +27,11 @@ sys.stdout.reconfigure(encoding='utf8')
 from soku_client2 import (GameEnded, OPCODE_SET_HEALTH,  # noqa: E402
                            OPCODE_SET_POSITION)
 from side_driver import EvalEnv  # noqa: E402
-from portmap import RESERVED  # noqa: E402
 
 # G2(R77): 端口单一事实源(portmap.RESERVED) — 原字面量20935注释
 # "eval段"已漂移(实际hitlab段); opcode同收编soku_client2
-PORT = RESERVED["branch_demo"]
+from portmap import reserved_port
+PORT = reserved_port("branch_demo")
 NEUTRAL = {"A": False, "B": False, "C": False, "D": False,
            "SC": False, "SW": False, "H": 0, "V": 0}
 OP_SET_HEALTH = OPCODE_SET_HEALTH

@@ -2387,3 +2387,17 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     SPEED; branch_demo本地OP_SET_*重复定义→soku_client2单一来源。
     门禁锚: tm_env命名opcode+branch_demo收编双断言。
   - 行为逐位不变(同字节打包); 门禁583/0/0。
+
+- 2.88 (2026-10-12, **R77b/R78 — 首场真人采集会话(15局)暴露两缺陷并修复**):
+  - **会话成果**: 用户(爱丽丝) vs 整合包AI(早苗) 15局全胜2-0, 92,214帧
+    解算入档(human_solo_report.json), 五习惯检测全空(诚实结论: 该组
+    坏习惯未检出), 零错误。rep侧别语义确认: 整合包AI视角存档, 文件名
+    "(X︰Y_胜负)"=AI结果, left=char_x=真人(内存比分与文件名交叉验证)。
+  - **R77b(PORT元组bug)**: G2首版把RESERVED的(段,端口)元组整个赋给
+    PORT → TrainerClient.bind当场TypeError, 首轮批处理15局全灭。
+    修: portmap.reserved_port()访问器(单一访问点+int断言), 四工具
+    改走访问器; 两测试补PORT类型守卫。
+  - **R78(慢批事故)**: rep播完后游戏不自行退出时循环空转到420s预算
+    (实测426s/局)。修: kind==ended即断 + 已采帧后15s无新帧即断 —
+    实测35s/局(12×提速)。oracle_batch2.run_one同病(历史慢批的
+    真实成因, 留档; 该工具已退役为离线批, 暂不追)。

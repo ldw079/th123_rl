@@ -54,8 +54,8 @@ ORACLE_SET = ['MemoryPatch', 'ReplayDnD-old', 'SokuAITrainerEnv',
 STORE = os.environ.get('TH123_STORE', r'D:\temp\th123_models')
 ARCHIVE = os.path.join(STORE, 'human_reps')
 REPORT = os.path.join(HERE, 'human_solo_report.json')
-from portmap import RESERVED
-PORT = RESERVED["human_solo_oracle"]   # probe段(oracle约定)
+from portmap import reserved_port
+PORT = reserved_port("human_solo_oracle")   # probe段(oracle约定)
 TPS = 480             # 离线重放速度(非交互, 越快越省墙钟)
 k32 = ctypes.windll.kernel32
 
@@ -199,14 +199,21 @@ def resolve_rep(path):
             _set_priority_below_normal(cli.proc.pid)
         cli.handshake()
         cli.set_speed(TPS)
+        last_frame = t0
         while time.time() - t0 < 420:
             if cli.proc and cli.proc.poll() is not None:
                 break
             try:
                 kind, payload = cli.poll(timeout=3.0)
             except TimeoutError:
+                # R78(慢批事故): rep播完后游戏进程若不自行退出, 原版
+                # 在此空转到420s预算烧光(实测426s/局≈上限, 15局人测
+                # 数据被拖到1h+)。已采到帧且15s无新帧=rep已消费完 —
+                # 直接断, 剩余等待无收益。
+                if action_seq and time.time() - last_frame > 15:
+                    break
                 if time.time() - t0 > 20 and not action_seq:
-                    err = 'idle-noframe'
+                    err = 'idle-noframe(%d)' % len(action_seq)
                     break
                 continue
             except Exception as e:
@@ -215,9 +222,10 @@ def resolve_rep(path):
             if kind == 'fault':
                 err = 'fault:%s' % str(payload)[:60]
                 break
-            if kind in ('error', 'ended'):
-                continue
+            if kind == 'ended':
+                break          # R78: 播放结束 — 不再等进程自退
             if kind == 'frame':
+                last_frame = time.time()
                 left, right = payload['left'], payload['right']
                 action_seq.append((len(action_seq), left.get('action', 0),
                                    left.get('spirit', 0),

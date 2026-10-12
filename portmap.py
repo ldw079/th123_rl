@@ -73,6 +73,15 @@ RESERVED = {
 }
 
 
+def reserved_port(name):
+    """RESERVED访问器(返回int端口号) — R77b: G2首版把(段,端口)元组
+    整个赋给PORT, TrainerClient.bind当场TypeError(15局人测数据
+    首轮处理全灭的教训 — 收敛到单一访问点, 类型错无处可犯)."""
+    seg, port = RESERVED[name]
+    assert isinstance(port, int), "RESERVED[%r]端口非int: %r" % (name, port)
+    return port
+
+
 def check_reserved():
     """RESERVED各端口必须落在其声明段内(漂移即红)。"""
     for name, (seg, port) in RESERVED.items():

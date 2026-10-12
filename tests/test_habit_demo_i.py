@@ -77,6 +77,11 @@ check('HABIT_DEMOS五习惯全覆盖',
                              'wakeup_stand_guard', 'pressure_backjump',
                              'empty_spirit_attack'})
 
+# ---- 3.5 R77b: 工具PORT类型(branch_demo/habit_punish_demo) ----
+import branch_demo as BD
+check('PORT为int(branch_demo/habit_punish_demo)',
+      isinstance(BD.PORT, int) and isinstance(D.PORT, int))
+
 # ---- 4. _ScriptedOpp: 逐帧推进+reset ----
 opp = D._ScriptedOpp(fn)
 a = opp.frame_input({}, {}, {}, [], [])
@@ -90,4 +95,4 @@ print()
 if FAILS:
     print('FAIL(%d): %s' % (len(FAILS), ', '.join(FAILS)))
     sys.exit(1)
-print('ALL PASS (14)')
+print('ALL PASS (15)')

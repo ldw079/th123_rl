@@ -66,8 +66,8 @@ def run_match(char, bo=3, port=None, seed_note='', mode='mod'):
     """一场 BO-N: 人类P1 vs 模型P2(SideDriver). mode: mod=新mod P2-only
     正路(SOKUAI_P2_ONLY=1, 物理键盘直通, 客户端P1发{}) / poll=轮询应急."""
     from side_driver import SideDriver
-    from portmap import RESERVED
-    port = port or RESERVED["human_match"]   # probe段低频口(人测会话级)
+    from portmap import reserved_port
+    port = port or reserved_port("human_match")   # probe段低频口(人测会话级)
     opp = SideDriver(char, 'R')
     opp.load(os.path.join(STORE, 'model_ppo_%s.npz' % char))
 
