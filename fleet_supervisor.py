@@ -23,7 +23,7 @@ CG = getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0)
 # R14(CPU红线<=75%, 用户明令): 全树低优先级(子进程继承), 用户态应用先行
 PRIORITY = 0x4000  # BELOW_NORMAL_PRIORITY_CLASS
 CPU_RED_LINE = 75.0
-CPU_HOT_STRIKES = 3   # 连续3次采样超线才降容(躲瞬时峰)
+CPU_WINDOW = 6        # 滚动窗口: 近6次采样(3min)均值>红线才降容
 
 
 def cpu_load_pct():
@@ -336,8 +336,7 @@ def main():
         last_league = time.time()
         report_offline_gap()
         _hb = 0
-        _hot = 0
-        _cool = 0
+        _cpu_win = []
         while actors or learners:
             time.sleep(10)
             _hb += 1
@@ -345,25 +344,22 @@ def main():
                 write_heartbeat()
                 _cpu = cpu_load_pct()
                 if _cpu is not None:
-                    if _cpu > CPU_RED_LINE:
-                        _hot += 1
-                        log('CPU %.0f%% > 红线%.0f%% (strike %d/%d)'
-                            % (_cpu, CPU_RED_LINE, _hot, CPU_HOT_STRIKES))
-                        if _hot >= CPU_HOT_STRIKES and actors:
-                            _k = sorted(actors)[-1]
-                            log('CPU红线降容: 停 %s (杀最新actor, 恢复走重启)'
-                                % str(_k))
-                            _kill_tree(actors[_k].pid)
-                            del actors[_k]
-                            _hot = 0
-                    elif _cpu <= 70.0:
-                        # 双低才复位(负载在75附近震荡时单低不重置计数)
-                        _cool += 1
-                        if _cool >= 2:
-                            _hot = 0
-                            _cool = 0
-                    else:
-                        _hot = 0
+                    # R68b: 滚动均值判降容 — 原连续strike+双低复位在
+                    # 震荡负载下永不触发(实测14:16-14:22连续82-99%仅到
+                    # strike2即被复位)。近CPU_WINDOW次采样均值>红线即降,
+                    # 单次深蹲只稀释均值不复位 — 红线的忠实执行。
+                    _cpu_win.append(_cpu)
+                    if len(_cpu_win) > CPU_WINDOW:
+                        _cpu_win.pop(0)
+                    _avg = sum(_cpu_win) / len(_cpu_win)
+                    if _avg > CPU_RED_LINE and len(_cpu_win) >= CPU_WINDOW                             and actors:
+                        _k = sorted(actors)[-1]
+                        log('CPU红线降容: 均值%.0f%%(近%d采样) — 停 %s '
+                            '(杀最新actor, 恢复走重启)'
+                            % (_avg, len(_cpu_win), str(_k)))
+                        _kill_tree(actors[_k].pid)
+                        del actors[_k]
+                        _cpu_win = []
             # R57(2.6): league周期重算 — 聚合actor stats重定余量分配
             # (只影响未来重启的actor, 运行中的actor不中断)
             if time.time() - last_league > LEAGUE_INTERVAL:

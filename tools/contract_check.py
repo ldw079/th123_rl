@@ -1829,6 +1829,9 @@ _BEHAVIOR_TESTS = [
     # D3'(R65): 20角色league对手生态
     ("test_league20_d3.py",
      "D3': league20_opps组成/league_alloc泛化回归/种子维度守卫幂等/build_opp_cycle池根注入+严格性"),
+    # F(未决方案§F): 吞吐标定
+    ("test_throughput_f.py",
+     "F: actor局/时(段切分+跨午夜)+批耗时分布+占空比(间隙阈值+尾部心跳判活)"),
     # H(未决方案§H): 纵向学习曲线
     ("test_learning_curve_h.py",
      "H: learner日志解析(批/系列/被动行)+tail斜率(平坦/上升/不足)+verdict"),
