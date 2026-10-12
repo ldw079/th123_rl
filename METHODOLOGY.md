@@ -2329,3 +2329,21 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
   - **验证**: test 10/10入C15(含legacy构造默认钉); 门禁576/0/0。
     eval --series(同快照BO-N评估)与meta落盘接线留E阶段1b(启用时
     同批)。
+
+- 2.84 (2026-10-12, **R74 B2'人测采集改道原版游戏(用户裁定)**):
+  - **裁定**: 训练mod路径(TCP锁步+场景拉扯)在人测会话异常(窗口标题
+    画面/锁步帧率爬行~1fps/状态冻结), 用户裁定**人测采集走原版游戏,
+    特化版(th123_train/rl_game)专供训练** — 彻底隔离。
+  - **诊断结论(留档)**: 部署mod与源码MD5三方一致(无boot哑化残留);
+    内部scene=5对局真实推进(内存探针: 血量/比分变化); 窗口实拍有
+    战斗画面(渲染本身在工作)。异常集中在锁步交互(成因未定位,
+    py-spy=recv_frame等待+游戏侧帧间隔异常)。改道后不再追。
+  - **tools/human_solo_collect.py**: 原版游戏(整合包, SokuAI mod无
+    端口参数即休眠)正常游玩+游戏内存rep → 监视replay树自动归档 →
+    会话末经oracle被动观测环境(rl_game, SOKUAI_OBSERVE=1, BELOW_NORMAL,
+    tps480离线重放)解算逐帧状态 → habit_detector → 习惯报告+JSON。
+    mod切换(oracle集)用后逐字节恢复; 归档md5幂等去重。
+  - **实测**: 9-21真人rep(萃香vs AI) 329帧解算, 检出"远距总是立防
+    (100%)" — 管线全通。test_human_solo_b2.py 9条入C15(归档坏源
+    崩溃修复)。vs模型标尺对局待后续方案(vJoy注入/passive观察组合,
+    未立项)。
