@@ -160,6 +160,7 @@ fleet_supervisor.py --actors 3
 | 旧 fleet 残留档是首要危险品 | 点火前清理: `_fleet` 模型/池快照/episode |
 | safe-path 模式下 sys.path[0] ≠ 脚本目录 | 模块顶部 `sys.path.insert(0, HERE)` |
 | **行为测试的副作用以生产为假想敌** — test_trainstart_cleanup 执行真实清理, 只排自身PID → "fleet运行中跑门禁"即灭队(R64后四次, 曾误诊主机停机) | 测试先探活fleet, 在场即跳过破坏性阶段(教训×4) |
+| 门禁命令接管道(tail/grep)会吞退出码 — `${PIPESTATUS[0]}`或裸跑判绿, 红门禁禁止提交(f4668e1事故) |
 | **锁的 PID 复用误判** — OpenProcess 对任何占用该 PID 的进程都成功, 被灭进程的 PID 被回收 → 假"已有实例"重启循环/假"拒绝双开" | 存活校验追加命令行匹配(learner/supervisor 锁同款, R67b) |
 
 ---
