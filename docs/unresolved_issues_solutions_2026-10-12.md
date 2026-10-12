@@ -112,9 +112,9 @@ eval_matrix 增"纵向视图": 从训练日志提取 updates→(净分/aux/熵/�
 
 B2-2 落地后即有真人 P1 输入日志 → habit_detector（R62 已修）消费真人流 → branch_demo（E1 三级真跑在位）以"检测到习惯→惩罚宏分支"模式回放。**教学产品化的第一个闭环**: 测量员打 15 分钟 → 系统产出习惯报告+针对性惩罚演示 rep。验收: 一次真实会话产出双产物。
 
-## J · FRAME_WINDOWS 延迟执行（0.5 天, 低优先）
+## J · FRAME_WINDOWS 延迟执行（0.5 天, 低优先）— ✅ 已销项
 
-反应表常量 FRAME_WINDOWS 定义未用——macro_executor 的 branch `delay_then` 已实现延迟语义, 二选一: 反应宏接 delay 或删常量。不留"定义了没接"的第三态（从零#2 教训）。
+~~反应表常量 FRAME_WINDOWS 定义未用~~ → **裁定（2.72, R67c）**: 反应路线采 B2 即时掩码语义（reaction_mask, 学习化）, `delay_then` 延迟路线被取代; 事件窗 `_fwin` 显式消费入 `[帧级事件]` 日志（元数据可见）。门禁锚定义**与**消费（int(_fwin)）双断言。
 
 ---
 

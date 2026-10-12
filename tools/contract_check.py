@@ -1179,6 +1179,10 @@ chk(fn_has("train_tm.py", "_run_episode", "_frame_detector")
     and fn_has("train_tm.py", "_run_episode", "frame_events.reaction_mask"),
     "帧级事件接入_run_episode(R61l B2: reaction_mask策略条件化, "
     "原pick_reaction固定权重随机已废) [_run_episode体内]")
+chk(fn_has("train_tm.py", "_run_episode", "int(_fwin)")
+    and "FRAME_WINDOWS" in src("frame_events.py"),
+    "J裁定(2.72): 事件窗_fwin显式消费入日志 — 反应采B2即时掩码语义, "
+    "不留'定义未接'第三态(仅锚定义会放过消费回归) [_run_episode体内]")
 chk('s[o] = min(left.get("pose"' in src("feat_builder.py"),
     "pose/poseFrame入14j段(R57: 显式入账, 原尾写静默覆盖14i后4维)")
 # R57(第十八轮2.5): 原"action细分//64下段可分"子串断言已删 — 特性是伪的
