@@ -230,12 +230,40 @@ def _spawn_actor(ch, aid, port, opp_specs, tps=480):
     return p
 
 
+def _clean_shutdown(actors, learners):
+    """停机卫生(D5从零#2收尾; C1-2窗口尾共用): 先actor(CTRL_BREAK→
+    优雅退出, 释放游戏/episode写盘), 再learner(存档后退出) — 原两批
+    同时发信号, actor慢退出期间learner已可能重发布/竞争。"""
+    for p in list(actors.values()):
+        try:
+            p.send_signal(signal.CTRL_BREAK_EVENT)
+        except OSError:
+            pass
+    for p in list(actors.values()):
+        try:
+            p.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            _kill_tree(p.pid)
+    for p in list(learners.values()):
+        try:
+            p.send_signal(signal.CTRL_BREAK_EVENT)
+        except OSError:
+            pass
+    for p in list(learners.values()):
+        try:
+            p.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            _kill_tree(p.pid)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--actors', type=int, default=8)
     ap.add_argument('--focus', default=','.join(CHARS),
                     help='主角色位(有learner, 逗号分隔; 默认%s)'
                          % ','.join(CHARS))
+    ap.add_argument('--hours', default=None,
+                    help='运营窗口 START-END 如 9:00-23:00(C1-2: 窗口尾干净收队)')
     ap.add_argument('--tps', type=int, default=480,
                     help='actor游戏tps(R14红线降载: 360≈75%%功耗)')
     ap.add_argument('--league-weight', type=int, default=LEAGUE_FOCUS_WEIGHT,
@@ -337,8 +365,24 @@ def main():
         report_offline_gap()
         _hb = 0
         _cpu_win = []
+        # C1-2(用户裁定①窗口制): 窗口尾干净收队 — 任务计划程序负责窗口头
+        win_end = None
+        if args.hours:
+            try:
+                _h, _m = args.hours.split('-')[1].split(':')
+                win_end = (int(_h) * 60 + int(_m)) * 60
+            except (ValueError, IndexError):
+                log('窗口参数无法解析(%r) — 忽略' % args.hours)
         while actors or learners:
             time.sleep(10)
+            if win_end is not None:
+                _now = time.localtime()
+                _now_s = _now.tm_hour * 3600 + _now.tm_min * 60 + _now.tm_sec
+                if _now_s >= win_end:
+                    log('运营窗口尾(%s) — 干净收队(learner存档→actor退出)'
+                        % args.hours)
+                    _clean_shutdown(actors, learners)
+                    break
             _hb += 1
             if _hb % HEARTBEAT_EVERY == 0:
                 write_heartbeat()
@@ -425,32 +469,9 @@ def main():
         log('全部结束')
 
     except KeyboardInterrupt:
-        # 停机卫生(D5从零#2收尾): 先actor(CTRL_BREAK→优雅退出)并等待其
-        # 真正退出(释放游戏实例/episode写盘), 再learner(存档后退出) —
-        # 原两批同时发信号, actor慢退出期间learner已可能重发布/竞争。
         log('中断 — 先停actor等待退出, 再停learner')
-        for p in list(actors.values()):
-            try:
-                p.send_signal(signal.CTRL_BREAK_EVENT)
-            except OSError:
-                pass
-        for p in list(actors.values()):
-            try:
-                p.wait(timeout=30)
-            except subprocess.TimeoutExpired:
-                # R63(P1-5): 整树终结 — 原 p.kill() 只杀worker, 其游戏
-                # 子进程残留占端口(见_kill_tree)
-                _kill_tree(p.pid)
-        for p in list(learners.values()):
-            try:
-                p.send_signal(signal.CTRL_BREAK_EVENT)
-            except OSError:
-                pass
-        for p in list(learners.values()):
-            try:
-                p.wait(timeout=30)
-            except subprocess.TimeoutExpired:
-                _kill_tree(p.pid)
+        _clean_shutdown(actors, learners)
+
     finally:
         try:
             os.remove(LOCK)

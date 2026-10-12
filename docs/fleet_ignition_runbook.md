@@ -61,6 +61,14 @@ D:\temp\pyenv\python.exe -X utf8 -u fleet_supervisor.py --actors 6
 3. 回退路径: 停 fleet(CTRL-C, actors 先退) → 原 `run_parallel.py 5000`
    一键回单实例（模型/计数/难度档全在盘上, 无损回退）。
 
+## 2b. 运营窗口制（C1-2, 用户裁定 2026-10-12）
+
+- supervisor `--hours 9:00-23:00`：窗口尾自动干净收队（actor先退→learner存档）；
+- 任务计划程序 `th123_fleet_window` 每日 09:00 自动拉起满配
+  （`schtasks /Query /TN th123_fleet_window` 可查, 删除用 /Delete）;
+- CPU 红线（R14）看门狗滚动均值降容后**只降不升** — 次日窗口头自动以满配重启即恢复；
+- M1 的"48h 连续"口径 = **48h 累计运营窗口**（占空比日报：`tools/throughput_report.py`）。
+
 ## 3. 点火首日检查单
 
 - [ ] learner 日志出现 `批N局/... vK |KL|...`（批更新在走）

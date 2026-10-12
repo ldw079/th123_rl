@@ -77,7 +77,7 @@ def pre_flight():
     return ok and gb > 2
 
 
-def start(mode, actors, exploiter, tps=480):
+def start(mode, actors, exploiter, tps=480, hours=None):
     if not pre_flight():
         return 1
     if mode == 'single':
@@ -89,7 +89,8 @@ def start(mode, actors, exploiter, tps=480):
     print('[启动] fleet %d actor...' % actors)
     p = subprocess.Popen(
         [PY, '-X', 'utf8', '-u', 'fleet_supervisor.py',
-         '--actors', str(actors), '--tps', str(tps)],
+         '--actors', str(actors), '--tps', str(tps)]
+        + (['--hours', hours] if hours else []),
         cwd=ROOT)
     if exploiter:
         print('[启动] 剥削者 %s (30s后错峰)...' % exploiter)
@@ -114,6 +115,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--mode', default='fleet', choices=['fleet', 'single'])
     ap.add_argument('--actors', type=int, default=4)
+    ap.add_argument('--hours', default=None,
+                    help='运营窗口(C1-2, 如 9:00-23:00)')
     ap.add_argument('--tps', type=int, default=480,
                     help='actor tps(R14 CPU红线: 建议360)')
     ap.add_argument('--exploiter', default=None,
@@ -123,7 +126,7 @@ def main():
     if a.stop:
         stop_all()
     else:
-        sys.exit(start(a.mode, a.actors, a.exploiter, a.tps))
+        sys.exit(start(a.mode, a.actors, a.exploiter, a.tps, a.hours))
 
 
 if __name__ == '__main__':
