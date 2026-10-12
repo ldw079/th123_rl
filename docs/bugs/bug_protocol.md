@@ -31,3 +31,4 @@
 
 - `bug_2026-10-12_b3_adx_column.md` — B3 距离列号误用站位(R67c 修复, 溯及归档)
 - `bug_2026-10-12_b3_empty_window_keyerror.md` — B3 报告空窗 KeyError(R67d 已修, 顺带修出delta-0.0误报None)
+- `bug_2026-10-12_far_passive_zero_far_fallback.md` — 远距被动零远距帧 or-seq 兜底静默退旧口径(未修, 低; R79 遗留边界)
