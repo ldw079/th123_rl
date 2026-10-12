@@ -2137,3 +2137,16 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
 - 2.74 (2026-10-12, 目录整理: bug文档统一入docs/bugs/(用户指令) —
   bug_protocol.md随档迁入, HANDOVER索引两行并一行; 2.73所记旧路径
   docs/bug_protocol.md以现路径docs/bugs/bug_protocol.md为准)。
+
+- 2.75 (2026-10-12, **R67d bug档清偿: B3空窗KeyError** — 用户指令
+  "修bugs档案的bug"):
+  - **修**(bug_2026-10-12_b3_empty_window_keyerror, 首个"修复后回填"
+  示范): ①空窗分支补齐键集(原只写range/decisions, far_share_delta
+  下标即KeyError — 触发=单角色episode数<windows; 打印路径有空窗分支
+  而计算路径漏=防御不对称型); ②同函数顺带修出**delta恰0.0误报None**
+  (and/or惯用法把真零变化标成"无数据")。配对测试14/14(空窗/单局/
+  delta-0三类新增); 真实目录实跑命中原崩溃场景(suika 1局首窗空)。
+  - **修正列号后首份真实B3读数**(顺带产出): 远弹份额reimu 2.0%持平/
+  marisa 4.2→1.3%/suika 8.0% — "大部分决策在远距、很少开枪"的定性
+  图景在正确距离口径下成立(1-8%; 旧档的100%/0%系站位误读)。
+  - 门禁570/0/0; 训练仍按用户指令暂停中。
