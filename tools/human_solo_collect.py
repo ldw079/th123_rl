@@ -54,7 +54,8 @@ ORACLE_SET = ['MemoryPatch', 'ReplayDnD-old', 'SokuAITrainerEnv',
 STORE = os.environ.get('TH123_STORE', r'D:\temp\th123_models')
 ARCHIVE = os.path.join(STORE, 'human_reps')
 REPORT = os.path.join(HERE, 'human_solo_report.json')
-PORT = 20970          # probe段(oracle约定20960-20999)
+from portmap import RESERVED
+PORT = RESERVED["human_solo_oracle"]   # probe段(oracle约定)
 TPS = 480             # 离线重放速度(非交互, 越快越省墙钟)
 k32 = ctypes.windll.kernel32
 

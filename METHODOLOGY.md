@@ -2377,3 +2377,13 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     (远距立防100%) + 惩罚演示JSON(tools/habit_demos/)。
     test_habit_demo_i.py 14条入C15。脚本循环补满语义(首版12帧
     放空=对照无效的教训)。
+
+- 2.87 (2026-10-12, **R77 G2接口常量化(未决方案§G首片)**):
+  - **portmap.RESERVED**: 工具端口单一事实源(branch_demo 20935/
+    habit_punish_demo 20936/human_match 20975/human_solo 20970) +
+    check_reserved落段校验入C12门禁 — 原各工具字面量+手写段注释已
+    漂移(20935注释"eval段"实际hitlab段, 即G2要防的漂移形态实证)。
+  - **opcode收编**: tm_env渲染/变速裸字面量2/3退役→OPCODE_DISPLAY/
+    SPEED; branch_demo本地OP_SET_*重复定义→soku_client2单一来源。
+    门禁锚: tm_env命名opcode+branch_demo收编双断言。
+  - 行为逐位不变(同字节打包); 门禁583/0/0。

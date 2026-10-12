@@ -18,7 +18,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # 本目录相对化(第六轮审计沙箱密闭性): 硬编码绝对根会让变异沙箱的
 # import 解析回真实根, 变异测试全部失效
 from soku_client2 import (SokuTrainerInstance, GameEnded, ProtocolError,
-                          OPCODE_VS_PLAYER_START_GAME, OPCODE_VS_COM_START_GAME)  # noqa
+                          OPCODE_VS_PLAYER_START_GAME, OPCODE_VS_COM_START_GAME,  # noqa
+                          OPCODE_SPEED, OPCODE_DISPLAY)  # noqa
 
 # R46(第十四轮§3-1阻塞项): 全20角色 — 原只有三现役, 新角色在env构造处
 # KeyError 5次×90s重试后退出(生成→加载→建模链条通了, 唯独没人跑过端到端)
@@ -270,11 +271,12 @@ class TMEnv:
         # 变速在开局前发送且不读应答(OK应答与帧流交错会造成读串 — 实测ep3秒死);
         # 杂音OK由首帧容错循环吃掉
         if self.tps:
-            self.inst.sock.sendall(struct.pack("<BI", 2, self.tps))
+            self.inst.sock.sendall(struct.pack("<BI", OPCODE_SPEED,
+                                                  self.tps))
         # 关渲染(DISPLAY=3, bool false): PinkySmile默认路径, 省GPU/CPU;
         # 虚拟视觉后屏幕纯装饰 — render=True可保留观看
         if not self.render:
-            self.inst.sock.sendall(struct.pack("<BB", 3, 0))
+            self.inst.sock.sendall(struct.pack("<BB", OPCODE_DISPLAY, 0))
         # 注意: 不发OPCODE_SOUND(4) — mod未实现该opcode,
         # 发送会破坏协议流导致后续所有通信错乱(实测).
         # COM难度设置(必须在_start_first之前: 游戏开局时读取0x008998A4

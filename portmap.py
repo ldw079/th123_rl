@@ -62,6 +62,26 @@ def rebuild_port(slot, ep):
     return p
 
 
+# G2(R77, 接口常量化): 工具端口单一事实源 — 原各工具字面量+手写段注释
+# 已漂移(branch_demo 20935注释"eval段"实为hitlab)。改动段划分时这里
+# 的check_reserved会红(门禁C12消费), 不再靠人眼对表。
+RESERVED = {
+    "branch_demo":       ("hitlab", 20935),
+    "habit_punish_demo": ("hitlab", 20936),
+    "human_match":       ("probe", 20975),
+    "human_solo_oracle": ("probe", 20970),
+}
+
+
+def check_reserved():
+    """RESERVED各端口必须落在其声明段内(漂移即红)。"""
+    for name, (seg, port) in RESERVED.items():
+        lo, hi = SEGMENTS[seg]
+        if not lo <= port <= hi:
+            return False, "%s: %d不在%s段%s" % (name, port, seg, (lo, hi))
+    return True, ""
+
+
 def check_disjoint():
     segs = sorted(SEGMENTS.values())
     for (a1, a2), (b1, b2) in zip(segs, segs[1:]):

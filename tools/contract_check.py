@@ -754,11 +754,18 @@ chk('[(("down",), 6), (("down", "A"), 10)]' in ms_src,
 
 # ============ C12 端口段(第六轮审计§3: 显式划分防跨实例串流) ============
 print("=== C12 端口段(portmap静态校验) ===")
-from portmap import SEGMENTS, check_disjoint, check_rebuild_domain
+from portmap import SEGMENTS, check_disjoint, check_rebuild_domain, check_reserved
 _ok, _det = check_disjoint()
 chk(_ok, "端口段两两不重叠", _det)
+_okr, _detr = check_reserved()
+chk(_okr, "G2工具端口RESERVED落段(branch/habit/human_*)", _detr)
 _ok2, _det2 = check_rebuild_domain()
 chk(_ok2, "rebuild取值域枚举(slot0-5×ep200)全在段内(D4)", _det2)
+chk('OPCODE_SPEED, OPCODE_DISPLAY' in src("tm_env.py")
+    and '("<BB", 3, 0)' not in src("tm_env.py"),
+    "G2(R77): tm_env渲染/变速用命名opcode(裸2/3字面量退役)")
+chk('OPCODE_SET_POSITION' in src("tools/branch_demo.py"),
+    "G2(R77): branch_demo局面控制opcode收编soku_client2")
 chk(SEGMENTS["train_rebuild"] == (20850, 20899)
     and SEGMENTS["eval"][0] == 20900 and SEGMENTS["hitlab"][0] == 20920
     and SEGMENTS["exp"][0] == 20940, "段定义与文档一致",

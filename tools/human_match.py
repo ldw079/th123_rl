@@ -66,7 +66,8 @@ def run_match(char, bo=3, port=None, seed_note='', mode='mod'):
     """一场 BO-N: 人类P1 vs 模型P2(SideDriver). mode: mod=新mod P2-only
     正路(SOKUAI_P2_ONLY=1, 物理键盘直通, 客户端P1发{}) / poll=轮询应急."""
     from side_driver import SideDriver
-    port = port or 20975   # probe段低频口(人测会话级, 不与训练冲突)
+    from portmap import RESERVED
+    port = port or RESERVED["human_match"]   # probe段低频口(人测会话级)
     opp = SideDriver(char, 'R')
     opp.load(os.path.join(STORE, 'model_ppo_%s.npz' % char))
 
@@ -76,7 +77,9 @@ def run_match(char, bo=3, port=None, seed_note='', mode='mod'):
         os.environ['SOKUAI_P2_ONLY'] = '1'
     try:
         env = EvalEnv(port, char_left=char, char_right=char,
-                      vs_com=False, tps=60)  # 60tps=同速公平(B2-2)
+                      vs_com=False, tps=60, render=True)
+        # render=True: 人测会话必须渲染画面(训练侧render=False省资源;
+        # 渲染开关=TCP DISPLAY命令, 无需mod改动 — 用户2026-10-12指正)
     finally:
         if mode == 'mod':
             if _restore_env is None:

@@ -32,10 +32,11 @@ sys.stdout.reconfigure(encoding='utf8')
 from branch_demo import (SCENARIOS, NEUTRAL, setup_scenario,  # noqa: E402
                          run_branch)
 from side_driver import EvalEnv  # noqa: E402
+from portmap import RESERVED as RESERVED_PORT  # noqa: E402
 from habit_detector import HABITS, punishment_macros  # noqa: E402
 from train_tm import CHAR_LIBS  # noqa: E402
 
-PORT = 20936        # eval段
+PORT = RESERVED_PORT
 TPS = 240           # 演示加速(非公平性场景, 无需真速)
 DEMO_FRAMES = 240   # 分支全长(脚本循环补满 — 首版12帧放空的教训)
 REPORT = os.path.join(HERE, 'human_solo_report.json')
