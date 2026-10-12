@@ -32,3 +32,10 @@
 - `bug_2026-10-12_b3_adx_column.md` — B3 距离列号误用站位(R67c 修复, 溯及归档)
 - `bug_2026-10-12_b3_empty_window_keyerror.md` — B3 报告空窗 KeyError(R67d 已修, 顺带修出delta-0.0误报None)
 - `bug_2026-10-12_far_passive_zero_far_fallback.md` — 远距被动零远距帧 or-seq 兜底静默退旧口径(未修, 低; R79 遗留边界)
+- 从零审查#3(2026-10-12)六项 P1 批量立档(详见 docs/audit/audit_2026-10-12_from_zero_3.md):
+- `bug_2026-10-12_selftest_sandbox_stale.md` — 变异自检失效:沙箱FILES缺series_manager+死变异×2(未修)
+- `bug_2026-10-12_side_driver_dec_name.md` — 对手侧R34守备豁免恒失效(未修)
+- `bug_2026-10-12_throughput_tab_path.md` — 吞吐报告路径TAB字节→fleet合计恒0(未修)
+- `bug_2026-10-12_habits_retract_nowriter.md` — habits_retracted无代码写入点,提交宣称与实现不符(未修)
+- `bug_2026-10-12_ppo_dual_impl_grad.md` — 双实现梯度接合点不等价(vf_adam混代+cap反向不完整)(未修)
+- `bug_2026-10-12_trainstart_killall_th123.md` — train_start无差别杀th123误伤原版局/离线重放(未修)
