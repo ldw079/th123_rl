@@ -331,8 +331,22 @@ def run_learner(char, batch_k=BATCH_K, suffix='_fleet'):
             h = k32.OpenProcess(0x1000, False, _old)
             if h:
                 k32.CloseHandle(h)
-                print('[learner] %s 已有实例(PID=%d) — 退出' % (char, _old))
-                sys.exit(1)
+                # R67b(2026-10-12 PID复用防御): OpenProcess对**任何**占用
+                # 该PID的进程都成功 — 旧learner被灭后PID被无关进程回收 →
+                # 误判"已有实例" → 重启循环20次耗尽(实证: 10-12 reimu,
+                # 上游灭队事故的次生伤害)。追加命令行校验: 真learner才拒双开。
+                import subprocess as _sp
+                _cmd = _sp.run(
+                    ['powershell', '-NoProfile', '-Command',
+                     "(Get-CimInstance Win32_Process -Filter "
+                     "'ProcessId=%d').CommandLine" % _old],
+                    capture_output=True, text=True, timeout=20)
+                if 'learner_hub' in (_cmd.stdout or ''):
+                    print('[learner] %s 已有实例(PID=%d) — 退出' % (
+                        char, _old))
+                    sys.exit(1)
+                print('[learner] %s 锁PID%d已被无关进程复用 — 清锁续启'
+                      % (char, _old))
         except (ValueError, OSError):
             pass
         os.remove(lock)

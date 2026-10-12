@@ -217,8 +217,20 @@ def main():
             h = k32.OpenProcess(0x1000, False, int(old))
             if h:
                 k32.CloseHandle(h)
-                print("已有fleet_supervisor在跑(PID=%s) — 拒绝双开" % old)
-                sys.exit(1)
+                # R67b(2026-10-12 PID复用防御, 与learner锁同款): OpenProcess
+                # 对任何占用该PID的进程都成功 — 被灭supervisor的PID被无关
+                # 进程回收 → 误判双开退出(实证: 10-12 10:42只打出周期行即
+                # 消失, 剩剥削者孤儿)。命令行校验: 真supervisor才拒双开。
+                import subprocess as _sp
+                _cmd = _sp.run(
+                    ['powershell', '-NoProfile', '-Command',
+                     "(Get-CimInstance Win32_Process -Filter "
+                     "'ProcessId=%d').CommandLine" % int(old)],
+                    capture_output=True, text=True, timeout=20)
+                if 'fleet_supervisor' in (_cmd.stdout or ''):
+                    print("已有fleet_supervisor在跑(PID=%s) — 拒绝双开" % old)
+                    sys.exit(1)
+                print("锁PID%s已被无关进程复用 — 清锁续启" % old)
         except (ValueError, OSError):
             pass
         os.remove(LOCK)

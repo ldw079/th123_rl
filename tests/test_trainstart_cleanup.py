@@ -10,6 +10,12 @@
   2. **同特征串但被排除的PID存活**(decoy_b=exclude_pid — 正是train_start
      自身的处境; 修复前它会死)
   3. 无特征串进程不受连坐(decoy_c)
+
+⚠ 教训×4(2026-10-12, R64后每次"fleet运行中跑门禁"都灭队——含昨夜与
+今晨各一次, 曾被误判为主机停机): 本测试执行**真实清理命令**, 排除的
+只有测试自身PID → 活fleet(supervisor/learner/actor/exploiter全命中
+特征串)被整树taskkill。守卫: 检测到活训练进程时**跳过破坏性阶段**
+(留待停机窗口/无fleet环境执行), 门禁与活fleet共存是宪法工作流的前提。
 """
 import os
 import subprocess
@@ -29,7 +35,28 @@ def alive(p):
     return p.poll() is None
 
 
+def live_fleet_present():
+    """活训练进程在场? WMI按清理同款特征串计数(探测失败按在场=保守)."""
+    try:
+        out = subprocess.run(
+            ['powershell', '-NoProfile', '-Command',
+             "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" "
+             "| Where-Object {$_.CommandLine -match "
+             "'fleet_supervisor|run_parallel|learner_hub|actor_worker"
+             "|exploiter'} | Measure-Object | "
+             "Select-Object -ExpandProperty Count"],
+            capture_output=True, text=True, timeout=30)
+        return int((out.stdout or '0').strip() or 0) > 0
+    except Exception:
+        return True
+
+
 def main():
+    if live_fleet_present():
+        print("[SKIP] 活fleet在场 — 破坏性清理断言跳过(教训×4: 本测试"
+              "曾四次灭掉活fleet; 完整断言留待停机窗口执行)")
+        print("==== SKIP(活fleet保护) / 0 FAIL ====")
+        return
     # decoy_a: 命中特征串 → 该死
     a = subprocess.Popen([sys.executable, '-c', SLEEPER, '--exploiter=reimu'])
     # decoy_b: 同样命中特征串, 但作为exclude_pid(=train_start自身处境) → 该活
