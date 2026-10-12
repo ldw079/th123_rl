@@ -65,8 +65,9 @@ H.REPORT = os.path.join(tmp, 'report.json')
 def fake_resolve(path):
     meta = {'char': 'suika', 'opp_char': 'reimu', 'mode': 2,
             'date': '10-12', 'n_frames_rep': 10}
-    seq = [(i, 0, 1000, 0) for i in range(90)] + \
-          [(i, 160, 1000, 0) for i in range(90, 120)]
+    # R79: 5元组(dx) + >1000帧(有效性门) — 远距idle为主→far_stand_guard
+    seq = ([(i, 0, 1000, 0, 500.0) for i in range(900)] +
+           [(i, 160, 1000, 0, 500.0) for i in range(900, 1200)])
     return meta, seq, (2, 1), None
 
 
@@ -78,7 +79,9 @@ e = data[0]
 check('条目字段(char/md5/比分/解算帧数)',
       e['char'] == 'suika' and e['md5'] == H._md5(p1)
       and e['final_score_left_right'] == [2, 1]
-      and e['resolved_frames'] == 120)
+      and e['resolved_frames'] == 1200)
+check('有效样本valid=True',
+      e.get('valid') is True and e.get('far_pct') == 1.0)
 check('习惯字段经habit_detector真实检出',
       isinstance(e.get('habits'), list) and len(e['habits']) >= 1
       and all(k in ('wakeup_crouch_guard', 'wakeup_stand_guard',
@@ -86,6 +89,38 @@ check('习惯字段经habit_detector真实检出',
                     'empty_spirit_attack') for k in e['habits']),
       str(e.get('habits')))
 check('err透传到条目', e['err'] is None)
+
+# ---- 3.5 R79: 有效性门 — 残局碎片(0:0/短)不进习惯统计 ----
+def fake_resolve_garbage(path):
+    """R79实证形态: 0:0残局碎片, 全idle, 4元组无距离。"""
+    meta = {'char': 'suika', 'opp_char': 'suika', 'mode': 2,
+            'date': '09-21', 'n_frames_rep': 134}
+    return meta, [(i, 0, 1000, 0) for i in range(329)], (0, 0), None
+
+
+H.resolve_rep = fake_resolve_garbage
+H.REPORT = os.path.join(tmp, 'report2.json')
+_g = os.path.join(tmp, 'garbage.rep')
+open(_g, 'wb').write(b'\xD2' + b'\x11' * 127)
+H.process_archive(_g)
+d2 = json.load(open(H.REPORT, encoding='utf8'))
+check('残局样本valid=False+留账+无习惯字段',
+      len(d2) == 1 and d2[0]['valid'] is False
+      and d2[0].get('invalid_reason') == '0:0无结果'
+      and 'habits' not in d2[0], str(d2[0].get('invalid_reason')))
+check('残局样本统计字段仍留档(审计透明)',
+      d2[0].get('idle_pct') == 1.0 and d2[0].get('far_pct') == 0.0)
+H.resolve_rep = fake_resolve
+H.REPORT = os.path.join(tmp, 'report.json')
+
+# ---- 3.6 R79: far_passive距离门控(5元组, 分母=远距帧) ----
+from habit_detector import _detect_far_passive
+_near_idle = [(i, 0, 1000, 0, 100.0) for i in range(500)]
+_far_active = [(i, 300, 1000, 0, 500.0) for i in range(500)]
+check('近距idle不计入远距被动',
+      _detect_far_passive(_near_idle + _far_active) == 0.0)
+_far_idle = [(i, 0, 1000, 0, 500.0) for i in range(800)]
+check('远距idle照常检出', _detect_far_passive(_far_idle) == 1.0)
 
 # 幂等: 同md5再处理一次应被_processed_hashes识别
 H.process_archive(p1)
@@ -110,4 +145,4 @@ print()
 if FAILS:
     print('FAIL(%d): %s' % (len(FAILS), ', '.join(FAILS)))
     sys.exit(1)
-print('ALL PASS (10)')
+print('ALL PASS (16)')

@@ -14,10 +14,9 @@
   "mode": 2,
   "date": "09-21",
   "n_frames_rep": 134,
-  "habits": [
-   "far_stand_guard"
-  ],
-  "habit_report": "=== 坏习惯检测报告 ===\n\n【远距总是立防】远距离站着不动防 — 浪费空间, 对手自由接近 (检测率100%, 严重度低)\n  AI惩罚方式: 弹幕牵制(5B/5C)或前冲压制(DA)\n  改正建议: 远距应主动: 弹幕牵制/前冲接近/高跳 — 不要站桩\n\n提示: 使用 branch_demo.py 可演示各习惯的惩罚后果"
+  "valid": false,
+  "invalid_reason": "R79审计作废: 0:0无结果残局, 329帧action全集={0} — \"远距立防100%\"为垃圾结论(用户质疑实证)",
+  "habits_retracted": true
  },
  {
   "ts": "2026-10-12 19:37:41",
@@ -35,7 +34,8 @@
   "date": "10-12",
   "n_frames_rep": 2698,
   "habits": [],
-  "habit_report": "未检测到明显坏习惯 — 继续保持!"
+  "habit_report": "未检测到明显坏习惯 — 继续保持!",
+  "valid": true
  },
  {
   "ts": "2026-10-12 19:44:47",
@@ -53,7 +53,8 @@
   "date": "10-12",
   "n_frames_rep": 3350,
   "habits": [],
-  "habit_report": "未检测到明显坏习惯 — 继续保持!"
+  "habit_report": "未检测到明显坏习惯 — 继续保持!",
+  "valid": true
  },
  {
   "ts": "2026-10-12 19:50:17",
@@ -71,7 +72,8 @@
   "date": "10-12",
   "n_frames_rep": 2541,
   "habits": [],
-  "habit_report": "未检测到明显坏习惯 — 继续保持!"
+  "habit_report": "未检测到明显坏习惯 — 继续保持!",
+  "valid": true
  },
  {
   "ts": "2026-10-12 19:50:52",
@@ -89,7 +91,8 @@
   "date": "10-12",
   "n_frames_rep": 3188,
   "habits": [],
-  "habit_report": "未检测到明显坏习惯 — 继续保持!"
+  "habit_report": "未检测到明显坏习惯 — 继续保持!",
+  "valid": true
  },
  {
   "ts": "2026-10-12 19:51:29",
@@ -107,7 +110,8 @@
   "date": "10-12",
   "n_frames_rep": 3749,
   "habits": [],
-  "habit_report": "未检测到明显坏习惯 — 继续保持!"
+  "habit_report": "未检测到明显坏习惯 — 继续保持!",
+  "valid": true
  },
  {
   "ts": "2026-10-12 19:52:02",
@@ -125,7 +129,8 @@
   "date": "10-12",
   "n_frames_rep": 2932,
   "habits": [],
-  "habit_report": "未检测到明显坏习惯 — 继续保持!"
+  "habit_report": "未检测到明显坏习惯 — 继续保持!",
+  "valid": true
  },
  {
   "ts": "2026-10-12 19:52:35",
@@ -143,7 +148,8 @@
   "date": "10-12",
   "n_frames_rep": 2551,
   "habits": [],
-  "habit_report": "未检测到明显坏习惯 — 继续保持!"
+  "habit_report": "未检测到明显坏习惯 — 继续保持!",
+  "valid": true
  },
  {
   "ts": "2026-10-12 19:53:11",
@@ -161,7 +167,8 @@
   "date": "10-12",
   "n_frames_rep": 2868,
   "habits": [],
-  "habit_report": "未检测到明显坏习惯 — 继续保持!"
+  "habit_report": "未检测到明显坏习惯 — 继续保持!",
+  "valid": true
  },
  {
   "ts": "2026-10-12 19:53:47",
@@ -179,7 +186,8 @@
   "date": "10-12",
   "n_frames_rep": 2799,
   "habits": [],
-  "habit_report": "未检测到明显坏习惯 — 继续保持!"
+  "habit_report": "未检测到明显坏习惯 — 继续保持!",
+  "valid": true
  },
  {
   "ts": "2026-10-12 19:54:22",
@@ -197,7 +205,8 @@
   "date": "10-12",
   "n_frames_rep": 2059,
   "habits": [],
-  "habit_report": "未检测到明显坏习惯 — 继续保持!"
+  "habit_report": "未检测到明显坏习惯 — 继续保持!",
+  "valid": true
  },
  {
   "ts": "2026-10-12 19:54:58",
@@ -215,7 +224,8 @@
   "date": "10-12",
   "n_frames_rep": 2809,
   "habits": [],
-  "habit_report": "未检测到明显坏习惯 — 继续保持!"
+  "habit_report": "未检测到明显坏习惯 — 继续保持!",
+  "valid": true
  },
  {
   "ts": "2026-10-12 19:55:31",
@@ -233,7 +243,8 @@
   "date": "10-12",
   "n_frames_rep": 2503,
   "habits": [],
-  "habit_report": "未检测到明显坏习惯 — 继续保持!"
+  "habit_report": "未检测到明显坏习惯 — 继续保持!",
+  "valid": true
  },
  {
   "ts": "2026-10-12 19:56:07",
@@ -251,7 +262,8 @@
   "date": "10-12",
   "n_frames_rep": 2995,
   "habits": [],
-  "habit_report": "未检测到明显坏习惯 — 继续保持!"
+  "habit_report": "未检测到明显坏习惯 — 继续保持!",
+  "valid": true
  },
  {
   "ts": "2026-10-12 19:56:48",
@@ -269,7 +281,8 @@
   "date": "10-12",
   "n_frames_rep": 3698,
   "habits": [],
-  "habit_report": "未检测到明显坏习惯 — 继续保持!"
+  "habit_report": "未检测到明显坏习惯 — 继续保持!",
+  "valid": true
  },
  {
   "ts": "2026-10-12 19:57:28",
@@ -287,6 +300,7 @@
   "date": "10-12",
   "n_frames_rep": 3556,
   "habits": [],
-  "habit_report": "未检测到明显坏习惯 — 继续保持!"
+  "habit_report": "未检测到明显坏习惯 — 继续保持!",
+  "valid": true
  }
 ]

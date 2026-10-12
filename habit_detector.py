@@ -146,19 +146,16 @@ def _detect_pressure_response(seq, resp_type, hot=12):
 def _detect_far_passive(seq):
     """远距被动检测.
 
-    I项接线挖出(R70): 原按3元组解包 — detect_habits文档承诺4元组
-    (含对手action)向后兼容, 但此检测器与_empty_spirit漏改, 4元组输入
-    必炸(E5测试只用3元组=盲区). 修: 位置取前3位, 对手位忽略.
+    I项接线挖出(R70): 原按3元组解包 — 4元组兼容修(位置取前3位).
+    R79(用户质疑审计实证): ①原版不看距离 — "远距"名不副实, 全场
+    待机/立防都计入(帧间空隙+回合intro全算被动); ②残局样本(0:0无
+    结果, 全场action={0})下输出100%纯垃圾。修: 5元组第5位dx>=400才
+    入池(分母=远距帧); 4元组无距离退化为旧口径(兼容, 调用方应带dx).
     """
-    passive = 0
-    total = 0
-    for item in seq:
-        f, act, spirit = item[0], item[1], item[2]
-        # 简化: 立防+待机 = 被动
-        if act == 0 or 150 <= act <= 153:
-            passive += 1
-        total += 1
-    return passive / max(total, 1)
+    pool = [row for row in seq if len(row) > 4 and row[4] >= 400] or seq
+    passive = sum(1 for row in pool
+                  if row[1] == 0 or 150 <= row[1] <= 166)
+    return passive / max(len(pool), 1)
 
 
 def _detect_empty_spirit(seq):

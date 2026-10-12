@@ -121,7 +121,9 @@ def run_match(char, bo=3, port=None, seed_note='', mode='mod'):
                 left, right, weather, objs = r
                 action_seq.append((frames, left.get('action', 0),
                                    left.get('spirit', 0),
-                                   right.get('action', 0)))
+                                   right.get('action', 0),
+                                   abs(right.get('position.x', 0)
+                                       - left.get('position.x', 0))))
                 # SideDriver P2同构: own=right(P2视角), opp=left
                 _opp_inp = opp.frame_input(right, left, weather, objs, [])
     finally:

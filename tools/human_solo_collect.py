@@ -175,8 +175,8 @@ def _restore_mods(orig):
 def resolve_rep(path):
     """oracle被动观测重放一个rep → (meta, action_seq, final_score, err)。
 
-    action_seq元素: (帧号, left.action, left.spirit, right.action)
-    — 与habit_detector契约同构(human_match.py同源)。
+    action_seq元素: (帧号, left.action, left.spirit, right.action, dx)
+    — 与habit_detector契约同构(R79起含dx, 供远距习惯距离门控)。
     """
     from soku_arch.trainer_client import TrainerClient
     from soku_arch.rep_file import parse_rep_file
@@ -227,9 +227,12 @@ def resolve_rep(path):
             if kind == 'frame':
                 last_frame = time.time()
                 left, right = payload['left'], payload['right']
+                # R79: 第5位dx — far_stand_guard距离门控的数据前提
                 action_seq.append((len(action_seq), left.get('action', 0),
                                    left.get('spirit', 0),
-                                   right.get('action', 0)))
+                                   right.get('action', 0),
+                                   abs(right.get('position.x', 0)
+                                       - left.get('position.x', 0))))
                 final = (left.get('score', 0), right.get('score', 0))
                 if 2 in final:
                     pass   # BO2/BO3小局分, 继续到流结束(可能续场)
@@ -256,14 +259,33 @@ def process_archive(path):
     md5 = _md5(path)
     print('[solo] 处理 %s ...' % os.path.basename(path))
     meta, action_seq, final, err = resolve_rep(path)
+    # R79(用户质疑审计): 有效性门 — 0:0(无结果残局)或<1000帧碎片
+    # 不是对局数据, 习惯统计对其输出是垃圾(实证: 329帧全idle→"100%
+    # 远距立防")。无效样本留账(valid=False)但不进习惯统计。
+    valid = (err is None and final != (0, 0) and len(action_seq) >= 1000)
+    idle_n = sum(1 for r in action_seq if r[1] == 0)
+    far_n = sum(1 for r in action_seq if len(r) > 4 and r[4] >= 400)
+    far_idle_n = sum(1 for r in action_seq
+                     if len(r) > 4 and r[4] >= 400
+                     and (r[1] == 0 or 150 <= r[1] <= 166))
     entry = {
         'ts': time.strftime('%Y-%m-%d %H:%M:%S'),
         'rep': os.path.basename(path), 'md5': md5,
         'resolved_frames': len(action_seq), 'err': err,
         'final_score_left_right': list(final), **meta,
+        'valid': valid,
+        'idle_pct': round(idle_n / max(len(action_seq), 1), 3),
+        'far_pct': round(far_n / max(len(action_seq), 1), 3),
+        'far_passive_pct': round(far_idle_n / max(far_n, 1), 3)
+        if far_n else None,
     }
+    if not valid:
+        entry['invalid_reason'] = (
+            '0:0无结果' if final == (0, 0) else '碎片(<1000帧)')
+        print('[solo] 无效样本(%s) — 习惯统计跳过, 留账' %
+              entry['invalid_reason'])
     habit_txt = ''
-    if action_seq and err is None:
+    if action_seq and err is None and valid:
         try:
             from habit_detector import detect_habits, habit_report
             habits = detect_habits(action_seq)
