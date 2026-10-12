@@ -100,6 +100,22 @@ class _Adam:
             self.params[i] += sgn * lr * mh / (np.sqrt(vh) + eps)
 
 
+def _cap_backward(dz, cap, zraw):
+    """审计#3 P1-5②: 封顶反向 — dz_capped→dz_raw。逐行cap=zmax/8>1时,
+    zmax所在列有额外项(torch autograd天然含; 原只补1/cap致conv主干/
+    对手子网梯度大面积反号)。有限差分数值验证见tests/test_gpu_onestep
+    (单步权重符号级对此项不够敏感, 曾漏网)。"""
+    _r = np.flatnonzero(cap[:, 0] > 1.0)
+    out = dz / cap
+    if _r.size:
+        _zs = zraw[_r]
+        _m = np.argmax(np.abs(_zs), axis=1)
+        _dot = np.einsum('ij,ij->i', dz[_r], _zs)
+        _sgn = np.sign(_zs[np.arange(_r.size), _m])
+        out[_r, _m] -= (_dot * _sgn / (8.0 * (cap[_r, 0] ** 2)))
+    return out
+
+
 def _softmax(z):
     z = z - z.max(axis=1, keepdims=True)
     e = np.exp(z)
@@ -547,10 +563,13 @@ class PPOTrainer:
         # (前向Z/s, 反向dZ_raw=dZ_cap/s; 原缺失使封顶激活行的梯度
         #  幅度系统性偏大)
         cap = np.maximum(1.0, zmax / 8.0)
+        zraw = Z
         Z = Z / cap
         if mask is not None:
             Z = Z + np.where(mask, 0.0, -1e9).astype(np.float32)
-        return Xn, H, _softmax(Z / temp), cache, Sh, Oh1, Oh, cap
+        # 审计#3 P1-5②: zraw随返 — 封顶反向需要(原只回cap, 反向只能
+        # 补1/cap, zmax行的dz项缺失 → 与torch autograd不等价)
+        return Xn, H, _softmax(Z / temp), cache, Sh, Oh1, Oh, cap, zraw
 
     def _v_forward(self, Xn, S=None):
         """R17③: 值头输入=[trunk | 侧向量 | 对手表征16] — 对手建模同样
@@ -782,7 +801,7 @@ class PPOTrainer:
                 xb, ab1, sb = X[idx], onehot[idx], S[idx]
                 advb, retb = adv[idx], ret[idx]
                 mb = M[idx] if M is not None else None
-                xbn, H, P, cache, Sh, Oh1, Oh, cap = self._pi_forward_c(
+                xbn, H, P, cache, Sh, Oh1, Oh, cap, zraw = self._pi_forward_c(
                     xb, sb, temp, mask=mb)
                 logp = np.log(np.clip(P[np.arange(len(idx)), A[idx]], 1e-8, 1.0))
                 diff = np.clip(logp - logp_old[idx], -20.0, 20.0)
@@ -811,8 +830,11 @@ class PPOTrainer:
                 if mb is not None:
                     dz = dz * mb
                 dz /= temp
-                # R38(P2-2): 封顶反传补1/s — dz从封顶后logit空间换回原始空间
-                dz = dz / cap
+                # R38(P2-2)+审计#3 P1-5②: 封顶反传完整版 — 逐行cap=
+                # zmax/8时, zmax所在列有额外dz项(torch autograd天然含,
+                # 原只补1/cap → conv主干/对手子网梯度大面积反号):
+                # dz_raw[m] -= (dz_capped·z_raw)·sign(z_raw[m])/(8·cap²)
+                dz = _cap_backward(dz, cap, zraw)
 
                 dW2 = H.T @ dz
                 db2 = dz.sum(0)
@@ -880,6 +902,10 @@ class PPOTrainer:
                 dH1v = dH2v @ self.W2v.T * (H1v > 0)
                 dW1v = vin.T @ dH1v
                 db1v = dH1v.sum(0)
+                # 审计#3 P1-5①: dvin必须用step**前**的W1v — 原版
+                # vf_adam.step先执行, 下方dH1v@W1v.T混用已更新权重
+                # (旧dH1v×新W1v, 与torch单步计算图不等价)
+                dvin = dH1v @ self.W1v.T
                 # 梯度全局范数裁剪(值头): 防大损失步的梯度爆炸
                 _vg = [dW1v, db1v, dW2v, db2v, dW3v, db3v]
                 _vn = np.sqrt(sum(float((g ** 2).sum()) for g in _vg))
@@ -892,7 +918,6 @@ class PPOTrainer:
                 # maximize=True): 策略路+ · 价值路−(下降) · 辅助路−(下降),
                 # 过Oh的ReLU后回传两层
                 if Oh is not None:
-                    dvin = dH1v @ self.W1v.T
                     dOh = dz @ self.W_opp.T \
                         - dvin[:, TRUNK_FLAT + self.N_SIDE:]
                     if dq_in is not None:

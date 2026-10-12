@@ -57,6 +57,7 @@ class SideDriver:
         self.side = side
         self.macros = lib["macros"]
         self.n_macros = len(self.macros)
+        self._dec_name = None   # 审计#3 P1-2: 决策宏名跟踪(R34豁免判据)
         self.sc_names = lib["sc"]
         self.names = [m[0] for m in self.macros]
         self.base_mask = np.array(
@@ -121,6 +122,7 @@ class SideDriver:
     def reset_match(self):
         self.feat_hist = []
         self.macro_queue = []
+        self._dec_name = None
         self.last_macro = 0
         self.last_macro2 = 0
         self._dir_frames = 0
@@ -386,13 +388,16 @@ class SideDriver:
                     and self.macro_queue[0][0].startswith("sc:")
                     and self._sc_tgt is None):
                 self._sc_tgt = int(self.macro_queue[0][0][3:])
-            self.macro_queue, self.gate_frames, _, _inp = (
+            # 审计#3 P1-2: dec_name原恒None — "None not in GUARD_PREP_SET"
+            # 恒真, 对手立防/蹲防启动窗永远被清(与训练侧不对称, 自#2起
+            # 训练信号偏斜)。修: 与train_tm同型记录/回传当前决策宏名。
+            self.macro_queue, self.gate_frames, self._dec_name, _inp = (
                 macro_executor.advance_queue(
                     self.macro_queue, self.gate_frames,
                     own, opp, d_deal, d_take,
                     frozen, own["spirit"],
                     abs(opp["position.x"] - own["position.x"]),
-                    None,
+                    self._dec_name,
                     # 从零#2(执行器P2): R34守备豁免原传set()=不对称
                     # (评估侧立防/蹲防启动窗被中断, 训练侧豁免 —
                     # train_tm/评估行为偏斜)。与训练侧同集。

@@ -113,6 +113,17 @@ def main():
         q, 0, l34, r34, 0, 0, False, 1000, 100, "立防",
         GUARD_PREP, GUARD_IDS, fake_sc, noop)
     check("R34豁免(防御预备)", len(q2) == 1)
+    # 审计#3 P1-2: None形态 — 旧side_driver恒传None → 同条件下被清
+    # (对手侧守备窗从不豁免的训练信号偏斜根源), 两侧对称性承接断言
+    q = [(("A",), 10)]
+    q2, _, _, _ = advance_queue(
+        q, 0, l34, r34, 0, 0, False, 1000, 100, None,
+        GUARD_PREP, GUARD_IDS, fake_sc, noop)
+    check("R34对None不豁免(对称性基准)", len(q2) == 0)
+    _sd = open(os.path.join(os.path.dirname(__file__), '..',
+                            'side_driver.py'), encoding='utf8').read()
+    check("side_driver传self._dec_name(接线不回退)",
+          'self._dec_name,' in _sd and 'self._dec_name = None' in _sd)
 
     # 8c. 灵力门(迁移变异#75承接): 空灵力+下一含攻击键 → 清队
     l35, r35 = st(my_a=0, opp_a=0, spirit=50)

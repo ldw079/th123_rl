@@ -17,4 +17,4 @@
   (训练游戏在 th123_train 目录, 可 WMI 过滤 ExecutablePath 含 th123_train)。
   验证: 并存原版实例时跑 train_start --stop, 原版实例存活。
 - **防复发**: "清理只碰训练族"断言纳入 test_trainstart_cleanup。
-- **状态**: 未修。
+- **状态**: 已修(2026-10-12 P1波, 从零#3)。游戏清理改ExecutablePath含th123_train精确匹配; --stop不再复用pre_flight(免协议测试/种子副作用); 静态断言入test_trainstart_cleanup

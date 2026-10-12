@@ -280,6 +280,8 @@ def process_archive(path):
         if far_n else None,
     }
     if not valid:
+        # 审计#3 P1-4: 作废必须留痕(此前只在JSON手工补过一次, 机制不存在)
+        entry['habits_retracted'] = True
         entry['invalid_reason'] = (
             '0:0无结果' if final == (0, 0) else '碎片(<1000帧)')
         print('[solo] 无效样本(%s) — 习惯统计跳过, 留账' %

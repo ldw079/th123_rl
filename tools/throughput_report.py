@@ -179,7 +179,7 @@ def main():
     import time as _t
     for name, rs in sorted(rates.items()):
         last = rs[-1]
-        path = os.path.join(r'D:	emp', name)
+        path = os.path.join(r'D:\temp', name)
         fresh = False
         try:
             fresh = _t.time() - os.path.getmtime(path) < 1800

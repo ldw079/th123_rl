@@ -108,6 +108,8 @@ check('残局样本valid=False+留账+无习惯字段',
       len(d2) == 1 and d2[0]['valid'] is False
       and d2[0].get('invalid_reason') == '0:0无结果'
       and 'habits' not in d2[0], str(d2[0].get('invalid_reason')))
+check('作废留痕字段habits_retracted=True(审计#3 P1-4: 写入点真实存在)',
+      d2[0].get('habits_retracted') is True)
 check('残局样本统计字段仍留档(审计透明)',
       d2[0].get('idle_pct') == 1.0 and d2[0].get('far_pct') == 0.0)
 H.resolve_rep = fake_resolve
@@ -145,4 +147,4 @@ print()
 if FAILS:
     print('FAIL(%d): %s' % (len(FAILS), ', '.join(FAILS)))
     sys.exit(1)
-print('ALL PASS (16)')
+print('ALL PASS (17)')

@@ -80,6 +80,16 @@ def main():
        and abs(dc['downtime_h'] - 95 / 60.0) < 0.01,
        '占空比: 在线25min(10+尾部15min<GAP_DEAD按活)停机95min(>70min间隙)')
 
+    # 审计#3 P1-3: 路径常量不得含控制字符(D:<TAB>emp字节笔误让fleet
+    # 合计恒0 — getmtime恒OSError)。可编程扫源码字节。
+    _src = open(os.path.join(os.path.dirname(__file__), '..',
+                             'tools', 'throughput_report.py'),
+                'rb').read()
+    _ctrl = [i for i in range(len(_src))
+             if _src[i] < 0x20 and _src[i] not in (0x0A, 0x0D)]
+    ok(not _ctrl, '源码无控制字符(TAB路径字节笔误防复发): %d处'
+       % len(_ctrl))
+
     import shutil
     shutil.rmtree(tmp, ignore_errors=True)
     print()

@@ -132,15 +132,34 @@ def run_match(char, bo=3, port=None, seed_note='', mode='mod'):
         except Exception:
             pass
     # I: 习惯报告(habit_detector消费真人动作流 — 教学产品化第一半)
+    # 审计#3 P1-4: 对齐solo管线 — 有效性门+透明统计字段(同型垃圾序列
+    # 不得无声产出习惯报告; 无效时留痕作废)
+    _n = len(action_seq)
+    _idle = sum(1 for r in action_seq if r[1] == 0)
+    _far = [r for r in action_seq if len(r) > 4 and r[4] >= 400]
+    _far_p = sum(1 for r in _far if r[1] == 0 or 150 <= r[1] <= 166)
+    valid = _n >= 1000 and games and human_w + model_w > 0
+    stats = {
+        'valid': valid,
+        'idle_pct': round(_idle / max(_n, 1), 3),
+        'far_pct': round(len(_far) / max(_n, 1), 3),
+        'far_passive_pct': round(_far_p / max(len(_far), 1), 3)
+        if _far else None,
+    }
     habit_txt = ''
     habits_out = []
+    if not valid:
+        print('[human-match] 无效样本(%s) — 习惯统计跳过留痕'
+              % ('帧不足1000' if _n < 1000 else '无完整对局'))
     try:
         from habit_detector import detect_habits, habit_report
-        habits = detect_habits(action_seq) if action_seq else []
+        habits = (detect_habits(action_seq)
+                  if action_seq and valid else [])
         habits_out = habits
-        habit_txt = habit_report(habits, char)
-        print()
-        print(habit_txt)
+        if valid and habits:
+            habit_txt = habit_report(habits, char)
+            print()
+            print(habit_txt)
     except Exception as e:
         print('[human-match] 习惯报告异常(%s) — 对局结果不受影响' % e)
     return {'char': char, 'bo': bo, 'human_wins': human_w,
@@ -150,6 +169,9 @@ def run_match(char, bo=3, port=None, seed_note='', mode='mod'):
             'habit_report': habit_txt,
             'ts': time.strftime('%Y-%m-%d %H:%M:%S'),
             'note': seed_note,
+            # 审计#3 P1-4: 透明字段+作废留痕(与solo管线同构)
+            **stats,
+            **({'habits_retracted': True} if not stats['valid'] else {}),
             'protocol': ('mod P2-only(SOKUAI_P2_ONLY)' if mode == 'mod'
                  else 'GetAsyncKeyState轮询(应急路线)')}
 

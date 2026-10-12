@@ -15,4 +15,4 @@
   验证: 配对测试 — 同队列两侧 dec_name="立防" 均存活、None 均被清。
 - **防复发**: 两侧行为对称性断言(同一队列在 train_tm/side_driver 路径
   产生相同的清队决策)。
-- **状态**: 未修。
+- **状态**: 已修(2026-10-12 P1波, 从零#3)。side_driver记录/回传_dec_name(与train_tm同型); 对称性测试入test_executor_c1(23 PASS)

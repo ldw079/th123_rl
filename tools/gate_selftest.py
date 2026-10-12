@@ -77,10 +77,20 @@ FILES = [
          "learner_hub.py",
          "fleet_supervisor.py",
          "series_meter.py",
-         "passivity_meter.py"]
+         "passivity_meter.py",
+         # 审计#3 P1-1: d672c2d入库时FILES未同步 — test_series_stage1_e1
+         # 沙箱内import即炸, 基线不绿, 变异自检整体瘫痪
+         "series_manager.py",
+         "distill.py"]
 
 # (文件, 原文, 变异文, 防的回归)
 MUTATIONS = [
+    # 审计#3 P1-5②: 封顶zmax反向项 — 关掉修正=回到旧"只补1/cap"行为
+    # → onestep有限差分数值直钉必须红(权重增量符号级对此项不敏感,
+    # 曾漏网; 数值直钉敏感度~3e-9)
+    ("ppo.py", "    _r = np.flatnonzero(cap[:, 0] > 1.0)",
+     "    _r = np.zeros(0, dtype=int)",
+     "P1-5: 封顶zmax反向项缺失 → onestep数值直钉必须红"),
     ("train_tm.py", "'opp_hp': 0.005,", "'opp_hp': 0.0044,",
      "A1-2: 势函数伤害/承伤不对称回归(防御占优) → 对称断言必须红"),
     ("series_meter.py", "r >= ROUND_WIN", "rews >= 3000.0",
@@ -115,8 +125,9 @@ MUTATIONS = [
      "P3-4 写读异径回归 → 同径计数必须红"),
     ("train_tm.py", "POT_W = {", "R_WALL = -0.004\nPOT_W = {",
      "死奖励常量回归(墙罚在R35势函数外复活) → AST活性必须红"),
-    # 从零#2迁移: CORE_DIMS=316(R61t F5) — 旧308原文已不在
-    ("feat_builder.py", "CORE_DIMS = 316", "CORE_DIMS = 315",
+    # 从零#2迁移(R61t F5); 审计#3 P1-1: 316锚已漂移为死变异(B段
+    # 扩维→330) — C2维度防线假绿, 迁锚现值
+    ("feat_builder.py", "CORE_DIMS = 330", "CORE_DIMS = 329",
      "特征布局漂移 → C2必须红"),
     ("feat_builder.py", "for i in range(5) if rh[i * 2] != 0xFF", "for i in range(5) if False",
      "P1-4e opp_cards_n回退恒0 → C7必须红"),
@@ -132,7 +143,7 @@ MUTATIONS = [
      "萃香教义树清空 → C8节点数必须红"),
     ("train_tm.py", "TREES[self.char]", "STANDARD_TREE",
      "audit回退灵梦树近似 → C8路由必须红"),
-    ("tools/mod_provenance.json", "\"deployed_md5\": \"386737DE01ACFDECE70A27F7F6842A26\"", "\"deployed_md5\": \"0000000000000000000000000000000\"",
+    ("tools/mod_provenance.json", "\"deployed_md5\": \"1725B97CB6F16A2D19655C1034D218DF\"", "\"deployed_md5\": \"0000000000000000000000000000000\"",
      "血统档案被篡改/回滚旧DLL → C9必须红"),
     ("tools/mod_provenance.json", "\"Training\\\\TrainingMod\\\\main.cpp\"", "\"Training\\\\TrainingMod\\\\mainX.cpp\"",
      "编译清单手抄漂移(≠bat现算) → C9必须红"),

@@ -52,6 +52,18 @@ def live_fleet_present():
 
 
 def main():
+    # 审计#3 P1-6静态断言(不依赖进程, fleet在场也跑): 游戏清理必须按
+    # th123_train路径精确匹配 — 裸 taskkill /IM th123.exe /F 会误杀
+    # 用户原版游戏与rl_game离线重放实例
+    _cmd = ' '.join(_cleanup_ps_cmd(0))
+    _ok = ("Name='th123.exe'" in _cmd
+           and "th123_train" in _cmd
+           and "/IM th123.exe /F" not in _cmd)
+    print("[%s] 游戏清理只碰th123_train族(路径精确匹配, 无裸/IM)"
+          % ('PASS' if _ok else 'FAIL'))
+    if not _ok:
+        print("==== 0 PASS / 1 FAIL ====")
+        sys.exit(1)
     if live_fleet_present():
         print("[SKIP] 活fleet在场 — 破坏性清理断言跳过(教训×4: 本测试"
               "曾四次灭掉活fleet; 完整断言留待停机窗口执行)")

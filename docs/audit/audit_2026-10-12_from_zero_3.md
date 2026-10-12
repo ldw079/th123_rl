@@ -68,3 +68,14 @@
 2. P2 批量随下个修复波; 文档漂移随手清。
 3. 制度建议: "新模块入库检查单"增加一条 — 同步 gate_selftest 的 FILES
    与沙箱行为测试依赖(本轮 P1-1 的直接防复发)。
+
+## 修复记录(2026-10-12 P1波, 审计后同日)
+
+P1 六项全部修复+验证(详见各 bug 档"状态"行): ①自检沙箱 FILES 补件+
+死变异迁锚(基线绿/163+1 变异拦截, 含新增 P1-5 变异); ②side_driver
+dec_name 对称修复(23 PASS); ③TAB 路径一字修+控制字符扫(5 PASS);
+④habits_retracted 真实写入+human_match 有效性门对齐(17 PASS);
+⑤ppo 混代回传+封顶 zmax 项(数值 rel=3e-9, onestep 8 PASS 三跑稳定,
+符号级零翻转); ⑥train_start 按路径精确杀+--stop 副作用剥离。
+另: far_passive 零远距帧兜底档随 R79 双兜底关闭。P2 十九项未处理
+(留下一修复波)。

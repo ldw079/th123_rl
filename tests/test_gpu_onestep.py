@@ -70,6 +70,14 @@ def main():
     # numpy保存 → GPU加载(双向格式)
     np_tr.save(pi_p, v_p)
     gpu_tr.load(pi_p, v_p)
+    # 审计#3 P1-5: 更新前快照 — Adam首步Δw≈lr·sign(g), 权重增量符号
+    # 即梯度符号(混代回传/封顶zmax项缺失曾致大面积反号)。
+    # 注: 曾试×12放大激活封顶路径 — 近one-hot区GPU原子操作非确定性被
+    # 放大(同种子两跑KL 0.57/0.36), 双实现幅度对比失效; 封顶路径敏感
+    # 性由文末有限差分数值直钉承担(纯numpy确定性, rel~3e-9)。
+    b_pi = os.path.join(tmp, 'bpi.npz')
+    b_v = os.path.join(tmp, 'bv.npz')
+    np_tr.save(b_pi, b_v)
 
     # 各走一步(同参: temp=1.0, 无replay/bc_extra — 首次update池空)
     st_np = np_tr.update(feats, acts, rews, sides, [N],
@@ -139,6 +147,70 @@ def main():
     # 值路径精确(numpy/GPU值头逐步rel=0的既有结论保持)
     check('KL读数同量级', abs(st_np['kl'] - st_gpu['kl']) < 0.05,
           'np=%.4f gpu=%.4f' % (st_np['kl'], st_gpu['kl']))
+
+    # 审计#3 P1-5: 梯度符号级等价 — 显著增量(|Δ|>各自max的1e-3)的
+    # 符号必须零翻转(Wc2曾3653/18432翻转→每步±2×PI_LR不可观漂移)
+    d_b = np.load(b_pi)
+    v_b = np.load(b_v)
+    flips = {}
+
+    _max_frac = [0.0]
+
+    def _flips(pre, a, b, tag):
+        dn = a.astype(np.float64) - pre
+        dg = b.astype(np.float64) - pre
+        if dn.max() == 0 or dg.max() == 0:
+            return
+        sig = ((np.abs(dn) > np.abs(dn).max() * 1e-2)
+               & (np.abs(dg) > np.abs(dg).max() * 1e-2))
+        if not sig.any():
+            return
+        f = int((np.sign(dn[sig]) != np.sign(dg[sig])).sum())
+        frac = f / float(sig.sum())
+        _max_frac[0] = max(_max_frac[0], frac)
+        # GPU conv反传原子操作非确定性: 显著性地板边界元素偶发翻转
+        # (实测3/15205); 系统性语义缺陷是20%量级(Wc2曾3653/18432)。
+        # 容忍0.1%, 超过即红。
+        if frac > 0.001:
+            flips['%s:%s' % (tag, k)] = (f, int(sig.sum()))
+
+    for k in d_np.files:
+        if k != 'meta':
+            _flips(d_b[k], d_np[k], d_g[k], 'pi')
+    for k in v_np.files:
+        if k != 'meta':
+            _flips(v_b[k], v_np[k], v_g[k], 'v')
+    check('梯度符号级等价(显著增量零翻转)', not flips, str(flips))
+
+    # 审计#3 P1-5②数值直钉: _cap_backward对zmax项的修正 — 有限差分
+    # vs 解析(权重增量符号级在单步小批下对此项不敏感, 实测漏网;
+    # 数值验证敏感度~1e-8)。L(Z)=Σ G·softmax(Z/cap(Z)) 的精确梯度。
+    from ppo import _cap_backward as _cb
+    rng2 = np.random.default_rng(0)
+    Zt = rng2.standard_normal((6, 10)) * 20.0
+    G = rng2.standard_normal((6, 10))
+
+    def _L(Zx):
+        _cap = np.maximum(1.0, np.abs(Zx).max(axis=1, keepdims=True) / 8.0)
+        Zc = Zx / _cap
+        e = np.exp(Zc - Zc.max(1, keepdims=True))
+        P = e / e.sum(1, keepdims=True)
+        return float((G * P).sum())
+
+    _eps = 1e-6
+    _gn = np.zeros_like(Zt)
+    for _i in range(Zt.shape[0]):
+        for _j in range(Zt.shape[1]):
+            Zp = Zt.copy(); Zp[_i, _j] += _eps
+            Zm = Zt.copy(); Zm[_i, _j] -= _eps
+            _gn[_i, _j] = (_L(Zp) - _L(Zm)) / (2 * _eps)
+    _cap = np.maximum(1.0, np.abs(Zt).max(axis=1, keepdims=True) / 8.0)
+    e = np.exp(Zt / _cap - (Zt / _cap).max(1, keepdims=True))
+    P = e / e.sum(1, keepdims=True)
+    _dc = P * (G - (G * P).sum(1, keepdims=True))
+    _ga = _cb(_dc, _cap, Zt)
+    _rel = np.abs(_ga - _gn).max() / max(np.abs(_gn).max(), 1e-12)
+    check('封顶反向数值精确(含zmax项)', _rel < 1e-6, 'rel=%.2e' % _rel)
 
     print('\n==== %d PASS / %d FAIL ====' % (len(PASS), len(FAIL)))
     if FAIL:

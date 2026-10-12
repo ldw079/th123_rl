@@ -39,6 +39,9 @@ def _cleanup_ps_cmd(exclude_pid):
     "[前置] 残留进程清理"行, stderr空, 什么都没启动). 修: Where-Object
     加 ProcessId -ne 自身PID(清理powershell本身是powershell.exe,
     不吃Name='python.exe'过滤, 无需另排除).
+    审计#3 P1-6: 游戏清理原taskkill /IM th123.exe /F按映像名无差别杀
+    — 会误杀用户游玩中的原版整合包与rl_game离线重放实例。改按
+    ExecutablePath含th123_train精确匹配(训练族游戏专用目录)。
     """
     return ['powershell', '-NoProfile', '-Command',
             "$me=%d; Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" "
@@ -46,7 +49,11 @@ def _cleanup_ps_cmd(exclude_pid):
             "'fleet_supervisor|run_parallel|learner_hub|actor_worker"
             "|exploiter'} "
             "| ForEach-Object { taskkill /PID $_.ProcessId /T /F }; "
-            "Start-Sleep 2; taskkill /IM th123.exe /F 2>$null" % int(exclude_pid)]
+            "Start-Sleep 2; "
+            "Get-CimInstance Win32_Process -Filter \"Name='th123.exe'\" "
+            "| Where-Object { $_.ExecutablePath -like '*th123_train*' } "
+            "| ForEach-Object { taskkill /PID $_.ProcessId /T /F }"
+            % int(exclude_pid)]
 
 
 def pre_flight():
@@ -110,8 +117,10 @@ def start(mode, actors, exploiter, tps=480, hours=None,
 
 
 def stop_all():
-    print('[停机] 树杀全部训练进程...')
-    pre_flight()
+    # 审计#3 P1-6: --stop原复用pre_flight — 附带跑协议测试+league种子
+    # (副作用未声明)。停机只需要清理本身。
+    print('[停机] 树杀全部训练进程(游戏仅限th123_train族)...')
+    subprocess.run(_cleanup_ps_cmd(os.getpid()), capture_output=True)
     print('[停机] 完成')
 
 
