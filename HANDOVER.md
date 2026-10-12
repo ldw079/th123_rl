@@ -144,6 +144,8 @@ fleet_supervisor.py --actors 3
 | `docs/fleet_ignition_runbook.md` | fleet 点火/切换操作 |
 | `docs/audit_protocol.md` | **审计前必读** — 审计三必要条件+标准清单(2026-10-12) |
 | `docs/audit/` | 历次审计结论归档(按时间序, 最新一份看现状) |
+| `docs/bug_protocol.md` | **挖出 bug 时必读** — 每 bug 一档制度(2026-10-12) |
+| `docs/bugs/` | bug 档案(七字段: 发现/症状/根因/引入/影响面/修复验证/防复发) |
 | `docs/full_review_from_zero_2_2026-10-06.md` | 最近一次全盘审计的发现 |
 
 ## 十一、踩坑记录(新智能体必读)
