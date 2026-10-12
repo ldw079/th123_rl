@@ -1829,6 +1829,9 @@ _BEHAVIOR_TESTS = [
     # D3'(R65): 20角色league对手生态
     ("test_league20_d3.py",
      "D3': league20_opps组成/league_alloc泛化回归/种子维度守卫幂等/build_opp_cycle池根注入+严格性"),
+    # H(未决方案§H): 纵向学习曲线
+    ("test_learning_curve_h.py",
+     "H: learner日志解析(批/系列/被动行)+tail斜率(平坦/上升/不足)+verdict"),
     # A1-1(未决方案§A): 被动性仪表
     ("test_passivity_a11.py",
      "A1-1: adx列feat_builder标定(符号消歧)/远弹份额分母/逼近率/开局攻击率/汇总行"),

@@ -1,0 +1,53 @@
+{
+ "reimu": {
+  "log": "D:\\temp\\learner_reimu.log",
+  "updates": 166,
+  "n_batches": 146,
+  "aux_last": 68.0,
+  "entropy_last": 1.52,
+  "aux_tail_slope": 0.09363265072410479,
+  "entropy_tail_slope": 0.002042558748295635,
+  "plateau_verdict": "上升(aux 0.094 %/点)",
+  "series_lines": 2,
+  "series_b1_last": 80.0,
+  "series_b45_last": 79.0,
+  "passive_lines": 0,
+  "far_bullet_last": null,
+  "closing_last": null,
+  "opening_attack_last": null
+ },
+ "marisa": {
+  "log": "D:\\temp\\learner_marisa.log",
+  "updates": 136,
+  "n_batches": 119,
+  "aux_last": 77.0,
+  "entropy_last": 1.27,
+  "aux_tail_slope": 0.1304279076506963,
+  "entropy_tail_slope": -0.0004407764525185595,
+  "plateau_verdict": "上升(aux 0.13 %/点)",
+  "series_lines": 4,
+  "series_b1_last": 94.0,
+  "series_b45_last": 75.0,
+  "passive_lines": 0,
+  "far_bullet_last": null,
+  "closing_last": null,
+  "opening_attack_last": null
+ },
+ "suika": {
+  "log": "D:\\temp\\learner_suika.log",
+  "updates": 130,
+  "n_batches": 112,
+  "aux_last": 73.0,
+  "entropy_last": 1.46,
+  "aux_tail_slope": 0.05097619331019022,
+  "entropy_tail_slope": -0.0011378968716143764,
+  "plateau_verdict": "上升(aux 0.051 %/点)",
+  "series_lines": 2,
+  "series_b1_last": 70.0,
+  "series_b45_last": 62.0,
+  "passive_lines": 0,
+  "far_bullet_last": null,
+  "closing_last": null,
+  "opening_attack_last": null
+ }
+}

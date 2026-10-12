@@ -250,8 +250,11 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
         try:
             from passivity_meter import episode_passivity
             passivity_recs.append(episode_passivity(char, arr))
-        except Exception:
-            pass
+        except Exception as _pe:
+            # 静默吞异常=事故温床(本仓库前科) — 打印一次真实报错
+            import traceback as _tb
+            print('[learner] 被动仪表异常: %r' % (_pe,))
+            _tb.print_exc()
         max_ver = max(max_ver, int(meta.get('snap_ver', 0)))
         distill_batches.append(arr['distill'])
         ok_paths.append(ep_path)
@@ -303,6 +306,12 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
     try:
         from series_meter import curve_line
         stats['series_curve'] = curve_line(series_recs)
+        from passivity_meter import passivity_line
+        # R67e修正: 原打印块在run_learner作用域引用本函数局部的
+        # passivity_recs → NameError被静默吞(被动曲线0条的根因 —
+        # 作用域错位型集成缝, 教训: 跨函数仪表一律走stats字典)
+        if passivity_recs:
+            stats['passivity_line'] = passivity_line(passivity_recs)
     except Exception:
         pass
     return stats, macro_counts, len(all_acts), max_ver, len(acts)
@@ -547,14 +556,10 @@ def run_learner(char, batch_k=BATCH_K, suffix='_fleet'):
         if stats.get('series_curve'):
             print('[learner] %s 系列曲线 %s'
                   % (char, stats['series_curve']))
-        # A1-1: 被动曲线(远弹/逼近/开局攻)随批留档
-        try:
-            from passivity_meter import passivity_line
-            if passivity_recs:
-                print('[learner] %s 被动曲线 %s'
-                      % (char, passivity_line(passivity_recs)))
-        except Exception:
-            pass
+        # A1-1: 被动曲线(远弹/逼近/开局攻)随批留档(经stats传递)
+        if stats.get('passivity_line'):
+            print('[learner] %s 被动曲线 %s'
+                  % (char, stats['passivity_line']))
 
         # 宏计数原子落盘
         _mc_tmp = counts_path + '.tmp.npy'
