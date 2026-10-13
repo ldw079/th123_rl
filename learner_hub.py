@@ -213,6 +213,8 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
     series_recs = []
     # A1-1(未决问题方案§A): 被动性仪表 — 同挂点
     passivity_recs = []
+    # W4(研究借鉴方案§4): 价值轨迹 — 同挂点, 降级必须响亮
+    value_recs = []
     max_ver = 0
     for ep_path in eps:
         try:
@@ -271,6 +273,14 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
             import traceback as _tb
             print('[learner] 被动仪表异常: %r' % (_pe,))
             _tb.print_exc()
+        # W4: 价值轨迹(独立try — 与被动仪表互不牵连, 降级响亮)
+        try:
+            from value_curve import episode_values
+            from series_meter import decode_match_outcome
+            value_recs.append((episode_values(gpu_tr.net, arr),
+                               decode_match_outcome(arr['rews'])))
+        except Exception as _ve:
+            print('[learner] 价值轨迹异常: %r' % (_ve,))
         max_ver = max(max_ver, int(meta.get('snap_ver', 0)))
         distill_batches.append(arr['distill'])
         ok_paths.append(ep_path)
@@ -327,6 +337,8 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
         _g.extend(series_recs)
         del _g[:-150]
         stats['series_curve'] = curve_line(_g)
+        from value_curve import value_line
+        stats['value_curve'] = value_line(value_recs)
         from passivity_meter import passivity_line
         # R67e修正: 原打印块在run_learner作用域引用本函数局部的
         # passivity_recs → NameError被静默吞(被动曲线0条的根因 —
@@ -582,6 +594,9 @@ def run_learner(char, batch_k=BATCH_K, suffix='_fleet'):
         if stats.get('passivity_line'):
             print('[learner] %s 被动曲线 %s'
                   % (char, stats['passivity_line']))
+        # W4: 价值轨迹随批留档(grep口径: 价值曲线)
+        if stats.get('value_curve'):
+            print('[learner] %s %s' % (char, stats['value_curve']))
 
         # 宏计数原子落盘
         _mc_tmp = counts_path + '.tmp.npy'

@@ -1861,6 +1861,9 @@ _BEHAVIOR_TESTS = [
     # I项(教学闭环产物2): 习惯→惩罚演示
     ("test_habit_demo_i.py",
      "I: 脚本循环补满/auto严重度选取/verdict双向数值(符号钉死)/模型惩罚者"),
+    # W波(研究借鉴方案§W3/W4/W5)
+    ("test_research_w_wave.py",
+     "W3四口径/W4价值轨迹聚合+2σ/W5 exploit衰减分段与判读"),
     # F(未决方案§F): 吞吐标定
     ("test_throughput_f.py",
      "F: actor局/时(段切分+跨午夜)+批耗时分布+占空比(间隙阈值+尾部心跳判活)"),
@@ -1917,6 +1920,12 @@ chk("分布外评估" in src("teach.py"),
     "P2: teach的V分布外评估披露")
 chk("'blocks_n'" in src("tools/league_weekly.py"),
     "P2: league周报跨块聚合披露(blocks_n)")
+chk("def exploit_decay" in src("tools/league_weekly.py")
+    and "def four_lenses" in src("tools/eval_matrix.py"),
+    "W3/W5: 四口径+exploit衰减在位(研究借鉴方案)")
+chk("def value_line" in src("value_curve.py")
+    and "value_recs" in src("learner_hub.py"),
+    "W4: 价值轨迹模块+learner挂点(降级响亮)")
 
 print()
 print("==== 契约门禁: %d PASS / %d WARN / %d FAIL ====" %

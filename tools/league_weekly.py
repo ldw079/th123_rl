@@ -76,6 +76,53 @@ def char_of(label):
     return label.split('@')[0] if '@' in label else label
 
 
+def exploit_decay(blocks):
+    """W5(研究借鉴方案§5): exploit_快照胜率随暴露局数的衰减读数.
+
+    跨块行是**累积值**(scratch stats) — 局数回退=actor重启, 按分段
+    取最长段分析。主策略视角W-L换算剥削者胜率=1-主胜率。
+    判读(语言对齐笔记§8.9): 剥削者胜率维持>0.5 → "持续克制(主策略
+    弱点未修复)"; 中段跌破初值一半 → 估半衰期局数; ≤3块归零 →
+    "一次性奇袭(已适应)"。
+    """
+    series = {}
+    for b in blocks:
+        for lab, w, l in b['rows']:
+            if '@exploit_' not in lab:
+                continue
+            n = w + l
+            if n >= 1:
+                series.setdefault(lab, []).append(
+                    (n, w / n, b.get('ts', '')))
+    out = {}
+    for lab, pts in series.items():
+        segs, cur = [], []
+        for p in pts:
+            if cur and p[0] < cur[-1][0]:
+                segs.append(cur)
+                cur = []
+            cur.append(p)
+        segs.append(cur)
+        seg = max(segs, key=len)
+        n0, wr0, ts0 = seg[0]
+        n1, wr1, ts1 = seg[-1]
+        e0, e1 = 1.0 - wr0, 1.0 - wr1
+        if e1 > 0.5:
+            verdict = '持续克制(主策略弱点未修复)'
+        elif e1 < 0.5 * max(e0, 1e-9) and n1 - n0 >= 4:
+            verdict = '半衰期约%d局(暴露后适应)' % (n1 - n0)
+        elif n1 <= 3 or (n1 - n0) <= 3:
+            verdict = '一次性奇袭(已适应)'
+        else:
+            verdict = '部分适应'
+        out[lab] = {'games': n1, 'main_wr_first': round(wr0, 3),
+                    'main_wr_last': round(wr1, 3),
+                    'exploit_wr_first': round(e0, 3),
+                    'exploit_wr_last': round(e1, 3),
+                    'ts_span': [ts0, ts1], 'verdict': verdict}
+    return out
+
+
 def analyze(blocks, floor=0.30):
     """固化指数+末位保护线+char级聚合."""
     all_rows = [r for b in blocks for r in b['rows']]
@@ -106,6 +153,7 @@ def analyze(blocks, floor=0.30):
         'total_games': total_games,
         'consolidation_index': round(consolidation, 3),
         'blocks_n': len(blocks),
+        'exploit_decay': exploit_decay(blocks),
         'top_label': max(label_games, key=label_games.get),
         'char_agg': {c: {'w': w, 'l': l, 'wr': round(w / (w + l), 3)
                          if w + l else None}
@@ -132,6 +180,14 @@ def main():
           % (rep['consolidation_index'], rep['top_label'],
              rep['consolidation_index'] * 100,
              ' ⚠>50%固化信号' if rep['consolidation_index'] > 0.5 else ''))
+    # W5: exploit半衰期小节(负结果入档语言)
+    if rep.get('exploit_decay'):
+        print('exploit衰减(W5, 主策略视角):')
+        for lab, d in rep['exploit_decay'].items():
+            print('  %s 暴露%d局 主胜率%.0f%%→%.0f%% | %s'
+                  % (lab.split('@')[0] + '@' + lab.split('@')[1][:20],
+                     d['games'], d['main_wr_first'] * 100,
+                     d['main_wr_last'] * 100, d['verdict']))
     print('char级聚合(主策略视角):')
     for c, d in rep['char_agg'].items():
         wr = d['wr']

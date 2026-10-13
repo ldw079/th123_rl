@@ -158,6 +158,55 @@ def build_matrix(chars, games=2, full=False):
     return matrix
 
 
+def four_lenses(matrix, chars, sup_log=None):
+    """W3(研究借鉴方案§3): 四口径并列输出 — 针对价值/种群平均/最坏反制
+    剩余/适应后持续(笔记§五·深入七)。零新测量: 前两口径来自本矩阵,
+    后两口径读league日志(exploit衰减/固化指数)。并列不合成总分。"""
+    import os
+    lens = {'targeted_value': None, 'population_avg': None,
+            'worst_exploit': None, 'adapt_persistence': None,
+            'notes': []}
+    rows = [v for v in matrix.values() if isinstance(v, dict)
+            and 'games' in v]
+    if rows:
+        wrs = []
+        worst = None
+        for k, v in matrix.items():
+            if not isinstance(v, dict) or 'games' not in v or v['games'] < 1:
+                continue
+            w = v.get('wins', v.get('a_wins', 0))
+            wr = w / v['games']
+            wrs.append(wr)
+            if worst is None or wr < worst[1]:
+                worst = (k, wr, v['games'])
+        if wrs:
+            lens['population_avg'] = round(sum(wrs) / len(wrs), 3)
+        if worst:
+            lens['targeted_value'] = {
+                'pair': worst[0], 'wr': round(worst[1], 3),
+                'games': worst[2]}
+    sup_log = sup_log or r'D:	emp	h123_modelsleet_supervision.log'
+    try:
+        from tools.league_weekly import parse_league_blocks, analyze             as lw_analyze
+        blocks = parse_league_blocks(sup_log)
+        rep = lw_analyze(blocks)
+        if rep:
+            lens['adapt_persistence'] = rep.get('consolidation_index')
+            ed = rep.get('exploit_decay') or {}
+            if ed:
+                wl = min(ed.items(), key=lambda kv: kv[1]['main_wr_last'])
+                lens['worst_exploit'] = {
+                    'label': wl[0],
+                    'main_wr': wl[1]['main_wr_last'],
+                    'games': wl[1]['games'],
+                    'verdict': wl[1]['verdict']}
+            else:
+                lens['notes'].append('league日志无exploit条目')
+    except Exception as e:
+        lens['notes'].append('league读数不可用(%s)' % str(e)[:60])
+    return lens
+
+
 def analyze(matrix, chars):
     """分析矩阵 → 排名/克星/超人距离(对抗池广度 + 人类锚)。
 
@@ -187,6 +236,11 @@ def analyze(matrix, chars):
     tl = sum(v.get('timeout_loss', 0) for v in matrix.values())
     hps = [v['timeout_hp_mean'] for v in matrix.values()
            if v.get('timeout_hp_mean') is not None]
+    # W3: 四口径并列(报告层新增, 不动既有键)
+    try:
+        report['four_lenses'] = four_lenses(matrix, chars)
+    except Exception as e:
+        report['four_lenses'] = {'notes': ['四口径构建失败(%s)' % e]}
     report['passivity'] = {
         'timeout_rate': (tn / tg if tg else None),
         'timeout_loss_share': (tl / tn if tn else None),
@@ -223,6 +277,27 @@ def main():
     matrix = build_matrix(chars, args.games, args.full)
     report = analyze(matrix, chars)
 
+    # W3: 四口径并列打印(不合成总分)
+    fl = report.get('four_lenses')
+    if fl:
+        print('\n=== 四口径(W3, 并列不合成) ===')
+        tv = fl.get('targeted_value')
+        print('  针对价值(最弱对位): %s'
+              % ('%s %.0f%%(%d局)' % (tv['pair'], tv['wr'] * 100,
+                                      tv['games']) if tv else '-'))
+        print('  种群平均(对位均值): %s'
+              % ('%.0f%%' % (fl['population_avg'] * 100)
+                 if fl.get('population_avg') is not None else '-'))
+        we = fl.get('worst_exploit')
+        print('  最坏反制剩余(exploit): %s'
+              % ('%s 主胜率%.0f%%(%d局) %s'
+                 % (we['label'], we['main_wr'] * 100, we['games'],
+                    we['verdict']) if we else '-'))
+        print('  适应后持续(固化指数): %s'
+              % (fl.get('adapt_persistence')
+                 if fl.get('adapt_persistence') is not None else '-'))
+        for nt in fl.get('notes', []):
+            print('    注: %s' % nt)
     print('\n=== 排名(按平均对位胜率; 非角色强度) ===')
     for i, r in enumerate(report['ranking'], 1):
         wr = r['avg_wr']
