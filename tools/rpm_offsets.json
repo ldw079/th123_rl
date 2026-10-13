@@ -2,7 +2,8 @@
  "_meta": {
   "verified_at": "2026-10-13(战斗rep 4000帧, 求解器v8稳定帧匹配)",
   "method": "分段(6段)双信道锚(hp∧action±2)+字段独立±2窗+稳定帧(真值±3帧不变处精确相等); 原始求解器输出见rpm_offsets_raw.json",
-  "tr_harvest": "双边批768 shards(总库959/3.3GB)"
+  "tr_harvest": "双边批768 shards(总库959/3.3GB)",
+  "update_2026_10_13_objects": "对象通道闭环 — B-1观察面仅剩hand/weather"
  },
  "verified": {
   "ptr_chain": {
@@ -35,6 +36,14 @@
    "offset": 236,
    "fmt": "<f",
    "conf": "99.7%(稳定帧)"
+  },
+  "objects": {
+   "chain": "cm+0x6F8 → IGameObjectList → Vector(m_first@+0x10, m_last@+0x14) → GameObject*[]",
+   "position": "0xEC(f2, 与Player同构)",
+   "action": "0x13C",
+   "poseFrame": "0x142",
+   "liveness": "动画活性: 两快照(~5游戏帧间隔)间position或poseFrame变化=活; 死对象带过期坐标(全量~297 vs 真值3-15), isActive@0x135无效",
+   "validation": "tps=15慢速5检查点: 数量贴合(±2), 位置宽松命中(±15px)6-9/8-10"
   }
  },
  "structural": {
@@ -56,7 +65,6 @@
  },
  "open": {
   "hand": "疑数组大结构体(非2字节紧包) — stride扫描(下场)",
-  "weather": "globals 0x89F000±0x3000未中 — 向下扩窗或事件锚",
-  "objects": "对象列表指针链行走(弹幕) — B-1最后一块"
+  "weather": "globals 0x89F000±0x3000未中 — 向下扩窗或事件锚"
  }
 }

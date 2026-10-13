@@ -210,3 +210,17 @@ RPMObserver(exe_hash_guard=True)
 - **B-2结论**: 行动通道定版=内存写入(readInKeys+inKeys),
   vJoy降为备胎无需排除法; B-3 runner的行动侧已就绪。
   现场已清理(游戏进程杀/ModLoaderSettings复原/exp_boot.rep删除)。
+
+## 执行记录四(2026-10-13深夜II, 对象列表通道闭环)
+
+- **链路全破**: cm+0x6F8 → IGameObjectList → **Vector@+0x10**
+  (m_first/m_last, 256槽) → GameObject*[]; position@0xEC(f2)与
+  Player同构(真值x/y双命中236/240); 头部3个vtable偏移0xC是首轮
+  误扫根因。
+- **活死判别(动画活性)**: 全量~297槽带过期坐标(死对象不清位),
+  isActive@0x135无效; **两快照(≈5游戏帧)间position或poseFrame
+  变化=活** — tps=15慢速验证: 数量贴合±2, 位置宽松命中6-9/8-10。
+- tps=120下的初验失败系采样间隙时序歪斜(0.25s=30游戏帧) — 降速
+  即清晰, 方法论与校准器的非匀速采样教训同源。
+- **B-1观察面仅剩**: hand(stride扫描)/weather(扩窗) + exe哈希守卫
+  — 均非阻塞特征主角(hp/动作/灵力/位置/弹幕已全)。
