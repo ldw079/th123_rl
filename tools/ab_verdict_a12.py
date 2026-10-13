@@ -145,8 +145,15 @@ def main():
 
     keep_tl = tl_pct is not None and tl_pct < 20
     keep_score = wr_delta is None or wr_delta >= -2.0   # 容差2pp(局数噪声)
-    verdict = ('保留A1-2' if (keep_tl and keep_score)
-               else '回滚 → 改走A1-4(反康对称项)')
+    # 判定逻辑严格对齐协议原文: "**净分下滑**则回滚改走A1-4" — 顶时
+    # 判负率<20%与远弹>15%是验收目标线(A-2), 不达标=验收未达成继续
+    # 观察, 不触发回滚(首版把目标线并进回滚条件=过严, 已修)
+    if not keep_score:
+        verdict = '回滚 → 改走A1-4(反康对称项)(净分下滑超容差)'
+    elif keep_tl:
+        verdict = '保留A1-2 + 验收达成(顶时判负率达标)'
+    else:
+        verdict = '保留A1-2, 验收未达成(顶时判负率未达标) — 继续观察/A1-4备选' 
 
     print('\n==== A1-2 %s读数(三指标) ===='
           % ('FINAL' if final else '预读(--force)'))
