@@ -40,3 +40,11 @@
 ## 建议(待用户指令, 审计不修)
 
 - oracle_batch2 同型保护补齐 + 死代码兜底清理(顺手波)。
+
+## 修复记录(2026-10-13, 采集链专项后随手波)
+
+两笔 P2 均已修: ①oracle_batch2.main 同型兜底 parse 删除(截断 rep 不再
+可能崩旧通道); ②死代码兜底清理 — harvest/oracle_batch2 两处 except 分支
+的 parse 全删(err 置位+offsets 恒空 → 闸必拒 → 放弃, parse 结果从不被
+消费; harvest 侧合并为单闸)。观察项#3(2/234 无 ilog)按 R40 已知取舍
+维持, ALIGN_PASS_MIN 兜底在位。用户裁定(双方皆顶尖)已入档。

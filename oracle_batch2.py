@@ -139,10 +139,14 @@ def main():
                 rep, pkts, offsets, rounds, scores, err, dur = run_one(
                     path, port, tps, 'oracleV2.rep', ilog_path=ilog_tmp)
             except Exception as e:
+                # 审计2026-10-13采集链#1/#2: 兜底parse两宗罪 — ①截断rep
+                # 再炸(R81b只修了harvest侧同型); ②死代码: err已置位+
+                # offsets恒空 → 下方闸必拒 → 放弃continue, parse结果从不
+                # 被消费。删。
                 err, pkts, offsets, rounds, scores = 'exc:%s' % str(e)[:60], \
                     b'', [], [], []
                 dur = 0
-                rep = parse_rep_file(path)
+                rep = None
                 ilog_tmp = None
             if len(offsets) > 100 and err is None:
                 break

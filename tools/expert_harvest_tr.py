@@ -146,25 +146,14 @@ def main():
                 rep, pkts, offsets, rounds, scores, err, dur = run_one(
                     path, PORT, TPS, 'trH.rep', ilog_path=ilog_tmp)
             except Exception as e:
+                # 审计2026-10-13采集链#2: 兜底parse是死代码 — err置位+
+                # offsets恒空 → 闸必拒 → 放弃, parse结果从不被消费
+                # (R81b的try包parse只为防崩, 现连parse一起删)。
                 err, pkts, offsets, rounds, scores = 'exc:%s' % str(e)[:60], \
                     b'', [], [], []
                 dur = 0
                 rep = None
-                try:
-                    rep = parse_rep_file(path)
-                except Exception:
-                    # R81b: 截断rep连头都不完整 — 计放弃继续(原版
-                    # 兜底parse再炸, 坏文件崩整批: 576/958处止步)
-                    pass
-            if rep is None:
-                bad_n += 1
-                print('  [%d/%d] 放弃 %s err=%s (截断rep)' % (
-                    i + 1, len(todo), rel[:40], err))
-                for _st in (ilog_tmp,):
-                    if _st and os.path.exists(_st):
-                        os.remove(_st)
-                continue
-            if len(offsets) <= 100 or err is not None:
+            if rep is None or len(offsets) <= 100 or err is not None:
                 bad_n += 1
                 print('  [%d/%d] 放弃 %s err=%s 帧数%d' % (
                     i + 1, len(todo), rel[:40], err, len(offsets)))
