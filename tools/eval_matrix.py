@@ -277,6 +277,33 @@ def main():
     matrix = build_matrix(chars, args.games, args.full)
     report = analyze(matrix, chars)
 
+    # B-4: vs_Human段(人测会话JSON聚合)
+    try:
+        import glob as _g
+        _sess = sorted(_g.glob(os.path.join(
+            HERE, 'human_match_sessions', 'sess_*.json')))
+        _hs = [json.load(open(f, encoding='utf8')) for f in _sess
+               if not f.endswith('_hl.json')]
+        if _hs:
+            print(chr(10)+'=== vs Human(B-4, 人测标尺) ===')
+            _tot_h = sum(d.get('human_wins', 0) for d in _hs)
+            _tot_m = sum(d.get('model_wins', 0) for d in _hs)
+            _n_sess = len(_hs)
+            print('  会话%d次 | 总比分 人%d - 模型%d | '
+                  '模型胜率%.0f%%' % (
+                      _n_sess, _tot_h, _tot_m,
+                      100 * _tot_m / max(_tot_h + _tot_m, 1)))
+            for d in _hs[-3:]:
+                print('  %s %s vs %s: 人%d-模型%d (%d帧, %srep)' % (
+                    d.get('ts', '?')[:16], d.get('char', '?'),
+                    d.get('char', '?'),
+                    d.get('human_wins', 0), d.get('model_wins', 0),
+                    d.get('frames', 0), len(d.get('new_reps', []))))
+            print('  注: 单测量员(用户裁定③), 非角色强度度量 — '
+                  '见B-3协议')
+    except Exception as _e:
+        print('  (vs_Human段异常: %s)' % _e)
+
     # W3: 四口径并列打印(不合成总分)
     fl = report.get('four_lenses')
     if fl:

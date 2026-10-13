@@ -302,5 +302,71 @@
   "habits": [],
   "habit_report": "未检测到明显坏习惯 — 继续保持!",
   "valid": true
+ },
+ {
+  "ts": "2026-10-13 17:46:02",
+  "rep": "20261013_172441_26-10-13_17-23-17_深圳人形(爱丽丝)_RL-AI(早苗)_(2︰0_负).rep",
+  "md5": "E3CB65D76A3218D72354012622BD9942",
+  "resolved_frames": 5363,
+  "err": null,
+  "final_score_left_right": [
+   2,
+   0
+  ],
+  "char": "alice",
+  "opp_char": "sanae",
+  "mode": 2,
+  "date": "10-13",
+  "n_frames_rep": 2569,
+  "valid": true,
+  "idle_pct": 0.108,
+  "far_pct": 0.211,
+  "far_passive_pct": 0.067,
+  "habits": [],
+  "habit_report": "未检测到明显坏习惯 — 继续保持!"
+ },
+ {
+  "ts": "2026-10-13 17:46:36",
+  "rep": "20261013_172441_26-10-13_17-24-37_深圳人形(爱丽丝)_RL-AI(早苗)_(2︰0_负).rep",
+  "md5": "F1ABEE94752FE658D479D6858FF6D909",
+  "resolved_frames": 4680,
+  "err": null,
+  "final_score_left_right": [
+   2,
+   0
+  ],
+  "char": "alice",
+  "opp_char": "sanae",
+  "mode": 2,
+  "date": "10-13",
+  "n_frames_rep": 2223,
+  "valid": true,
+  "idle_pct": 0.089,
+  "far_pct": 0.181,
+  "far_passive_pct": 0.0,
+  "habits": [],
+  "habit_report": "未检测到明显坏习惯 — 继续保持!"
+ },
+ {
+  "ts": "2026-10-13 17:47:07",
+  "rep": "20261013_172558_26-10-13_17-25-57_深圳人形(爱丽丝)_RL-AI(早苗)_(2︰0_负).rep",
+  "md5": "E9FE0BAC8D0AFF7D92F32BB87268A1D5",
+  "resolved_frames": 4372,
+  "err": null,
+  "final_score_left_right": [
+   2,
+   0
+  ],
+  "char": "alice",
+  "opp_char": "sanae",
+  "mode": 2,
+  "date": "10-13",
+  "n_frames_rep": 2164,
+  "valid": true,
+  "idle_pct": 0.087,
+  "far_pct": 0.227,
+  "far_passive_pct": 0.095,
+  "habits": [],
+  "habit_report": "未检测到明显坏习惯 — 继续保持!"
  }
 ]
