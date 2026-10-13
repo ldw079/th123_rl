@@ -188,3 +188,25 @@ RPMObserver(exe_hash_guard=True)
 - **待专场**: spirit(1182区多副本疑云)/position(快移容差)/hand/
   weather/对象列表 — 事件锚法(下场)。
 - **附**: TR双边批收官768 shards(总库959片/3.3GB, 高手池×5)。
+
+
+## 执行记录三(2026-10-13深夜, B-2行动通道改道内存写入 — 用户裁定)
+
+- **用户裁定**: vJoy/键盘注入路线暂停, 直接内存写入; 实验全自主
+  (RPM客观读数自验证, 无需看屏)。
+- **输入结构链路实证**: KeymapManager两枚静态地址
+  (P1=0x898720, P2=0x898788, 即INPUT_TBL+0xA0/+0x108);
+  +0x60 inKeys(u16战斗位域, rep同款) + 0x64 readInKeys(布尔) —
+  **replay机制=纯数据输入通道**: readInKeys=1时游戏读inKeys
+  而非轮询设备, 零代码钩子。
+- **夺权实验(决定性)**: TR联网双边rep回放中, 写P2 inKeys
+  (持续left+A) 15秒 → P2 xR 812→**57(左墙角)**, actR从战斗态
+  (306/414/502)全变移动态 — **通道打通, 角色完全按注入脚本行动**。
+- **重要副产品×2**: ①整合包的SokuAIOfflinePlayer(我们项目的mod)
+  挂载时**冻结argv回放boot**(实证: 禁用后回放立即正常) — 很可能
+  也是vJoy/SendInput全被无视的根因(输入路径被占); ②回放模式的
+  输入不走INPUT_TBL的P1槽(0x8986A8)而走battle链静态地址 —
+  INPUT_TBL语义=设备绑定表, 非实时输入。
+- **B-2结论**: 行动通道定版=内存写入(readInKeys+inKeys),
+  vJoy降为备胎无需排除法; B-3 runner的行动侧已就绪。
+  现场已清理(游戏进程杀/ModLoaderSettings复原/exp_boot.rep删除)。
