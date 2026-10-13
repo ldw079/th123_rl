@@ -2531,3 +2531,11 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     复原纪律); INPUT_TBL语义修正(设备绑定表非实时输入)。
   - B-2定版: 内存写入为行动通道; vJoy工具保留为备胎; B-3 runner
     行动侧就绪。tools/mem_input_experiment.py(实验全自主可复跑)。
+
+- 2.98 (2026-10-13, **R89 B-3人测runner v1全链集成测试通过**):
+  - tools/human_match_v2.py: RPM观察(CS合成+5帧垫片+活性弹幕)→
+    SideDriver推理→P2 inKeys内存写。无头测试(TR rep回放当P1)60s
+    2512帧, 模型真实战斗决策, 通道稳定无崩溃。
+  - 战力诚实评估: HP 10000→541 — 链路✓战力✗(特征降级: 5帧延迟
+    +hand/gauge/weather默认+对象类型v1简化)。正式首测前补B-1余项。
+  - direction@260实证; CS字段全集覆盖(缺键即崩教训入档)。

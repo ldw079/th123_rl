@@ -224,3 +224,17 @@ RPMObserver(exe_hash_guard=True)
   即清晰, 方法论与校准器的非匀速采样教训同源。
 - **B-1观察面仅剩**: hand(stride扫描)/weather(扩窗) + exe哈希守卫
   — 均非阻塞特征主角(hp/动作/灵力/位置/弹幕已全)。
+
+## 执行记录五(2026-10-13深夜III, B-3 runner v1全链集成测试通过)
+
+- **tools/human_match_v2.py**: Observer(RPM读局面→CS字典合成→5帧
+  公平垫片→活性弹幕) + SideDriver(特征/采样/宏, F6同构) + Actor
+  (P2 KeymapManager inKeys内存写, battle链解析)。
+- **无头集成测试**(TR双边rep回放替代真人P1, 60s):
+  2512帧驱动, 模型P2真实战斗决策(actR: 214/414/151/306...),
+  通道稳定无崩溃。HP 10000→541 — **链路成功, 战力垫底属预期**
+  (5帧延迟+hand/cardGauge/weather默认值+对象方向/类型v1简化
+  =特征显著降级; 正式对局前需补齐B-1剩余字段)。
+- direction@260本轮实证(99.8%), airBorne/hitStop/timeStop恒零
+  歧义(默认值, 待专场)。
+- 首测前置: headless_boot自动禁SokuAIOfflinePlayer(备份/复原)。

@@ -273,6 +273,10 @@ def solve_offsets(truth, samples, win):
 
     char_fields = {
         'hp': ('<h', lambda t: t[1].get('hp'), 2, 0, 0),
+        'direction': ('<b', lambda t: t[1].get('direction'), 2, 0, 3),
+        'airBorne': ('<?', lambda t: t[1].get('airBorne'), 2, 0, 3),
+        'timeStop': ('<H', lambda t: t[1].get('timeStop'), 2, 0, 3),
+        'hitStop': ('<H', lambda t: t[1].get('hitStop'), 2, 3, 3),
         'action': ('<H', lambda t: t[1].get('action'), 2, 0, 0),
         'sequence': ('<H', lambda t: t[1].get('sequence'), 2, 0, 0),
         'pose': ('<H', lambda t: t[1].get('pose'), 2, 0, 0),
