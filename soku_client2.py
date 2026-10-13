@@ -36,8 +36,8 @@ CHAR_REIMU = 0
 CHAR_MARISA = 1
 CHAR_SUIKA = 9
 
-GAME_DIR = r"D:\touhou\hisoutensoku2026-06-15\th123_train"
-EXE = GAME_DIR + r"\th123.exe"
+from kit_config import TRAIN_GAME_DIR as GAME_DIR
+EXE = os.path.join(GAME_DIR, "th123.exe")
 
 CS_FIELDS = [
     "direction", "position.x", "position.y",

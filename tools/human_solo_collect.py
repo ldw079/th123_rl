@@ -41,7 +41,7 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, r'D:\temp\soku_arch')
 sys.stdout.reconfigure(encoding='utf8')
 
-GAME = r'D:\touhou\hisoutensoku2026-06-15\th123'      # 原版整合包(用户日常)
+from kit_config import GAME_DIR as GAME      # 原版整合包(用户日常)
 EXE = os.path.join(GAME, 'th123.exe')
 REPLAY_DIR = os.path.join(GAME, 'replay')
 

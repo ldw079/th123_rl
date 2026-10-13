@@ -41,7 +41,7 @@ OFF_INKEYS, OFF_READIN = 0x60, 0x64
 DELAY_FRAMES = 5            # C'裁定: 80ms≈5帧观察延迟
 BIT = {'up': 0, 'down': 1, 'left': 2, 'right': 3, 'A': 4, 'B': 5,
        'C': 6, 'D': 7, 'SC': 8, 'SW': 9, 'pause': 10, 'select': 11}
-GAME = r'D:\touhou\hisoutensoku2026-06-15\th123'
+from kit_config import GAME_DIR as GAME
 EXE_MD5 = 'DF35D1FBC7B583317ADABE8CD9F53B2E'   # exe哈希守卫(版本漂移即拒)
 W_ACT, W_DISP, W_CNT = 0x8971C0, 0x8971C4, 0x8971CC   # SokuAddresses实证
 WEATHER_SEIRAN, WEATHER_AURORA, WEATHER_CLEAR = 11, 19, 0

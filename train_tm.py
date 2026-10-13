@@ -42,7 +42,8 @@ except Exception:
 DIR = os.path.dirname(os.path.abspath(__file__))
 # 模型/蒸馏数据迁至D盘(C盘曾爆满致训练中断 — stdout_rl.txt 1.4GB事件).
 # 首次运行自动迁移旧文件; 代码仍在原处.
-STORE_DIR = r"D:\temp\th123_models"
+# 可迁移化: 路径经kit_config(config.json > 环境变量 > 本机默认)
+from kit_config import STORE_DIR
 try:
     os.makedirs(STORE_DIR, exist_ok=True)
 except OSError:
