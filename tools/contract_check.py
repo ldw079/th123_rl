@@ -1867,6 +1867,9 @@ _BEHAVIOR_TESTS = [
     # W1延迟消融(研究借鉴方案§W1)
     ("test_attribution_w1.py",
      "W1: DelayedView透传/延迟/引用完整/曲线单调性验收"),
+    # E阶段3前置: GRUCell
+    ("test_gru_cell.py",
+     "E3: GRUCell numpy↔torch等价/门控语义/序列展开/模式可分"),
     # F(未决方案§F): 吞吐标定
     ("test_throughput_f.py",
      "F: actor局/时(段切分+跨午夜)+批耗时分布+占空比(间隙阈值+尾部心跳判活)"),
