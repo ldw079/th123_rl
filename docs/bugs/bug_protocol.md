@@ -39,3 +39,7 @@
 - `bug_2026-10-12_habits_retract_nowriter.md` — habits_retracted无代码写入点,提交宣称与实现不符(未修)
 - `bug_2026-10-12_ppo_dual_impl_grad.md` — 双实现梯度接合点不等价(vf_adam混代+cap反向不完整)(未修)
 - `bug_2026-10-12_trainstart_killall_th123.md` — train_start无差别杀th123误伤原版局/离线重放(未修)
+- `bug_2026-10-13_gate_anchor_or_true.md` — 门禁恒真死锚or True(R84引入, 未修)
+- `bug_2026-10-13_sandbox_files_drift2.md` — 沙箱FILES二次漂移: value_curve未收录, P1-1同型复发(未修)
+- `bug_2026-10-13_memexp_no_finally.md` — mem_input_experiment无finally, 异常残留夺权用户游戏(未修, P2)
+- 重开: bug_2026-10-12_side_driver_dec_name — R80为假修复(入队处漏赋宏名, 恒None)
