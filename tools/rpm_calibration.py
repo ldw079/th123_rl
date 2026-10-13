@@ -194,18 +194,26 @@ def solve_offsets(truth, samples, win):
         k, r = anchors[b]
         return int(k + i * r)
 
-    def hits_for(getter, fmt, side_w, tol=2, vtol=0):
-        """vtol>0=数值容差(连续字段: 位置每帧移动/灵力逐帧回复 —
-        精确相等在±2样本窗内也错过中间值; 容差=字段每帧典型变化量)。
+    def hits_for(getter, fmt, side_w, tol=2, vtol=0, stable=0):
+        """stable>0=稳定帧匹配(真值±stable帧内不变才参与) — 连续字段
+        (位置/灵力)的变化瞬间对齐必然失败, 排除后精确相等即可; 这是
+        vtol之外的互补手段(vtol在快移场景仍会漏)。
         """
         fv = [getter(t) for t in truth]
+
+        def _stable(i):
+            for d in range(-stable, stable + 1):
+                if not 0 <= i + d < n or fv[i + d] != fv[i]:
+                    return False
+            return True
+
         out = []
         for off in range(0, win - 16, 2):
             eq = 0
             tot = 0
             for i in range(0, n, 3):
                 v = fv[i]
-                if v is None:
+                if v is None or (stable and not _stable(i)):
                     continue
                 j0 = j_est(i)
                 ok = False
@@ -224,20 +232,20 @@ def solve_offsets(truth, samples, win):
         return out
 
     char_fields = {
-        'hp': ('<h', lambda t: t[1].get('hp'), 2, 0),
-        'action': ('<H', lambda t: t[1].get('action'), 2, 0),
-        'sequence': ('<H', lambda t: t[1].get('sequence'), 2, 0),
-        'pose': ('<H', lambda t: t[1].get('pose'), 2, 0),
-        'poseFrame': ('<H', lambda t: t[1].get('poseFrame'), 2, 4),
-        'spirit': ('<H', lambda t: t[1].get('spirit'), 2, 3),
-        'position.x': ('<f', lambda t: t[1].get('position.x'), 2, 4.0),
-        'position.y': ('<f', lambda t: t[1].get('position.y'), 2, 4.0),
-        'action_r': ('<H', lambda t: t[2].get('action'), 3, 0),
-        'spirit_r': ('<H', lambda t: t[2].get('spirit'), 3, 3),
-        'hp_r': ('<h', lambda t: t[2].get('hp'), 3, 0),
-        'weather_displayed': ('<b', lambda t: (t[3] or {}).get('displayed'), 5, 0),
-        'weather_active': ('<b', lambda t: (t[3] or {}).get('active'), 5, 0),
-        'weather_timer': ('<H', lambda t: (t[3] or {}).get('timer'), 5, 3),
+        'hp': ('<h', lambda t: t[1].get('hp'), 2, 0, 0),
+        'action': ('<H', lambda t: t[1].get('action'), 2, 0, 0),
+        'sequence': ('<H', lambda t: t[1].get('sequence'), 2, 0, 0),
+        'pose': ('<H', lambda t: t[1].get('pose'), 2, 0, 0),
+        'poseFrame': ('<H', lambda t: t[1].get('poseFrame'), 2, 4, 3),
+        'spirit': ('<H', lambda t: t[1].get('spirit'), 2, 0, 3),
+        'position.x': ('<f', lambda t: t[1].get('position.x'), 2, 0, 4),
+        'position.y': ('<f', lambda t: t[1].get('position.y'), 2, 0, 4),
+        'action_r': ('<H', lambda t: t[2].get('action'), 3, 0, 0),
+        'spirit_r': ('<H', lambda t: t[2].get('spirit'), 3, 0, 3),
+        'hp_r': ('<h', lambda t: t[2].get('hp'), 3, 0, 0),
+        'weather_displayed': ('<b', lambda t: (t[3] or {}).get('displayed'), 5, 0, 2),
+        'weather_active': ('<b', lambda t: (t[3] or {}).get('active'), 5, 0, 2),
+        'weather_timer': ('<H', lambda t: (t[3] or {}).get('timer'), 5, 3, 3),
     }
     _legacy = {
         'hp': ('<h', lambda t: t[1].get('hp'), 2),
@@ -257,11 +265,11 @@ def solve_offsets(truth, samples, win):
     }
     res['_meta']['anchors'] = [(int(k), round(r, 4)) for k, r in anchors]
     print('  [锚] %d段: %s' % (SEG, res['_meta']['anchors']))
-    for name, (fmt, getter, sw, vtol) in char_fields.items():
-        hits = hits_for(getter, fmt, sw, vtol=vtol)
+    for name, (fmt, getter, sw, vtol, stable) in char_fields.items():
+        hits = hits_for(getter, fmt, sw, vtol=vtol, stable=stable)
         res[name] = hits[:4]
         print('  %-18s %s%s' % (name, hits[:3] if hits else '未命中',
-                                ('(vtol)' if vtol else '')))
+                                ('(vtol/stable)' if (vtol or stable) else '')))
 
     def _hand_bytes(t):
         h = t[1].get('hand')
