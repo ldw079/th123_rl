@@ -15,4 +15,8 @@
   验证: 配对测试 — 同队列两侧 dec_name="立防" 均存活、None 均被清。
 - **防复发**: 两侧行为对称性断言(同一队列在 train_tm/side_driver 路径
   产生相同的清队决策)。
-- **状态**: **重开(2026-10-13 从严审计)**: R80 为假修复 — 传参/回传半环已接, 但决策入队处(side_driver.py ~:277 enqueue_script 后)从未赋 `self._dec_name`, 恒 None, R34 豁免依旧恒失效; 配对测试的 grep 断言(`'self._dec_name,' in 源码`)恰好被死接线满足。修法仍是一行: 入队后 `self._dec_name = self.macros[mid][0]`(对齐 train_tm.py:1752) + 贯通断言(同队列两侧清队决策一致)。
+- **状态**: **已修(2026-10-13 从严审计#4重开→同日真修复)**: R80 为假修复 — 传参/回传半环已接, 但决策入队处(side_driver.py ~:277 enqueue_script 后)从未赋 `self._dec_name`, 恒 None, R34 豁免依旧恒失效; 配对测试的 grep 断言(`'self._dec_name,' in 源码`)恰好被死接线满足。修法仍是一行: 入队后 `self._dec_name = self.macros[mid][0]`(对齐 train_tm.py:1752) + 贯通断言(同队列两侧清队决策一致)。
+
+- **真修复记录**: 入队处赋`self._dec_name = self.macros[mid][0]`
+  (side_driver.py:280, 与train_tm:1752同型); 对称性测试升级为
+  行为级断言(25 PASS)。

@@ -1,0 +1,21 @@
+{
+ "final": false,
+ "accumulated_h": 8.643583350711399,
+ "timeout_loss_pct": 80.0,
+ "passivity": {
+  "timeout_rate": 0.8333333333333334,
+  "timeout_loss_share": 0.8,
+  "timeout_hp_mean_avg": -544.6666666666666
+ },
+ "far_share": {
+  "reimu": 3.0,
+  "marisa": 7.5,
+  "suika": 25.1
+ },
+ "winrate_new": 33.333333333333336,
+ "winrate_base": 25.0,
+ "winrate_delta": 8.3,
+ "verdict": "回滚 → 改走A1-4(反康对称项)",
+ "eval_json": "%USERPROFILE%\\Desktop\\workplace\\th123_rl\\tools\\eval_matrix_quick_20261013.json",
+ "ts": "2026-10-13 11:19:04"
+}

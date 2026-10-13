@@ -273,6 +273,10 @@ class SideDriver:
         _script = adjust_script(self.macros[mid][1], self._skill_levels)
         # P0-B(从零#2): 入队走单源(与train_tm同函数 — 载荷fr保留)
         macro_executor.enqueue_script(self.macro_queue, _script)
+        # 审计2026-10-13 P1-2重开: R80只接了传参/回传半环, 入队处从未
+        # 赋值→_dec_name恒None(R34豁免依旧恒失效)。真修复: 决策落子处
+        # 赋宏名(与train_tm:1752同型)。
+        self._dec_name = self.macros[mid][0]
 
     def _parse_hand(self, own):
         """TM包手牌10字节 → (ids, 选中id, 数量). 与train_tm同源。"""

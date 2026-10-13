@@ -136,6 +136,10 @@ def main():
 
     check("side_driver传self._dec_name(接线不回退)",
           'self._dec_name,' in _sd and 'self._dec_name = None' in _sd)
+    # 审计2026-10-13 P1-2重开: R80只接半环(传参/回传), 入队处未赋值
+    # →恒None死接线, grep锚绿灯但根因未除。断言决策落子处赋宏名
+    check("dec_name入队处赋值(决策落子→宏名, train_tm同型)",
+          'self._dec_name = self.macros[mid][0]' in _sd)
 
     # 8c. 灵力门(迁移变异#75承接): 空灵力+下一含攻击键 → 清队
     l35, r35 = st(my_a=0, opp_a=0, spirit=50)

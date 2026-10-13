@@ -1902,10 +1902,41 @@ chk("os.replace(_tmp, p)" in src("bc_build.py"),
     "P2: BC库savez原子落盘(宪法§5.2)")
 chk('"truncated": len(traj) < frames' in src("tools/branch_demo.py"),
     "P2: branch_demo截断标记")
-chk("write_heartbeat()" in src("fleet_supervisor.py").split(
-    "COOLDOWN_S)")[0].split("def run(")[0] or True,
-    "P2: 重启冷却期心跳(防假离线账) [锚:文件级]",
-    "见fleet_supervisor冷却块" if False else "")
+# ============ 审计2026-10-13根治项: 沙箱FILES完备性(AST×C15 imports) ============
+print("=== FILES完备性(行为测试import面×沙箱清单) ===")
+import ast as _ast
+import os as _os
+_gs = os.path.join(ROOT, "tools", "gate_selftest.py")
+_gsrc = open(_gs, encoding="utf8").read()
+_m = re.search(r"FILES = \[(.*?)\]", _gsrc, re.S)
+_files_list = set(re.findall(r'"([^"]+)"', _m.group(1))) if _m else set()
+_root_py = {f for f in _os.listdir(ROOT) if f.endswith(".py")}
+_bad = []
+for _t, _d in _BEHAVIOR_TESTS:
+    _tp = os.path.join(ROOT, "tests", _t)
+    if not _os.path.exists(_tp):
+        continue
+    try:
+        _tree = _ast.parse(open(_tp, encoding="utf8").read())
+    except SyntaxError:
+        continue
+    for _n in _ast.walk(_tree):
+        _mods = []
+        if isinstance(_n, _ast.Import):
+            _mods = [a.name.split(".")[0] for a in _n.names]
+        elif isinstance(_n, _ast.ImportFrom) and _n.module and _n.level == 0:
+            _mods = [_n.module.split(".")[0]]
+        for _mod in _mods:
+            if _mod + ".py" in _root_py and _mod + ".py" not in _files_list:
+                _bad.append((_t, _mod))
+chk(not _bad,
+    "沙箱FILES覆盖全部行为测试的根模块imports(P1-1类复发的结构防线)",
+    str(sorted(set(_bad))[:6]))
+
+_fs_src = src("fleet_supervisor.py")
+chk(_fs_src.count("write_heartbeat()") >= 3
+    and "冷却期照写心跳" in _fs_src,
+    "P2: 重启冷却期心跳(防假离线账) [启动+冷却+周期三处调用]")
 chk("_lf.close()" in src("fleet_supervisor.py"),
     "P2: actor日志fd显式关闭(防句柄泄漏)")
 chk("'actor_worker|learner_hub|exploiter'" in src("fleet_supervisor.py"),

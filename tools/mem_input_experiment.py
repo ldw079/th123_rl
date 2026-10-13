@@ -130,20 +130,24 @@ def phase2(g, p1, p2):
     print('==== P2 inKeys通道测试(12s) ====', flush=True)
     orig_in = g.rd(p2, 2)
     orig_rd = g.rd(p2 + OFF_READIN, 1)
-    g.wr(p2 + OFF_READIN, b'\x01')
-    t0 = time.time()
+    moved = False
     seen = set()
-    while time.time() - t0 < 12:
-        el = time.time() - t0
-        # 3s脉冲制: down按下1.2s → 停1.2s → A按下1.2s → ...
-        seq = [{'down': True}, {}, {'A': True}, {}]
-        d = seq[int(el // 1.2) % 4]
-        g.wr(p2 + OFF_INKEYS, struct.pack('<H', keys_u16(d)))
-        st = g.km_state(p2)
-        seen.add((st['input_v'], st['input_h'], st['btns'][0]))
-        time.sleep(1 / 240)
-    g.wr(p2 + OFF_INKEYS, orig_in)
-    g.wr(p2 + OFF_READIN, orig_rd)
+    try:
+        # 审计2026-10-13 P2: 异常时readInKeys=1残留=真人输入被夺权
+        g.wr(p2 + OFF_READIN, b'\x01')
+        t0 = time.time()
+        while time.time() - t0 < 12:
+            el = time.time() - t0
+            # 3s脉冲制: down按下1.2s → 停1.2s → A按下1.2s → ...
+            seq = [{'down': True}, {}, {'A': True}, {}]
+            d = seq[int(el // 1.2) % 4]
+            g.wr(p2 + OFF_INKEYS, struct.pack('<H', keys_u16(d)))
+            st = g.km_state(p2)
+            seen.add((st['input_v'], st['input_h'], st['btns'][0]))
+            time.sleep(1 / 240)
+    finally:
+        g.wr(p2 + OFF_INKEYS, orig_in)
+        g.wr(p2 + OFF_READIN, orig_rd)
     print(' P2 input字段观察值集合:', sorted(seen)[:8], flush=True)
     moved = len(seen) > 1
     print(' 判定: input字段%s ← readInKeys路径%s' % (

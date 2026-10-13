@@ -1,18 +1,6 @@
-# Bug: mem_input_experiment 无 try/finally — 异常时用户游戏被残留夺权(未修, P2)
+# Bug: mem_input_experiment无try/finally — 已修
 
-- **发现**: 2026-10-13 从严审查(B-2 通道亲审)。
-- **症状**: tools/mem_input_experiment.py phase2(:128-151): 置
-  `readInKeys=1` 后进入 12s 写入循环, 循环后手工复原(:145-146) — 但
-  **无 try/finally**。循环内 `km_state` 返回 None 即 TypeError(如进程
-  退出/读取失败), 复原代码永不执行 → `readInKeys=1` 残留在**用户的
-  原版游戏进程**, 真人输入被静默夺权直到重启游戏。
-- **根因**: 复原逻辑仅覆盖正常路径; 该实验目标是非训练 th123.exe
-  (用户实况进程), 事故半径是用户会话本身。
-- **引入**: bad4c9b 前后的 B-2 实验脚本(c81358d/b95753f 波)。
-- **影响面**: 实验中断(异常/Ctrl+C)即触发; 生产通道 human_match_v2
-  已有 finally 复原纪律(亲验合格), 本档仅涉实验脚本。
-- **修复与验证**: 未修。修法: 置位后全部循环包 try/finally 复原;
-  验证: 注入 km_state=None 断言复原仍执行。
-- **防复发**: "动用户进程状态必配 finally 复原"入 B-2 通道 SOP;
-  与红线②(内存写入有界/预检)并读。
-- **状态**: 未修。
+- **发现**: 2026-10-13 从严审计#4 P2。
+- **症状**: phase2异常时readInKeys=1残留用户进程(输入被夺权直到重启)。
+- **修复**: try/finally包裹, finally复原inKeys+readInKeys。
+- **状态**: 已修(2026-10-13)。

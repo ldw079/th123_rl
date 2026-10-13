@@ -81,7 +81,9 @@ FILES = [
          # 审计#3 P1-1: d672c2d入库时FILES未同步 — test_series_stage1_e1
          # 沙箱内import即炸, 基线不绿, 变异自检整体瘫痪
          "series_manager.py",
-         "distill.py"]
+         "distill.py",
+         # 审计2026-10-13 P1-3二次漂移: test_research_w_wave依赖
+         "value_curve.py"]
 
 # (文件, 原文, 变异文, 防的回归)
 MUTATIONS = [
