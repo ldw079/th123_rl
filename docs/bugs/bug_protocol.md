@@ -43,3 +43,6 @@
 - `bug_2026-10-13_sandbox_files_drift2.md` — 沙箱FILES二次漂移: value_curve未收录, P1-1同型复发(未修)
 - `bug_2026-10-13_memexp_no_finally.md` — mem_input_experiment无finally, 异常残留夺权用户游戏(未修, P2)
 - 重开: bug_2026-10-12_side_driver_dec_name — R80为假修复(入队处漏赋宏名, 恒None)
+- dist专项(2026-10-13): `bug_2026-10-13_kit_store_hardcode.md` — kit硬编码本机store, 打包模型从未被使用(未修, P1)
+- `bug_2026-10-13_kit_export_strftime.md` — 导出文件名恒定互相覆盖(未修, P2)
+- `bug_2026-10-13_hm2_opp_char_blind.md` — 人测通道对手角色不识别, opp_char_id恒None特征失配, R91盲打(未修, P1)
