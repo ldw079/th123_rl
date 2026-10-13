@@ -83,7 +83,8 @@ FILES = [
          "series_manager.py",
          "distill.py",
          # 审计2026-10-13 P1-3二次漂移: test_research_w_wave依赖
-         "value_curve.py"]
+         "value_curve.py",
+         "kit_config.py"]   # 可迁移化: soku_client2/train_tm等import
 
 # (文件, 原文, 变异文, 防的回归)
 MUTATIONS = [
