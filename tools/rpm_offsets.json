@@ -1,43 +1,153 @@
 {
  "_meta": {
   "truth_frames": 4000,
-  "rpm_samples": 4082,
+  "rpm_samples": 3837,
   "win": 2048,
-  "anchor": {
-   "k": 327.30909090909086,
-   "rate": 0.9338
-  },
-  "update_2026_10_13_late": {
-   "right_side": "hp@388于cmR窗92.7%复验 — 左右结构对称坐实",
-   "anchor_finding": "RPM采样非匀速(抖动/突发), 单一(k,rate)线性映射不可能整程拟合 → 定版方法=分块局部对齐(每~400帧块独立shift,逐块评估聚合计分) — 下场实现",
-   "directed_verify": "action@316=96.1%/sequence@318=94.6%由定向脚本(±2窗全帧)实测 — 分块对齐落地后应可在通用求解器内复现",
-   "globals_window": "GLOB 0x89F000±0x3000已捕获, weather三字段未命中(真值侧weather字典对齐质量问题或字段位置更远 — 下场排查)"
+  "anchors": [
+   [
+    123,
+    0.9113
+   ],
+   [
+    132,
+    0.9113
+   ],
+   [
+    142,
+    0.9113
+   ],
+   [
+    156,
+    0.9113
+   ],
+   [
+    177,
+    0.9113
+   ],
+   [
+    190,
+    0.9113
+   ]
+  ],
+  "update_2026_10_13_final": {
+   "tr_harvest": "双边批收官768 shards(总库959/3.3GB)"
   }
  },
  "hp": [
   [
    388,
-   927,
-   1000
+   1333,
+   1334
+  ],
+  [
+   436,
+   1233,
+   1334
   ],
   [
    1176,
-   878,
-   1000
+   1254,
+   1334
   ]
  ],
- "action": [],
- "sequence": [],
+ "action": [
+  [
+   316,
+   1249,
+   1334
+  ]
+ ],
+ "sequence": [
+  [
+   318,
+   1244,
+   1334
+  ]
+ ],
  "pose": [],
- "poseFrame": [],
+ "poseFrame": [
+  [
+   20,
+   1211,
+   1334
+  ],
+  [
+   24,
+   1211,
+   1334
+  ],
+  [
+   32,
+   1211,
+   1334
+  ],
+  [
+   34,
+   1211,
+   1334
+  ]
+ ],
  "spirit": [],
  "position.x": [],
  "position.y": [],
- "action_r": [],
+ "action_r": [
+  [
+   316,
+   1246,
+   1334
+  ]
+ ],
  "spirit_r": [],
- "hp_r": [],
+ "hp_r": [
+  [
+   388,
+   1289,
+   1334
+  ]
+ ],
  "weather_displayed": [],
  "weather_active": [],
  "weather_timer": [],
- "hand": []
+ "hand": [],
+ "verified": {
+  "hp": {
+   "offset": 388,
+   "fmt": "<h",
+   "conf": "99.9%(双侧: L 1333/1334, R 1289/1334)"
+  },
+  "action": {
+   "offset": 316,
+   "fmt": "<H",
+   "conf": "93.6%(定向96.1%+通用求解器复现93.6%, 双侧)"
+  },
+  "sequence": {
+   "offset": 318,
+   "fmt": "<H",
+   "conf": "93.2%(定向94.6%+通用复现)"
+  },
+  "ptr_chain": {
+   "battle_mgr": "0x8985E4",
+   "cm_left": "+0x0C",
+   "cm_right": "+0x10",
+   "scene": "0x8A0044"
+  }
+ },
+ "structural": {
+  "pose": {
+   "offset": 320,
+   "fmt": "<H",
+   "conf": "frameState基(316)已证→同struct邻位必然; 匹配算法对快变pose仍盲"
+  },
+  "poseFrame": {
+   "offset": 322,
+   "fmt": "<H",
+   "conf": "同上(frameState+6)"
+  }
+ },
+ "open": {
+  "spirit": "1182区(1176-1190疑多hp副本区)待专场分析",
+  "position": "首号rep曾单中236但战斗rep不复现 — 快移超容差或非cm相对",
+  "hand/weather/objects": "待解(需事件锚或更宽容差策略)",
+  "methodology_final": "定版=分段(6段)双信道锚(hp∧action±2)+字段独立±2窗+连续字段vtol; 离散字段全通, 连续字段需事件锚(下场)"
+ }
 }
