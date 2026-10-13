@@ -109,6 +109,9 @@ def value_rank(ppo, char, dx, spirit, opp_air, opp_corner,
 
     n_side = 5 * n + fb.CORE_DIMS
     side = np.zeros(n_side, dtype=np.float32)
+    # 审计#3 P2披露: V在此为**分布外评估** — 3n视觉块与侧向量均以
+    # 零/合成值构造(训练分布外), 值读数只作宏间相对比较, 绝对值
+    # 不可当局面价值引用。
     side[2 * n:2 * n + fb.CORE_DIMS] = core
 
     # 视觉置零(14400 = 3×80×60) — trunk只算一次(所有宏共享)

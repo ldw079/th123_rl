@@ -81,6 +81,8 @@ def analyze(blocks, floor=0.30):
     all_rows = [r for b in blocks for r in b['rows']]
     if not all_rows:
         return None
+    # 审计#3 P2披露: all_rows为**跨league重算块累积求和** — 绝对局数
+    # 随块数膨胀, 固化指数/胜率等比例量不受影响; blocks_n随报告输出
     total_games = sum(w + l for _lab, w, l in all_rows) or 1
     # 1. 固化指数: 单一label局数份额最大值
     label_games = {}
@@ -103,6 +105,7 @@ def analyze(blocks, floor=0.30):
         'blocks': len(blocks),
         'total_games': total_games,
         'consolidation_index': round(consolidation, 3),
+        'blocks_n': len(blocks),
         'top_label': max(label_games, key=label_games.get),
         'char_agg': {c: {'w': w, 'l': l, 'wr': round(w / (w + l), 3)
                          if w + l else None}

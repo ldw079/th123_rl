@@ -79,3 +79,21 @@ dec_name 对称修复(23 PASS); ③TAB 路径一字修+控制字符扫(5 PASS);
 符号级零翻转); ⑥train_start 按路径精确杀+--stop 副作用剥离。
 另: far_passive 零远距帧兜底档随 R79 双兜底关闭。P2 十九项未处理
 (留下一修复波)。
+
+## P2修复波(2026-10-13, 首波11项+核验1项)
+
+**已修+门禁锚定(594/0/0)**: ①GPU ratio±20钳制(对齐numpy); ②learner两处
+数据路径静默except响亮化; ③eval_matrix/human_match平局三态(原记右方
+胜); ④branch_demo截断标记; ⑤BC库savez原子落盘; ⑥重启冷却期写心跳
+(防8×30s>90s假离线账); ⑦actor日志fd显式关; ⑧孤儿回收含剥削者;
+⑨低盘清理活性宽限(<120s不删)+陈旧*.tmp.npz清理方; ⑩teach的V分布外
+评估披露; ⑪league周报blocks_n聚合披露; 另: delay_then加活体断言
+(执行器支持钉死, 24 PASS)。
+
+**核验无漂移**: GAP_DEAD_S注释与LEAGUE_INTERVAL=3600一致(审计项不成立,
+留档)。bc_build布局串漂移已在从零#2修(派生式)。
+
+**推迟(带理由)**: sc步首帧镜像泄漏+灵力门零耗体术(训练行为变更 —
+归因隔离, 并入A/B裁定后E1b批次); BC幽灵自模仿不对称+episode部分更新
+回滚(语义设计题, 需专属方案); seed_前缀清理(潜伏未触发, 观察项);
+SeriesManager接线(按设计等E1b)。

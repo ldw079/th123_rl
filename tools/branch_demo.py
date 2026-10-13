@@ -122,6 +122,7 @@ def run_branch(env, scen, macro_script, frames=120, opp_driver=None):
     if not traj:
         return None
     return {
+        "truncated": len(traj) < frames,   # P2(审计#3): 截断无标记
         "my_hp_delta": traj[-1]["my_hp"] - my_hp0,
         "opp_hp_delta": traj[-1]["opp_hp"] - opp_hp0,
         "frames": len(traj),

@@ -122,6 +122,18 @@ def main():
     check("R34对None不豁免(对称性基准)", len(q2) == 0)
     _sd = open(os.path.join(os.path.dirname(__file__), '..',
                             'side_driver.py'), encoding='utf8').read()
+    # ===== 审计#3 P2: delay_then活体断言(执行器支持, 生产者=分支字典
+    # 元组值; 原无任何测试="文档有代码无测试"第三态) =====
+    q = [("branch", {"hit": (6, [(("A",), 3)])}), (("B",), 5)]
+    l, r = st(my_a=0, opp_a=0)
+    q2, gf, dn, inp = advance_queue(
+        q, 0, l, r, 100, 0, False, 1000, 800, None,
+        GUARD_PREP, GUARD_IDS, fake_sc, noop)
+    # hit条件: d_deal=100>0 → 命中分支 → 变(6帧空步 + A步 + B步)
+    check("delay_then分支命中展开为6空帧+后续步",
+          len(q2) == 3 and q2[0] == ((), 6) and q2[1] == (("A",), 3)
+          and q2[2] == (("B",), 5), str(q2))
+
     check("side_driver传self._dec_name(接线不回退)",
           'self._dec_name,' in _sd and 'self._dec_name = None' in _sd)
 

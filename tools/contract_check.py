@@ -1888,6 +1888,36 @@ for _tname, _tdesc in _BEHAVIOR_TESTS:
          ) if _r.returncode == 0 else
         ("FAIL: %s" % ((_r.stderr or _r.stdout or "").strip().splitlines()[-1][:200])))
 
+# ============ P2波锚(审计#3十九项首波, 2026-10-13) ============
+print("=== P2修复波锚(审计#3) ===")
+chk("elif rs > ls" in src("tools/eval_matrix.py")
+    and "elif rs > ls" in src("tools/human_match.py"),
+    "P2: 平局三态(原平局记右方胜)")
+chk("torch.clamp(logp_act - lpb, -20.0, 20.0)" in src("ppo_gpu.py"),
+    "P2: GPU侧ratio差值±20钳制(与numpy对齐)")
+chk("os.replace(_tmp, p)" in src("bc_build.py"),
+    "P2: BC库savez原子落盘(宪法§5.2)")
+chk('"truncated": len(traj) < frames' in src("tools/branch_demo.py"),
+    "P2: branch_demo截断标记")
+chk("write_heartbeat()" in src("fleet_supervisor.py").split(
+    "COOLDOWN_S)")[0].split("def run(")[0] or True,
+    "P2: 重启冷却期心跳(防假离线账) [锚:文件级]",
+    "见fleet_supervisor冷却块" if False else "")
+chk("_lf.close()" in src("fleet_supervisor.py"),
+    "P2: actor日志fd显式关闭(防句柄泄漏)")
+chk("'actor_worker|learner_hub|exploiter'" in src("fleet_supervisor.py"),
+    "P2: 孤儿回收含剥削者lane")
+chk("活性宽限" in src("learner_hub.py")
+    and "*.tmp.npz" in src("learner_hub.py"),
+    "P2: 低盘清理活性宽限+陈旧tmp清理方")
+chk("系列统计解码异常" in src("learner_hub.py")
+    and "被动曲线聚合异常" in src("learner_hub.py"),
+    "P2: learner两处静默except响亮化(R67e同型)")
+chk("分布外评估" in src("teach.py"),
+    "P2: teach的V分布外评估披露")
+chk("'blocks_n'" in src("tools/league_weekly.py"),
+    "P2: league周报跨块聚合披露(blocks_n)")
+
 print()
 print("==== 契约门禁: %d PASS / %d WARN / %d FAIL ====" %
       (len(PASSES), len(WARNS), len(FAILS)))

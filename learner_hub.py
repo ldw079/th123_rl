@@ -62,11 +62,23 @@ def _dg_cleanup(ep_dir, snap_dir, char=None):
     ep_dir是全角色共享, len-4保新删的是任意角色最新局);
     (b)快照按数值序删(原字典序v10<v2 → 刚发布的v10被自己删)。"""
     pat = 'ep_%s_*.npz' % char if char else 'ep_*.npz'
+    import time as _t
+    _now = _t.time()
     olds = sorted(glob.glob(os.path.join(ep_dir, pat)),
                   key=lambda p: (os.path.getmtime(p), p))
+    # P2(审计#3): 活性宽限 — 刚落盘(<120s)的可能是活actor已完成的
+    # 待消费局, 低盘清理不误删
+    olds = [p for p in olds if _now - os.path.getmtime(p) > 120]
     for old in olds[:max(0, len(olds) - 4)]:   # 保留该角色最新4局
         try:
             os.remove(old)
+        except OSError:
+            pass
+    # P2(审计#3): 降容硬杀残留的半写tmp(生产者已死, 原无清理方)
+    for st in glob.glob(os.path.join(ep_dir, '*.tmp.npz')):
+        try:
+            if _now - os.path.getmtime(st) > 600:
+                os.remove(st)
         except OSError:
             pass
     # 快照: 数值序(R60 F-3同款 — 字典序会把v10夹在v1与v2之间)
@@ -245,8 +257,9 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
                 series_recs.append((position_from_meta(meta),
                                     None, 0,
                                     decode_match_outcome(arr['rews'])))
-            except Exception:
-                pass
+            except Exception as e:
+                # P2(审计#3, R67e同型): 静默吞掉系列统计解码错=盲区
+                print('[learner] 系列统计解码异常(%s) — 单条跳过' % e)
         try:
             from passivity_meter import episode_passivity
             passivity_recs.append(episode_passivity(char, arr))
@@ -312,8 +325,9 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
         # 作用域错位型集成缝, 教训: 跨函数仪表一律走stats字典)
         if passivity_recs:
             stats['passivity_line'] = passivity_line(passivity_recs)
-    except Exception:
-        pass
+    except Exception as e:
+        # P2(审计#3, R67e同型): 被动曲线整段静默吞=0行假象复发的温床
+        print('[learner] 被动曲线聚合异常(%s) — 本批跳过' % e)
     return stats, macro_counts, len(all_acts), max_ver, len(acts)
 
 

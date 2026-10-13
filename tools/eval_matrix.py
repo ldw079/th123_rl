@@ -87,9 +87,10 @@ def run_matchup(char_a, char_b, port, games=2, tps=480):
                 r = env.step(inp_a, inp_b)
                 if env.last_match:
                     _w, ls, rs = env.last_match
+                    # P2(审计#3): 原平局记右方胜 — 三态修正
                     if ls > rs:
                         a_wins += 1
-                    else:
+                    elif rs > ls:
                         b_wins += 1
                     env.last_match = None
                     break

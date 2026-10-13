@@ -426,7 +426,10 @@ if HAS_TORCH:
                     logits, V, Q = self.net(xb, sb, temp, mb)
                     logp_new = F.log_softmax(logits, dim=1)
                     logp_act = logp_new[torch.arange(len(idx)), ab]
-                    ratio = torch.exp(logp_act - lpb)
+                    # P2(审计#3): 对齐numpy侧logp差±20钳制(原缺失=
+                    # 降级不对称; 防离群ratio爆炸)
+                    ratio = torch.exp(
+                        torch.clamp(logp_act - lpb, -20.0, 20.0))
                     surr1 = ratio * advb
                     surr2 = torch.clamp(ratio, 1 - self.CLIP,
                                         1 + self.CLIP) * advb

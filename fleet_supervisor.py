@@ -242,7 +242,8 @@ def reap_orphans():
     out = subprocess.run(
         ['powershell', '-NoProfile', '-Command',
          "Get-CimInstance Win32_Process -Filter \"Name like 'python%'\" "
-         "| Where-Object { $_.CommandLine -match 'actor_worker|learner_hub' } "
+         "| Where-Object { $_.CommandLine -match "
+         "'actor_worker|learner_hub|exploiter' } "
          "| ForEach-Object { '{0}|{1}' -f $_.ProcessId, $_.ParentProcessId }"],
         capture_output=True, text=True, timeout=30)
     live = {os.getpid()}   # P1-D belt-and-braces: 本进程入存活集 —
@@ -279,11 +280,13 @@ def _spawn_actor(ch, aid, port, opp_specs, tps=480):
            '--episodes', str(ACTOR_EPISODES)]
     for spec in opp_specs:
         cmd += ['--opp', spec]
+    # P2(审计#3): 原日志fd内联在Popen里永不关(重启风暴泄漏句柄)
+    _lf = open(r'D:\temp\actor_%s_%d.log' % (ch, aid),
+               'a', encoding='utf8')
     p = subprocess.Popen(
         cmd, cwd=HERE, creationflags=CG | PRIORITY,
-        stdout=open(r'D:\temp\actor_%s_%d.log' % (ch, aid),
-                    'a', encoding='utf8'),
-        stderr=subprocess.STDOUT)
+        stdout=_lf, stderr=subprocess.STDOUT)
+    _lf.close()   # 子进程已继承句柄, 父侧关闭不影响子进程写
     return p
 
 
@@ -506,6 +509,9 @@ def main():
                     continue
                 log('%s 退出(code=%s) — %ds后重启' % (
                     str(key), p.returncode, COOLDOWN_S))
+                # P2(审计#3): 重启风暴时N×30s阻塞主循环>心跳窗(90s)
+                # → 假离线账 — 冷却期照写心跳
+                write_heartbeat()
                 time.sleep(COOLDOWN_S)
                 p2 = _spawn_actor(ch, aid, fleet_port(aid), opp_specs,
                                  args.tps)

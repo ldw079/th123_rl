@@ -349,10 +349,13 @@ def main():
         X, S, Y, C = rows
         dist = np.bincount(Y, minlength=len(LIBS[cid][1]))
         p = os.path.join(out_dir, 'bc_%s.npz' % name)
-        np.savez(p, X=X.astype(np.uint8), S=S, Y=Y, C=C,
+        # P2(审计#3, 宪法§5.2): 原直写savez非原子 — 中断=半档损坏
+        _tmp = p + '.tmp.npz'
+        np.savez(_tmp, X=X.astype(np.uint8), S=S, Y=Y, C=C,
                  meta=np.array(json.dumps({
                      'char': name, 'n_macros': len(LIBS[cid][1]),
                      'layout': LAYOUT, 'aligned': True, **st})))
+        os.replace(_tmp, p)
         print('%s: %d行 X%s S%s → %s (分片%d, 弃窗%d)' % (
             name, len(Y), X.shape, S.shape, p, st['shards_used'],
             st['windows_dropped']))

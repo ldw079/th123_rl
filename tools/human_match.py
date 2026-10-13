@@ -105,10 +105,12 @@ def run_match(char, bo=3, port=None, seed_note='', mode='mod'):
                 if env.last_match:
                     _w, ls, rs = env.last_match
                     env.last_match = None
+                    # P2(审计#3): 原平局记模型胜 — 三态修正
                     if ls > rs:
                         human_w += 1
-                    else:
+                    elif rs > ls:
                         model_w += 1
+                    # 平局不计(BO-N按胜场数推进, 平局不推动)
                     games.append({'human': ls, 'model': rs,
                                   'frames': frames,
                                   'wall_s': round(time.time() - t0, 1)})
