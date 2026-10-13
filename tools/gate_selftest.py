@@ -83,9 +83,7 @@ FILES = [
          "series_manager.py",
          "distill.py",
          # 审计2026-10-13 P1-3二次漂移: test_research_w_wave依赖
-         "value_curve.py",
-         # 审计遗留: W1测试依赖
-         "attribution_probe.py"]
+         "value_curve.py"]
 
 # (文件, 原文, 变异文, 防的回归)
 MUTATIONS = [
