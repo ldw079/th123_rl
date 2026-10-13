@@ -48,9 +48,26 @@ WEATHER_SEIRAN, WEATHER_AURORA, WEATHER_CLEAR = 11, 19, 0
 
 
 def keys_u16(d):
+    """协议输入dict → BattleKeys u16。
+
+    协议格式(宏执行器输出): H=-1左/+1右, V=-1上/+1下, A/B/C/D/SC/SW=bool
+    BattleKeys位域: up/down/left/right是独立位(bits 0-3), 非轴值。
+    首测事故(2026-10-13): H/V不在BIT表被静默丢弃 — 模型只会攻击不会动。
+    """
+    d = d or {}
     v = 0
-    for k, on in (d or {}).items():
-        if on and k in BIT:
+    h = int(d.get('H', 0) or 0)
+    v_ = int(d.get('V', 0) or 0)
+    if h > 0:
+        v |= 1 << BIT['right']
+    elif h < 0:
+        v |= 1 << BIT['left']
+    if v_ > 0:
+        v |= 1 << BIT['down']
+    elif v_ < 0:
+        v |= 1 << BIT['up']
+    for k in ('A', 'B', 'C', 'D', 'SC', 'SW'):
+        if d.get(k):
             v |= 1 << BIT[k]
     return v
 
@@ -240,9 +257,12 @@ class Actor:
         self.km2 = None
 
     def attach(self):
-        bm = self.obs.u32(BM_P)
-        cm2 = self.obs.u32(bm + 0x10)
-        kmgr = self.obs.u32(cm2 + 0x750)
+        try:   # 场景过渡时指针链瞬态无效 — 防御性try
+            bm = self.obs.u32(BM_P)
+            cm2 = self.obs.u32(bm + 0x10)
+            kmgr = self.obs.u32(cm2 + 0x750)
+        except (TypeError, struct.error):
+            return False
         if not 0x10000 < kmgr < 0x80000000:
             return False
         self.km2 = self.obs.u32(kmgr)
@@ -384,21 +404,22 @@ def run(char, headless, seconds=90):
             return 1
     obs = Observer(pid)
     t0 = time.time()
-    while time.time() - t0 < 30 and obs.scene() != 5:
+    while time.time() - t0 < 300 and obs.scene() != 5:
         time.sleep(0.5)
     if obs.scene() != 5:
-        print('[hmv2] 30s未进战斗 scene=%d' % obs.scene(), flush=True)
+        print('[hmv2] 300s未进战斗 scene=%d' % obs.scene(), flush=True)
         if headless:
             headless_cleanup(pid, bak)
         return 1
     actor = Actor(obs)
+    # 锚定阶段优雅等待: VS COM时P2无KeyManager(manager=0) — 观察模式
+    # (锚定数据也入session), VS PLAYER进场后自动接管
     if not actor.attach():
-        print('[hmv2] P2管理器解析失败', flush=True)
-        if headless:
-            headless_cleanup(pid, bak)
-        return 1
-    print('[hmv2] 战斗就绪 — P2管理器0x%X, 开始驱动(%ds)' %
-          (actor.km2, seconds), flush=True)
+        print('[hmv2] P2管理器暂无(VS COM锚定期正常) — 观察模式,'
+              ' VS PLAYER进场后自动接管', flush=True)
+    else:
+        print('[hmv2] 战斗就绪 — P2管理器0x%X, 开始驱动(%ds)' %
+              (actor.km2, seconds), flush=True)
 
     # 会话产物: 系列计分(比分字节)+rep归档+session JSON(B-4消费)
     import glob as _glob
@@ -429,6 +450,8 @@ def run(char, headless, seconds=90):
         return None
     try:
         while time.time() < t_end:
+            if not actor.km2:
+                actor.attach()   # VS PLAYER进场后自动接管
             sc_now = obs.scene()
             if sc_now != 5:
                 # 对局边界: 记录上一场比分
@@ -452,12 +475,13 @@ def run(char, headless, seconds=90):
             if hp0 is None:
                 hp0 = (left['hp'], right['hp'])
             last_scores = (left['score'], right['score'])
-            try:
-                inp = driver.frame_input(right, left, weather, objs, []) or {}
-            except Exception as e:
-                print('[hmv2] 驱动异常(%s) — 中止' % e, flush=True)
-                break
-            actor.write(inp)
+            if actor.km2:
+                try:
+                    inp = driver.frame_input(right, left, weather, objs, []) or {}
+                except Exception as e:
+                    print('[hmv2] 驱动异常(%s) — 中止' % e, flush=True)
+                    break
+                actor.write(inp)
             acts.append(right.get('action', 0))
             n += 1
             time.sleep(1 / 60)

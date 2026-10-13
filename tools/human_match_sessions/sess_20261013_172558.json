@@ -1,0 +1,24 @@
+{
+ "ts": "2026-10-13 17:25:58",
+ "char": "suika",
+ "headless": false,
+ "frames": 2144,
+ "matches": [
+  [
+   2,
+   0
+  ]
+ ],
+ "human_wins": 1,
+ "model_wins": 0,
+ "hp0": [
+  6719,
+  2141
+ ],
+ "new_reps": [
+  "D:\\temp\\th123_models\\human_reps\\20261013_172558_26-10-13_17-25-57_深圳人形(爱丽丝)_RL-AI(早苗)_(2︰0_负).rep"
+ ],
+ "exe_md5": "DF35D1FBC7B583317ADABE8CD9F53B2E",
+ "delay_frames": 5,
+ "protocol": "RPM观察+内存写inKeys(v2)"
+}

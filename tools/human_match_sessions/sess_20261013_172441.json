@@ -1,0 +1,29 @@
+{
+ "ts": "2026-10-13 17:24:41",
+ "char": "suika",
+ "headless": false,
+ "frames": 6337,
+ "matches": [
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ]
+ ],
+ "human_wins": 2,
+ "model_wins": 0,
+ "hp0": [
+  7199,
+  2240
+ ],
+ "new_reps": [
+  "D:\\temp\\th123_models\\human_reps\\20261013_172441_26-10-13_17-23-17_深圳人形(爱丽丝)_RL-AI(早苗)_(2︰0_负).rep",
+  "D:\\temp\\th123_models\\human_reps\\20261013_172441_26-10-13_17-24-37_深圳人形(爱丽丝)_RL-AI(早苗)_(2︰0_负).rep"
+ ],
+ "exe_md5": "DF35D1FBC7B583317ADABE8CD9F53B2E",
+ "delay_frames": 5,
+ "protocol": "RPM观察+内存写inKeys(v2)"
+}
