@@ -238,3 +238,16 @@ RPMObserver(exe_hash_guard=True)
 - direction@260本轮实证(99.8%), airBorne/hitStop/timeStop恒零
   歧义(默认值, 待专场)。
 - 首测前置: headless_boot自动禁SokuAIOfflinePlayer(备份/复原)。
+
+## 执行记录六(2026-10-13深夜IV, B-1观察面全部完结)
+
+- **weather**: SokuAddresses直接给址(0x8971C0/C4/CC) — 1454/1454=100%
+  (前扫不到的根因: 地址在扫窗下方);
+- **hand**: HandContainer@cm+0x5E8(Card** @+4, count@+0x20, Card{u16,u16})
+  — 300/300=100%;
+- **对象方向@0x104**: 336/336=100%;
+- **exe哈希守卫**: DF35D1FB...入表, Observer启动即验;
+- **全特征集成测试**: 60s/2563帧, 模型P2 HP 10000→2849(降级版541→
+  2849=观察补齐生效), R11遮蔽(极光/晴岚)在Observer自执行。
+- **B-1状态: 完结**。首测前置全部就绪(战力=模型真实水平, 非
+  基建问题)。

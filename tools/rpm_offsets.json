@@ -3,7 +3,8 @@
   "verified_at": "2026-10-13(战斗rep 4000帧, 求解器v8稳定帧匹配)",
   "method": "分段(6段)双信道锚(hp∧action±2)+字段独立±2窗+稳定帧(真值±3帧不变处精确相等); 原始求解器输出见rpm_offsets_raw.json",
   "tr_harvest": "双边批768 shards(总库959/3.3GB)",
-  "update_2026_10_13_objects": "对象通道闭环 — B-1观察面仅剩hand/weather"
+  "update_2026_10_13_objects": "对象通道闭环 — B-1观察面仅剩hand/weather",
+  "B1_complete": "2026-10-13: 全字段实证, B-3全特征集成通过"
  },
  "verified": {
   "ptr_chain": {
@@ -44,6 +45,30 @@
    "poseFrame": "0x142",
    "liveness": "动画活性: 两快照(~5游戏帧间隔)间position或poseFrame变化=活; 死对象带过期坐标(全量~297 vs 真值3-15), isActive@0x135无效",
    "validation": "tps=15慢速5检查点: 数量贴合(±2), 位置宽松命中(±15px)6-9/8-10"
+  },
+  "weather": {
+   "active": "0x8971C0(i4)",
+   "displayed": "0x8971C4(i4)",
+   "counter": "0x8971CC(u16)",
+   "conf": "1454/1454=100%(SokuAddresses)"
+  },
+  "hand": {
+   "container": "cm+0x5E8",
+   "card_pp": "+0x04",
+   "count": "+0x20",
+   "card_layout": "{id u16, cost u16}",
+   "conf": "300/300=100%"
+  },
+  "object_direction": {
+   "offset": "0x104",
+   "conf": "336/336=100%"
+  },
+  "direction": {
+   "offset": 260,
+   "conf": "99.8%(本轮)"
+  },
+  "exe_guard": {
+   "th123_exe_md5": "DF35D1FBC7B583317ADABE8CD9F53B2E"
   }
  },
  "structural": {
@@ -64,7 +89,6 @@
   }
  },
  "open": {
-  "hand": "疑数组大结构体(非2字节紧包) — stride扫描(下场)",
-  "weather": "globals 0x89F000±0x3000未中 — 向下扩窗或事件锚"
+  "note": "B-1观察面全部完结 — 仅剩airBorne/hitStop/timeStop恒零歧义(默认值已够用)与对象imageID(frameData指针链, 默认0)"
  }
 }

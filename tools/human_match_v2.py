@@ -42,6 +42,9 @@ DELAY_FRAMES = 5            # C'裁定: 80ms≈5帧观察延迟
 BIT = {'up': 0, 'down': 1, 'left': 2, 'right': 3, 'A': 4, 'B': 5,
        'C': 6, 'D': 7, 'SC': 8, 'SW': 9, 'pause': 10, 'select': 11}
 GAME = r'D:\touhou\hisoutensoku2026-06-15\th123'
+EXE_MD5 = 'DF35D1FBC7B583317ADABE8CD9F53B2E'   # exe哈希守卫(版本漂移即拒)
+W_ACT, W_DISP, W_CNT = 0x8971C0, 0x8971C4, 0x8971CC   # SokuAddresses实证
+WEATHER_SEIRAN, WEATHER_AURORA, WEATHER_CLEAR = 11, 19, 0
 
 
 def keys_u16(d):
@@ -69,6 +72,12 @@ class Observer:
         self.h = k32.OpenProcess(0x10 | 0x20 | 0x8 | 0x400, False, pid)
         self.buf = []
         self._obj_prev = {}     # ptr → (x,y,poseFrame) 活性追踪
+        import hashlib as _hl
+        _md5 = _hl.md5(open(os.path.join(GAME, 'th123.exe'), 'rb')
+                       .read()).hexdigest().upper()
+        if _md5 != EXE_MD5:
+            raise RuntimeError('th123.exe哈希漂移(%s≠%s)'
+                               % (_md5[:8], EXE_MD5[:8]))
 
     def rd(self, a, n):
         b = ctypes.create_string_buffer(n)
@@ -98,7 +107,7 @@ class Observer:
         d['airBorne'] = False
         d['timeStop'] = 0
         d['hitStop'] = 0
-        d['hand'] = b'\xff' * 10
+        d['hand'] = self._hand(cm)
         d['cardGauge'] = 0
         d['skills'] = b'\x00' * 15
         d['frameCount'] = d['sequence'] * 60   # 近似(无全局计数器)
@@ -118,6 +127,36 @@ class Observer:
         d['csd'] = b'\x00' * 20
         d['objectCount'] = 0
         return d
+
+    def _hand(self, cm):
+        base = self.u32(cm + 0x5E8 + 4)
+        if not 0x10000 < base < 0x80000000:
+            return b'\xff' * 10
+        nb = self.rd(cm + 0x5E8 + 0x20, 4)
+        ncard = struct.unpack('<i', nb)[0] if nb else 0
+        if not 0 <= ncard <= 5:
+            return b'\xff' * 10
+        out = bytearray()
+        for i in range(5):
+            if i < ncard:
+                cpb = self.rd(base + i * 4, 4)
+                if cpb:
+                    cp = struct.unpack('<I', cpb)[0]
+                    cb = self.rd(cp, 4) if 0x10000 < cp < 0x80000000 else None
+                    if cb:
+                        cid, ccost = struct.unpack('<HH', cb)
+                        out += bytes((cid & 0xFF, ccost & 0xFF))
+                        continue
+            out += b'\xff\xff'
+        return bytes(out)
+
+    def _weather(self):
+        a = struct.unpack('<i', self.rd(W_ACT, 4))[0]
+        d_ = struct.unpack('<i', self.rd(W_DISP, 4))[0]
+        c = struct.unpack('<H', self.rd(W_CNT, 2))[0]
+        if d_ == WEATHER_AURORA and a != WEATHER_CLEAR:
+            a = WEATHER_AURORA
+        return {'displayed': d_, 'active': a, 'timer': c}
 
     def _objects(self, bm):
         """活性对象: 本帧 vs 上帧 position/poseFrame 变化(30帧滑窗)。"""
@@ -147,6 +186,7 @@ class Observer:
                     continue
                 pf = struct.unpack_from('<H', ob, 0x142)[0]
                 act = struct.unpack_from('<H', ob, 0x13C)[0]
+                dirc = struct.unpack_from('<b', ob, 0x104)[0]
                 key = (cm_off, op)
                 if key in prev and (prev[key][0] != x or prev[key][1] != y
                                     or prev[key][2] != pf):
@@ -157,7 +197,7 @@ class Observer:
                     if age < 30:
                         cur[key] = (x, y, pf, age + 1)
                 if key in cur:
-                    out.append((0, round(x, 1), round(y, 1),
+                    out.append((dirc, round(x, 1), round(y, 1),
                                 act, 0, 0, 0))
         self._obj_live = cur
         self._obj_prev = {k: (v[0], v[1], v[2]) for k, v in cur.items()}
@@ -180,7 +220,12 @@ class Observer:
         if not left or not right:
             return None
         objs = self._objects(bm)
-        weather = {'displayed': 0, 'active': 0, 'timer': 0}
+        weather = self._weather()
+        if weather['displayed'] == WEATHER_SEIRAN:
+            left['hand'] = b'\xff' * 10
+            right['hand'] = b'\xff' * 10
+            left['cardGauge'] = 0xFFFF
+            right['cardGauge'] = 0xFFFF
         self.buf.append((left, right, weather, objs))
         if len(self.buf) <= DELAY_FRAMES:
             return None
