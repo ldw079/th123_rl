@@ -1864,6 +1864,9 @@ _BEHAVIOR_TESTS = [
     # W波(研究借鉴方案§W3/W4/W5)
     ("test_research_w_wave.py",
      "W3四口径/W4价值轨迹聚合+2σ/W5 exploit衰减分段与判读"),
+    # W1延迟消融(研究借鉴方案§W1)
+    ("test_attribution_w1.py",
+     "W1: DelayedView透传/延迟/引用完整/曲线单调性验收"),
     # F(未决方案§F): 吞吐标定
     ("test_throughput_f.py",
      "F: actor局/时(段切分+跨午夜)+批耗时分布+占空比(间隙阈值+尾部心跳判活)"),
