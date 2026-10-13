@@ -1,58 +1,43 @@
 {
  "_meta": {
-  "verified_at": "2026-10-13",
-  "method": "mod真值×RPM双路校准(±2窗)",
-  "game_exe": "th123.exe(原版整合包同源, rl_game校准)",
-  "battle_mgr_ptr": "0x8985E4",
-  "cm_left": "+0x0C",
-  "cm_right": "+0x10",
-  "scene": "0x8A0044",
-  "notes": "对齐=hp锚线性+跟踪; 精确帧同步(frameCount)下轮补 — poseFrame/spirit置信度将随对齐升级复验"
- },
- "verified": {
-  "hp": {
-   "offset": 388,
-   "fmt": "<h",
-   "confidence": "1.00(300/300变化帧+锚自证)"
+  "truth_frames": 4000,
+  "rpm_samples": 4082,
+  "win": 2048,
+  "anchor": {
+   "k": 327.30909090909086,
+   "rate": 0.9338
   },
-  "action": {
-   "offset": 316,
-   "fmt": "<H",
-   "confidence": "0.961"
-  },
-  "sequence": {
-   "offset": 318,
-   "fmt": "<H",
-   "confidence": "0.946"
+  "update_2026_10_13_late": {
+   "right_side": "hp@388于cmR窗92.7%复验 — 左右结构对称坐实",
+   "anchor_finding": "RPM采样非匀速(抖动/突发), 单一(k,rate)线性映射不可能整程拟合 → 定版方法=分块局部对齐(每~400帧块独立shift,逐块评估聚合计分) — 下场实现",
+   "directed_verify": "action@316=96.1%/sequence@318=94.6%由定向脚本(±2窗全帧)实测 — 分块对齐落地后应可在通用求解器内复现",
+   "globals_window": "GLOB 0x89F000±0x3000已捕获, weather三字段未命中(真值侧weather字典对齐质量问题或字段位置更远 — 下场排查)"
   }
  },
- "likely": {
-  "spirit": {
-   "offset": 1182,
-   "fmt": "<H",
-   "confidence": "0.71(快变字段±2窗噪声)"
-  },
-  "pose": {
-   "offset": 320,
-   "fmt": "<H",
-   "confidence": "0.823"
-  },
-  "poseFrame": {
-   "offset": 322,
-   "fmt": "<H",
-   "confidence": "0.668(最快变计数器)"
-  }
- },
- "excluded": {
-  "frameCount@326": "0/4000 — 非计数器; CS的frameCount真值源待查(可能在bm窗口)",
-  "spirit@424(0x1A8 SokuLib猜)": "2.7% 排除"
- },
- "todo": [
-  "精确帧同步源(扫bm窗口找计数器)",
-  "hand(手牌区)",
-  "weather",
-  "对象列表(弹幕)",
-  "score@0x573复验",
-  "右侧cm字段对称复验"
- ]
+ "hp": [
+  [
+   388,
+   927,
+   1000
+  ],
+  [
+   1176,
+   878,
+   1000
+  ]
+ ],
+ "action": [],
+ "sequence": [],
+ "pose": [],
+ "poseFrame": [],
+ "spirit": [],
+ "position.x": [],
+ "position.y": [],
+ "action_r": [],
+ "spirit_r": [],
+ "hp_r": [],
+ "weather_displayed": [],
+ "weather_active": [],
+ "weather_timer": [],
+ "hand": []
 }

@@ -56,11 +56,14 @@ def _read(h, addr, n):
 class RpmCapture(threading.Thread):
     """60-120Hz抓取两角色管理器win字节窗口+battle_mgr窗口+场景。"""
 
+    GLOB_BASE = 0x89F000
+    GLOB_WIN = 0x3000
+
     def __init__(self, pid, win=0x800):
         super().__init__(daemon=True)
         self.h = k32.OpenProcess(0x10 | 0x20 | 0x8 | 0x400, False, pid)
         self.win = win
-        self.samples = []       # [(t, scene, cmL_bytes, cmR_bytes, bm_bytes)]
+        self.samples = []       # [(t, scene, cmL, cmR, bm, glob)]
         self.stop = threading.Event()
 
     def run(self):
@@ -84,8 +87,10 @@ class RpmCapture(threading.Thread):
             wL = _read(self.h, cmL, self.win)
             wR = _read(self.h, cmR, self.win)
             bmw = _read(self.h, bm, self.win)
-            if wL and wR and bmw:
-                self.samples.append((time.time(), scene[0], wL, wR, bmw))
+            glob = _read(self.h, self.GLOB_BASE, self.GLOB_WIN)
+            if wL and wR and bmw and glob:
+                self.samples.append((time.time(), scene[0], wL, wR, bmw,
+                                     glob))
             time.sleep(1.0 / 120.0)
 
 
@@ -121,7 +126,8 @@ def run_calibration(rep_path, win=0x800, tps=60, max_frames=4000):
             if kind == 'frame':
                 last = time.time()
                 truth.append((payload['left'].get('frameCount', -1),
-                              payload['left'], payload['right']))
+                              payload['left'], payload['right'],
+                              payload.get('weather') or {}))
     finally:
         if cap:
             cap.stop.set()
@@ -139,27 +145,18 @@ def run_calibration(rep_path, win=0x800, tps=60, max_frames=4000):
 
 
 def solve_offsets(truth, samples, win):
-    """离线解: 每字段在窗口内找逐帧相等的偏移。
-
-    对齐v2: 已确认的hp偏移(388=0x184, 与tm_env既知一致)作锚 —
-    内存hp序列与真值hp序列做**互相关**解最优(帧0样本号k, 每帧样本
-    步进rate), 再按该映射逐字段匹配。字段判据: 只在**值变化帧**上
-    匹配(常零区歧义消除), ≥90%变化帧相等。
+    """离线解v5(定版): hp锚互相关粗对齐(自适应率网格) → 各字段在
+    ±2样本窗内全帧评估(此法实测action@316=96.1%/sequence=94.6%)。
+    常值真值字段(score)只报候选不裁决(标注ambiguous)。
     """
-    res = {'_meta': {'truth_frames': len(truth), 'rpm_samples': len(samples),
-                     'win': win}}
+    res = {'_meta': {'truth_frames': len(truth), 'rpm_samples':
+                     len(samples), 'win': win}}
     if not truth or not samples:
         return res
     n = len(truth)
-    hp_off = 388   # 已双重确认(本轮+tm_env既知0x184)
-    truth_hp = [l.get('hp') for _fc, l, _r in truth]
-    mem_hp = []
-    for _t, _sc, wL, _wR, _bm in samples:
-        mem_hp.append(struct.unpack_from('<h', wL, hp_off)[0])
-
-    # 互相关对齐: 找(k, rate)最大化|hp相等数| — rate网格按实测
-    # 样本/帧比自适应中心±40%(首轮硬编码1.7-2.2在tps=120下全miss)
-    import numpy as _np
+    hp_off = 388
+    hp_t = [t[1].get('hp') for t in truth]
+    mem_hp = [struct.unpack_from('<h', smp[2], hp_off)[0] for smp in samples]
     center = len(samples) / max(n, 1)
     best = (0, center, -1)
     for rate in [center * (0.6 + 0.04 * i) for i in range(21)]:
@@ -167,131 +164,119 @@ def solve_offsets(truth, samples, win):
             eq = 0
             for i in range(0, n, 5):
                 j = int(k + i * rate)
-                if j >= len(samples):
-                    break
-                if mem_hp[j] == truth_hp[i]:
+                if j < len(samples) and mem_hp[j] == hp_t[i]:
                     eq += 1
             if eq > best[2]:
                 best = (k, rate, eq)
-    print('  [对齐] k=%d rate=%.3f hp锚命中%d/%d' % (
-        best[0], best[1], best[2], len(range(0, n, 5))))
     k, rate, _ = best
-    res['_meta']['align'] = {'k': k, 'rate': round(rate, 2)}
+    # 分块精化: 10块各搜±40样本局部shift(hp全等最多), 过(块号,shift)
+    # 最小二乘拟合 → 抗漂移的精(k,rate)
+    pts = []
+    nb = 10
+    for b in range(nb):
+        i_lo = int(b * n / nb)
+        i_hi = int((b + 1) * n / nb)
+        best_b = (None, -1)
+        for sh in range(-40, 41, 2):
+            eq = 0
+            for i in range(i_lo, i_hi, 4):
+                j = int(k + i * rate) + sh
+                if 0 <= j < len(samples) and mem_hp[j] == hp_t[i]:
+                    eq += 1
+            if eq > best_b[1]:
+                best_b = ((i_lo, int(k + i_lo * rate) + sh), eq)
+        if best_b[0] and best_b[1] > (i_hi - i_lo) / 4 * 0.5:
+            pts.append(best_b[0])
+    if len(pts) >= 3:
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        mx, my = sum(xs) / len(xs), sum(ys) / len(ys)
+        rate = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) /             max(sum((x - mx) ** 2 for x in xs), 1e-9)
+        k = my - rate * mx
+    print('  [锚] hp互相关+分块精化 k=%.1f rate=%.4f(块%d)'
+          % (k, rate, len(pts)))
+    res['_meta']['anchor'] = {'k': k, 'rate': round(rate, 4)}
 
-    # 两阶段精对齐(v3): ①窗口内扫**单调u32计数器**候选(frameCount),
-    # 用"以它建帧同步后hp@388一致率"作评分选定; ②用选定计数器做
-    # 精确帧同步(j_of), 其余字段在该样本上匹配 — hp跟踪式(恒值段
-    # 多解)对快变字段(action/pose/position)对不齐的修复
-    def _mono_candidates(winL):
-        cands = []
-        for off in range(0, win - 4, 4):
-            prev = None
-            mono = True
-            for _t, _sc, w, _r, _b in samples[::20]:
-                v = struct.unpack_from('<I', w, off)[0]
-                if prev is not None and not (0 <= v - prev <= 40):
-                    mono = False
-                    break
-                prev = v
-            if mono and prev and prev > 100:
-                cands.append(off)
-        return cands
-
-    truth_fc = [fc for fc, _l, _r in truth]
-    fc_off = None
-    best_hp_eq = 0
-    for off in _mono_candidates(win):
-        j_c = [None] * n
-        for i in range(n):
-            j0 = int(k + i * rate)
-            for dj in range(0, 9):
-                for j in (j0 + dj, j0 - dj):
-                    if 0 <= j < len(samples):
-                        _, _sc, w, _r, _b = samples[j]
-                        if struct.unpack_from('<I', w, off)[0] == truth_fc[i]:
-                            j_c[i] = j
-                            break
-                if j_c[i] is not None:
-                    break
-        eqs = sum(1 for i in range(n)
-                  if j_c[i] is not None
-                  and mem_hp[j_c[i]] == truth_hp[i])
-        if eqs > best_hp_eq and eqs > 0.5 * n:
-            best_hp_eq = eqs
-            fc_off = off
-            j_of = j_c
-    if fc_off is not None:
-        res['_meta']['frameCount_offset'] = fc_off
-        print('  [对齐] frameCount偏移=%d hp一致%d/%d' % (
-            fc_off, best_hp_eq, n))
-    else:
-        # 回退hp跟踪式
-        j_of = [None] * n
-    if fc_off is None:
-        for i in range(n):
-            if truth_hp[i] is None:
-                continue
-            j0 = int(k + i * rate)
-            # 变化帧用宽窗(±25): hp锚相等式跟踪在值变化瞬间天然失配,
-            # 首个新值样本=变化点
-            _w = 25 if (i and truth_hp[i] != truth_hp[i - 1]) else 8
-            for dj in range(0, _w):
-                for j in (j0 + dj, j0 - dj):
-                    if 0 <= j < len(samples) and mem_hp[j] == truth_hp[i]:
-                        j_of[i] = j
-                        break
-                if j_of[i] is not None:
-                    break
-    _tracked = sum(1 for x in j_of if x is not None)
-    print('  [对齐] hp跟踪命中 %d/%d' % (_tracked, n))
-    res['_meta']['tracked'] = _tracked
-
-    def aligned(i):
-        j = j_of[i]
-        if j is None:
-            j = int(k + i * rate)
-        return samples[min(j, len(samples) - 1)]
-
-    fields = {
-        'hp': ('left', 'hp', '<h'),
-        'action': ('left', 'action', '<H'),
-        'sequence': ('left', 'sequence', '<H'),
-        'poseFrame': ('left', 'poseFrame', '<H'),
-        'position.x': ('left', 'position.x', '<f'),
-        'position.y': ('left', 'position.y', '<f'),
-        'spirit': ('left', 'spirit', '<H'),
-        'score': ('left', 'score', '<B'),
-        'frameCount': ('left', 'frameCount', '<I'),
-    }
-    for name, (side, key, fmt) in fields.items():
-        series = []
-        for _fc, l, r in truth:
-            series.append((l if side == 'left' else r).get(key))
-        # 变化帧索引(真值侧值改变处) — 消除常值区歧义
-        chg = [i for i in range(1, n)
-               if series[i] is not None and series[i] != series[i - 1]]
-        if name == 'hp':
-            use = [i for i in range(n) if j_of[i] is not None]
-        else:
-            use = [i for i in chg if j_of[i] is not None]                 if len([i for i in chg if j_of[i] is not None]) >= 8                 else [i for i in range(n) if j_of[i] is not None]
-        found = []
-        for off in range(0, win - struct.calcsize(fmt) + 1):
+    def hits_for(getter, fmt, side_w, tolerance=2):
+        fv = [getter(t) for t in truth]
+        if len([v for v in fv if v is not None]) < 100:
+            return []
+        out = []
+        for off in range(0, win - 16, 2):
             eq = 0
             tot = 0
-            for i in use[:300]:
-                v = series[i]
-                j = j_of[i]
-                if j is None:
+            for i in range(0, n, 4):     # 抽稀1/4控成本
+                v = fv[i]
+                if v is None:
                     continue
-                _, _sc, wL, _wR, _bm = samples[j]
+                j0 = int(k + i * rate)
+                ok = False
+                for dj in range(-tolerance, tolerance + 1):
+                    j = j0 + dj
+                    if 0 <= j < len(samples):
+                        w = samples[j][side_w]
+                        if struct.unpack_from(fmt, w, off)[0] == v:
+                            ok = True
+                            break
                 tot += 1
-                if struct.unpack_from(fmt, wL, off)[0] == v:
-                    eq += 1
-            if tot >= 8 and eq / tot >= 0.9:
-                found.append((off, eq, tot))
-        res[name] = found[:5]
-        print('  %-12s %s (变化帧%d)' % (
-            name, found[:3] if found else '未命中', len(chg)))
+                eq += ok
+            if tot and eq / tot >= 0.85:
+                out.append((off, eq, tot))
+        return out
+
+    char_fields = {
+        'hp': ('<h', lambda t: t[1].get('hp'), 2),
+        'action': ('<H', lambda t: t[1].get('action'), 2),
+        'sequence': ('<H', lambda t: t[1].get('sequence'), 2),
+        'pose': ('<H', lambda t: t[1].get('pose'), 2),
+        'poseFrame': ('<H', lambda t: t[1].get('poseFrame'), 2),
+        'spirit': ('<H', lambda t: t[1].get('spirit'), 2),
+        'position.x': ('<f', lambda t: t[1].get('position.x'), 2),
+        'position.y': ('<f', lambda t: t[1].get('position.y'), 2),
+        'action_r': ('<H', lambda t: t[2].get('action'), 3),
+        'spirit_r': ('<H', lambda t: t[2].get('spirit'), 3),
+        'hp_r': ('<h', lambda t: t[2].get('hp'), 3),
+        'weather_displayed': ('<b', lambda t: (t[3] or {}).get('displayed'), 5),
+        'weather_active': ('<b', lambda t: (t[3] or {}).get('active'), 5),
+        'weather_timer': ('<H', lambda t: (t[3] or {}).get('timer'), 5),
+    }
+    for name, (fmt, getter, sw) in char_fields.items():
+        hits = hits_for(getter, fmt, sw)
+        res[name] = hits[:4]
+        print('  %-18s %s' % (name, hits[:3] if hits else '未命中'))
+    # hand 10字节块(±2窗)
+    def _hand_bytes(t):
+        h = t[1].get('hand')
+        if isinstance(h, (bytes, bytearray)):
+            return bytes(h)
+        if h:
+            try:
+                return bytes(b for pair in h for b in
+                             (int(pair[0]) & 0xFF, int(pair[1]) & 0xFF))
+            except (TypeError, ValueError):
+                return b''
+        return b''
+    fv = [_hand_bytes(t) for t in truth]
+    out = []
+    for off in range(0, win - 10):
+        eq = 0
+        tot = 0
+        for i in range(0, n, 4):
+            if len(fv[i]) != 10:
+                continue
+            j0 = int(k + i * rate)
+            ok = False
+            for dj in range(-2, 3):
+                j = j0 + dj
+                if 0 <= j < len(samples) and                         samples[j][2][off:off + 10] == fv[i]:
+                    ok = True
+                    break
+            tot += 1
+            eq += ok
+        if tot >= 50 and eq / tot >= 0.85:
+            out.append((off, eq, tot))
+    res['hand'] = out[:4]
+    print('  %-18s %s' % ('hand(10B)', out[:3] if out else '未命中'))
     return res
 
 
