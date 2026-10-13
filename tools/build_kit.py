@@ -42,6 +42,16 @@ print("exe md5:", md5)
 base = os.path.dirname(os.path.abspath(__file__))
 json.dump({"game_dir": game_dir, "exe_md5": md5},
           open(os.path.join(base, "config.json"), "w"))
+# RL-AI profile → game profile dir
+import shutil
+prof_src = os.path.join(base, "RL-AI.pf")
+prof_dst = os.path.join(game_dir, "profile", "RL-AI.pf")
+if os.path.exists(prof_src):
+    os.makedirs(os.path.dirname(prof_dst), exist_ok=True)
+    shutil.copy2(prof_src, prof_dst)
+    print("RL-AI profile installed:", prof_dst)
+else:
+    print("WARN: RL-AI.pf not found in kit")
 print("config.json created!")
 print("Setup complete. Run start.bat to begin.")
 '''
@@ -274,6 +284,15 @@ def build(chars, make_zip):
             ('export.bat', EXPORT_BAT),
             ('README.txt', README)]:
         open(os.path.join(kit_dir, fn), 'w', encoding='utf8').write(content)
+
+    # RL-AI profile(setup时自动安装到对方游戏profile目录)
+    from kit_config import GAME_DIR as _gdir
+    _pf_src = os.path.join(_gdir, 'profile', 'RL-AI.pf')
+    if os.path.exists(_pf_src):
+        shutil.copy2(_pf_src, os.path.join(kit_dir, 'RL-AI.pf'))
+        print('[kit] RL-AI.pf included')
+    else:
+        print('[kit] WARN: RL-AI.pf not found at %s' % _pf_src)
 
     # zip
     if make_zip:
