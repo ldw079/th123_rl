@@ -104,3 +104,45 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ===== R85(用户裁定动作1): 报告粒度修复 =====
+def test_reaggregate_series_true_curve():
+    """旧逐批行(每行1桶)跨行重聚合=真分桶 — 单桶正则是垃圾读数。"""
+    import tempfile, os, sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'tools'))
+    from learning_curve import reaggregate_series
+    lines = [
+        "[learner] x 系列曲线 b1:aux-(n0) W0-0(-) b2:aux-(n0) W0-0(-) "
+        "b3:aux60%(n1000) W8-2(80%) b4-5:aux-(n0) W0-0(-)",
+        "[learner] x 系列曲线 b1:aux70%(n500) W5-0(100%) b2:aux-(n0) "
+        "W0-0(-) b3:aux-(n0) W0-0(-) b4-5:aux-(n0) W0-0(-)",
+        "[learner] x 系列曲线 b1:aux-(n0) W0-0(-) b2:aux80%(n500) W4-1(80%) "
+        "b3:aux-(n0) W0-0(-) b4-5:aux-(n0) W0-0(-)",
+    ]
+    with tempfile.NamedTemporaryFile('w', suffix='.log', delete=False,
+                                     encoding='utf8') as f:
+        f.write(chr(10).join(lines))
+        path = f.name
+    try:
+        agg = reaggregate_series(path)
+        assert agg['b3']['n'] == 1000 and agg['b3']['w'] == 8
+        assert agg['b1']['n'] == 500 and agg['b1']['w'] == 5
+        assert agg['b2']['n'] == 500 and agg['b2']['w'] == 4
+        assert abs(agg['b3']['hits_est'] - 600) <= 5   # 60%回乘±舍入
+    finally:
+        os.remove(path)
+
+
+def test_learner_rolling_window():
+    """learner滚动窗: 逐批1桶的记录跨批并入后全桶有数(源锚+逻辑)。"""
+    import os, sys
+    src = open(os.path.join(os.path.dirname(__file__), '..',
+                            'learner_hub.py'), encoding='utf8').read()
+    assert '_series_roll' in src and 'del _g[:-150]' in src
+    from series_meter import curve_line
+    recs = []
+    for pos in (3, 1, 2, 4, 5):   # 5批各1局不同位置
+        recs.append((pos, 60, 100, 'W'))
+    line = curve_line(recs)
+    assert 'b1:aux60%' in line and 'b3:aux60%' in line         and 'b4-5:aux60%' in line

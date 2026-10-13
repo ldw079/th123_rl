@@ -37,6 +37,38 @@ _RE_BATCH = re.compile(
     r'(?: aux命中([\d.]+)%)?')
 # 系列曲线行: ... b1:aux64%(n379) ... b4-5:aux68%(n1940) ...
 _RE_SERIES = re.compile(r'b1:aux([\d.-]+)%\(n(\d+)\).*?b4-5:aux([\d.-]+)%')
+# R85: 全桶解析(旧逐批行每行仅1桶有数 — 单桶正则读出的"曲线"是
+# 报告粒度假象; reaggregate_series对旧日志逐行全桶重聚合=真曲线)
+_RE_BKT = re.compile(
+    r'(b[\d-]+):aux([\d.-]+)%\(n(\d+)\) W(\d+)-(\d+)')
+
+
+def reaggregate_series(path):
+    """旧逐批系列曲线行 → 真分桶累计(每行的桶=该批样本, 跨行求和).
+
+    返回 {bucket: {'n':决策拍, 'hits_est':int, 'w':, 'l':}} —
+    hits由百分比回乘(±0.5pp舍入误差, n百级可忽略); 这是阶段0
+    "曲线平坦与否"的**正确读法**(原parse_learner_log的series键
+    是单桶正则, 对旧日志产出垃圾)。
+    """
+    agg = {}
+    try:
+        text = open(path, encoding='utf8', errors='replace').read()
+    except OSError:
+        return agg
+    for line in text.splitlines():
+        if '系列曲线' not in line:
+            continue
+        for m in _RE_BKT.finditer(line):
+            b, aux, n, w, l = (m.group(1), float(m.group(2)),
+                               int(m.group(3)), int(m.group(4)),
+                               int(m.group(5)))
+            d = agg.setdefault(b, {'n': 0, 'hits_est': 0, 'w': 0, 'l': 0})
+            d['n'] += n
+            d['hits_est'] += int(round(aux / 100.0 * n))
+            d['w'] += w
+            d['l'] += l
+    return agg
 # 被动曲线行: 被动曲线 远弹50%(n4) 逼近75% 开局攻38%
 _RE_PASSIVE = re.compile(
     r'被动曲线 远弹([\d.-]+)%\(n(\d+)\) 逼近([\d.-]+)% 开局攻([\d.-]+)%')

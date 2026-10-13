@@ -207,6 +207,9 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
     ok_paths = []
     # 阶段0仪表(系列预测方案§2): episode消费即删(P1-C) → 批路径是唯一
     # 可持续测量点; no_grad前向不改训练语义
+    # R85(用户裁定动作1): 原逐批出曲线 — 批仅1-3局, 每局全部决策共享
+    # 同一系列位置 → 每行只有1个桶有数(b1-b3恒n0=报告粒度毁曲线,
+    # 阶段0"平坦"结论建立在坏读数上)。改: 150局滚动窗出曲线。
     series_recs = []
     # A1-1(未决问题方案§A): 被动性仪表 — 同挂点
     passivity_recs = []
@@ -318,7 +321,12 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
         os.replace(_c_tmp, os.path.join(snap_dir, 'counts.npy'))
     try:
         from series_meter import curve_line
-        stats['series_curve'] = curve_line(series_recs)
+        # R85: 滚动窗聚合(局级记录, 150局≈5桶×30样本) — 行语义从
+        # "本批"改为"近150局"; 单批行废弃(其数据已并入窗口)
+        _g = globals().setdefault('_series_roll', [])
+        _g.extend(series_recs)
+        del _g[:-150]
+        stats['series_curve'] = curve_line(_g)
         from passivity_meter import passivity_line
         # R67e修正: 原打印块在run_learner作用域引用本函数局部的
         # passivity_recs → NameError被静默吞(被动曲线0条的根因 —
