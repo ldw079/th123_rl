@@ -381,16 +381,26 @@ def run(char, headless, seconds=90):
         print('[hmv2] 无头boot PID=%d' % pid, flush=True)
     else:
         # 正式模式: SokuAIOfflinePlayer冻结输入路径(实证) — 会话级
-        # 禁用+结束复原(headless同款纪律), 用户无需手动处理
+        # 禁用+结束复原; 原版无mod时跳过(可迁移化: 收件机 vanilla game)
         import shutil
         ml = os.path.join(GAME, 'ModLoaderSettings.json')
         bak = ml + '.bak_hmv2'
-        shutil.copy2(ml, bak)
-        d = json.load(open(ml, encoding='utf8'))
-        d['modules']['modules/SokuAIOfflinePlayer/SokuAIOfflinePlayer.dll']['enabled'] = False
-        json.dump(d, open(ml, 'w', encoding='utf8'), ensure_ascii=False)
-        print('[hmv2] 已禁SokuAIOfflinePlayer(结束自动复原) — 请(重)启动'
-              '原版游戏, VS PLAYER, P2=RL-AI档案, 进对局后自动接管', flush=True)
+        if os.path.exists(ml):
+            shutil.copy2(ml, bak)
+            d = json.load(open(ml, encoding='utf8'))
+            key = 'modules/SokuAIOfflinePlayer/SokuAIOfflinePlayer.dll'
+            if key in d.get('modules', {}):
+                d['modules'][key]['enabled'] = False
+                json.dump(d, open(ml, 'w', encoding='utf8'),
+                          ensure_ascii=False)
+                print('[hmv2] 已禁SokuAIOfflinePlayer(结束自动复原)',
+                      flush=True)
+            else:
+                bak = None   # 无此mod, 不需要备份
+        else:
+            bak = None   # 原版无mod, 跳过
+        print('[hmv2] 请启动原版游戏, VS PLAYER, P2=RL-AI, '
+              '进对局后自动接管', flush=True)
         pid = find_game()
         if not pid:
             # 等用户启动(最多180s)
@@ -399,8 +409,9 @@ def run(char, headless, seconds=90):
                 pid = find_game()
                 time.sleep(2)
         if not pid:
-            os.replace(bak, ml)
-            print('[hmv2] 180s无游戏进程 — 配置已复原, 退出', flush=True)
+            if bak and os.path.exists(bak):
+                os.replace(bak, ml)
+            print('[hmv2] 180s无游戏进程 — 退出', flush=True)
             return 1
     obs = Observer(pid)
     t0 = time.time()
