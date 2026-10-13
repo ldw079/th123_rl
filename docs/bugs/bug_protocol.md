@@ -46,3 +46,5 @@
 - dist专项(2026-10-13): `bug_2026-10-13_kit_store_hardcode.md` — kit硬编码本机store, 打包模型从未被使用(未修, P1)
 - `bug_2026-10-13_kit_export_strftime.md` — 导出文件名恒定互相覆盖(未修, P2)
 - `bug_2026-10-13_hm2_opp_char_blind.md` — 人测通道对手角色不识别, opp_char_id恒None特征失配, R91盲打(未修, P1)
+- rep→宏专项(2026-10-14): `bug_2026-10-14_matcher_mask_polarity.md` — v3方向轴掩码极性反转, 前进/后退不可区分(P0, 在途未提交, 合入前截获)
+- `bug_2026-10-14_matcher_neutral_absorption.md` — 纯按钮宏吞方向变体, 平局缺特异性优先(P1, 在途)
