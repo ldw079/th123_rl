@@ -1,0 +1,17 @@
+{
+ "ts": "2026-10-13 16:51:24",
+ "char": "suika",
+ "headless": true,
+ "frames": 1878,
+ "matches": [],
+ "human_wins": 0,
+ "model_wins": 0,
+ "hp0": [
+  10000,
+  10000
+ ],
+ "new_reps": [],
+ "exe_md5": "DF35D1FBC7B583317ADABE8CD9F53B2E",
+ "delay_frames": 5,
+ "protocol": "RPM观察+内存写inKeys(v2)"
+}

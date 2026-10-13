@@ -336,10 +336,11 @@ def headless_boot():
 def headless_cleanup(pid, bak):
     subprocess.run(['taskkill', '/PID', str(pid), '/F'],
                    capture_output=True)
-    try:
-        os.replace(bak, os.path.join(GAME, 'ModLoaderSettings.json'))
-    except OSError:
-        pass
+    if bak and os.path.exists(bak):
+        try:
+            os.replace(bak, os.path.join(GAME, 'ModLoaderSettings.json'))
+        except OSError:
+            pass
     try:
         os.remove(os.path.join(GAME, 'hmv2_boot.rep'))
     except OSError:
@@ -359,9 +360,27 @@ def run(char, headless, seconds=90):
         pid, bak = headless_boot()
         print('[hmv2] 无头boot PID=%d' % pid, flush=True)
     else:
+        # 正式模式: SokuAIOfflinePlayer冻结输入路径(实证) — 会话级
+        # 禁用+结束复原(headless同款纪律), 用户无需手动处理
+        import shutil
+        ml = os.path.join(GAME, 'ModLoaderSettings.json')
+        bak = ml + '.bak_hmv2'
+        shutil.copy2(ml, bak)
+        d = json.load(open(ml, encoding='utf8'))
+        d['modules']['modules/SokuAIOfflinePlayer/SokuAIOfflinePlayer.dll']['enabled'] = False
+        json.dump(d, open(ml, 'w', encoding='utf8'), ensure_ascii=False)
+        print('[hmv2] 已禁SokuAIOfflinePlayer(结束自动复原) — 请(重)启动'
+              '原版游戏, VS PLAYER, P2=RL-AI档案, 进对局后自动接管', flush=True)
         pid = find_game()
         if not pid:
-            print('[hmv2] 无游戏进程(正式模式请先启动原版游戏)', flush=True)
+            # 等用户启动(最多180s)
+            t0 = time.time()
+            while time.time() - t0 < 180 and not pid:
+                pid = find_game()
+                time.sleep(2)
+        if not pid:
+            os.replace(bak, ml)
+            print('[hmv2] 180s无游戏进程 — 配置已复原, 退出', flush=True)
             return 1
     obs = Observer(pid)
     t0 = time.time()
@@ -381,12 +400,50 @@ def run(char, headless, seconds=90):
     print('[hmv2] 战斗就绪 — P2管理器0x%X, 开始驱动(%ds)' %
           (actor.km2, seconds), flush=True)
 
+    # 会话产物: 系列计分(比分字节)+rep归档+session JSON(B-4消费)
+    import glob as _glob
+    sess_dir = os.path.join(HERE, 'human_match_sessions')
+    os.makedirs(sess_dir, exist_ok=True)
+    rep_dir = os.path.join(GAME, 'replay')
+    rep_base = set()
+    for _dp, _dn, _fns in os.walk(rep_dir):
+        for _fn in _fns:
+            if _fn.lower().endswith('.rep'):
+                rep_base.add(os.path.join(_dp, _fn))
     n = 0
     acts = []
     hp0 = None
+    human_w = model_w = 0
+    matches = []
+    last_scores = (0, 0)
     t_end = time.time() + seconds
+    def _end_scores():
+        try:
+            bm_ = obs.u32(BM_P)
+            l_ = obs._char_dict(obs.u32(bm_ + 0x0C))
+            r_ = obs._char_dict(obs.u32(bm_ + 0x10))
+            if l_ and r_:
+                return (l_['score'], r_['score'])
+        except Exception:
+            pass
+        return None
     try:
         while time.time() < t_end:
+            sc_now = obs.scene()
+            if sc_now != 5:
+                # 对局边界: 记录上一场比分
+                if last_scores != (0, 0) and last_scores != (None, None):
+                    matches.append(list(last_scores))
+                    if last_scores[0] > last_scores[1]:
+                        human_w += 1
+                    else:
+                        model_w += 1
+                    print('[hmv2] 场终 %d-%d (系列 人%d-模型%d)' % (
+                        last_scores[0], last_scores[1], human_w, model_w),
+                        flush=True)
+                    last_scores = (0, 0)
+                time.sleep(1 / 60)
+                continue
             fr = obs.read_frame()
             if fr is None:
                 time.sleep(1 / 60)
@@ -394,6 +451,7 @@ def run(char, headless, seconds=90):
             left, right, weather, objs = fr
             if hp0 is None:
                 hp0 = (left['hp'], right['hp'])
+            last_scores = (left['score'], right['score'])
             try:
                 inp = driver.frame_input(right, left, weather, objs, []) or {}
             except Exception as e:
@@ -405,16 +463,49 @@ def run(char, headless, seconds=90):
             time.sleep(1 / 60)
     finally:
         actor.release()
-        s = obs.read_frame.__self__.buf and None
-    left_hpe = obs._char_dict(obs.u32(obs.u32(BM_P) + 0x0C))
-    right_hpe = obs._char_dict(obs.u32(obs.u32(BM_P) + 0x10))
-    print('[hmv2] 完成: %d帧 驱动actR分布top:' % n,
-          sorted(set(acts), key=acts.count, reverse=True)[:8], flush=True)
-    if left_hpe and right_hpe and hp0:
-        print('[hmv2] HP: P1 %d→%d P2(模型) %d→%d' %
-              (hp0[0], left_hpe['hp'], hp0[1], right_hpe['hp']), flush=True)
-    if headless:
-        headless_cleanup(pid, bak)
+        if last_scores not in ((0, 0),) and last_scores[0] + last_scores[1] > 0:
+            matches.append(list(last_scores))
+            if last_scores[0] > last_scores[1]:
+                human_w += 1
+            else:
+                model_w += 1
+        # rep归档(会话期间新增)
+        new_reps = []
+        _hr = r'D:\temp\th123_models\human_reps'
+        os.makedirs(_hr, exist_ok=True)
+        for _dp, _dn, _fns in os.walk(rep_dir):
+            for _fn in _fns:
+                _p = os.path.join(_dp, _fn)
+                if _fn.lower().endswith('.rep') and _p not in rep_base:
+                    import shutil as _sh
+                    _dst = os.path.join(_hr,
+                                        time.strftime('%Y%m%d_%H%M%S_') + _fn)
+                    try:
+                        _sh.copy2(_p, _dst)
+                        new_reps.append(_dst)
+                    except OSError:
+                        pass
+        # session JSON
+        sess = {'ts': time.strftime('%Y-%m-%d %H:%M:%S'),
+                'char': char, 'headless': headless,
+                'frames': n, 'matches': matches,
+                'human_wins': human_w, 'model_wins': model_w,
+                'hp0': hp0, 'new_reps': new_reps,
+                'exe_md5': EXE_MD5,
+                'delay_frames': DELAY_FRAMES,
+                'protocol': 'RPM观察+内存写inKeys(v2)'}
+        _sp = os.path.join(sess_dir, 'sess_%s%s.json' % (
+            time.strftime('%Y%m%d_%H%M%S'), '_hl' if headless else ''))
+        json.dump(sess, open(_sp, 'w', encoding='utf8'),
+                  ensure_ascii=False, indent=1)
+        print('[hmv2] 会话JSON: %s' % _sp, flush=True)
+        print('[hmv2] 完成: %d帧 系列 人%d-模型%d rep归档%d' % (
+            n, human_w, model_w, len(new_reps)), flush=True)
+        # 配置复原(两种模式统一)
+        if bak and os.path.exists(bak):
+            os.replace(bak, os.path.join(GAME, 'ModLoaderSettings.json'))
+        if headless:
+            headless_cleanup(pid, None)   # bak已在上方finally复原
     return 0
 
 
