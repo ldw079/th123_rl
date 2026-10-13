@@ -23,7 +23,9 @@ DLL_PATHS = [
 ]
 # HID usage ID
 HID_X, HID_Y = 0x30, 0x31
-BTN_MAP = {'A': 1, 'B': 2, 'C': 3, 'D': 4, 'SC': 5, 'SW': 6}
+# 原生手柄绑定(.pf实测: profile2p.pf手柄块 a=btn1..d=btn4,
+# changeCard=btn5, spellcard=btn6) — 协议'SC'=符卡use→btn6, 'SW'=切卡→btn5
+BTN_MAP = {'A': 1, 'B': 2, 'C': 3, 'D': 4, 'SW': 5, 'SC': 6}
 
 
 class VJoyDevice:
