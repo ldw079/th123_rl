@@ -88,10 +88,49 @@ class RpmCapture(threading.Thread):
             wR = _read(self.h, cmR, self.win)
             bmw = _read(self.h, bm, self.win)
             glob = _read(self.h, self.GLOB_BASE, self.GLOB_WIN)
+            objs = self._dump_objects(cmL, cmR)
             if wL and wR and bmw and glob:
                 self.samples.append((time.time(), scene[0], wL, wR, bmw,
-                                     glob))
+                                     glob, objs))
             time.sleep(1.0 / 120.0)
+
+    def _dump_objects(self, cmL, cmR):
+        """Player+0x6F8 → IGameObjectList* → [vtable][Deque..][Vector:
+        m_first,m_last] → GameObject*数组 → 每对象(position f2@0xEC,
+        action H@0x13C, direction b@0x?)。两侧合并(左在右前, 截16个)。"""
+        out = []
+        for cm in (cmL, cmR):
+            p = _read(self.h, cm + 0x6F8, 4)
+            if not p:
+                continue
+            lst = struct.unpack('<I', p)[0]
+            if not 0x10000 < lst < 0x80000000:
+                continue
+            w = _read(self.h, lst, 0x60)
+            if not w:
+                continue
+            # 扫Vector三元组(m_first<m_last<=m_end, 且m_last-m_first是
+            # 指针数组合理长度<512*4)
+            for off in range(4, 0x60 - 12, 4):
+                f, l = struct.unpack_from('<II', w, off)
+                if (0x10000 < f < 0x80000000 and 0x10000 < l < 0x80000000
+                        and 0 < l - f <= 512 * 4 and (l - f) % 4 == 0):
+                    arr = _read(self.h, f, l - f)
+                    if not arr:
+                        continue
+                    n = (l - f) // 4
+                    for i in range(min(n, 16)):
+                        op = struct.unpack_from('<I', arr, i * 4)[0]
+                        if not 0x10000 < op < 0x80000000:
+                            continue
+                        ob = _read(self.h, op, 0x150)
+                        if not ob:
+                            continue
+                        x, y = struct.unpack_from('<2f', ob, 0xEC)
+                        act = struct.unpack_from('<H', ob, 0x13C)[0]
+                        out.append((round(x, 1), round(y, 1), act))
+                    break
+        return out[:32]
 
 
 def run_calibration(rep_path, win=0x800, tps=60, max_frames=4000):
@@ -127,7 +166,8 @@ def run_calibration(rep_path, win=0x800, tps=60, max_frames=4000):
                 last = time.time()
                 truth.append((payload['left'].get('frameCount', -1),
                               payload['left'], payload['right'],
-                              payload.get('weather') or {}))
+                              payload.get('weather') or {},
+                              payload.get('objects') or []))
     finally:
         if cap:
             cap.stop.set()
