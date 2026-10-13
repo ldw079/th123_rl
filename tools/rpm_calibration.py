@@ -323,7 +323,7 @@ def main():
         raise SystemExit('无可用rep(用--rep指定)')
     truth, samples = run_calibration(rep, args.win, args.tps)
     res = solve_offsets(truth, samples, args.win)
-    out = os.path.join(HERE, 'rpm_offsets.json')
+    out = os.path.join(HERE, 'rpm_offsets_raw.json')   # 策展表rpm_offsets.json只手工维护
     json.dump(res, open(out, 'w', encoding='utf8'), indent=1)
     print('[calib] 偏移表:', out)
 
