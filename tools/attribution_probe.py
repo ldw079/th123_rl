@@ -82,6 +82,7 @@ def run_delayed_matchup(char_a, char_b, port, games=60, tps=None,
 
     dv = DelayedView(delay_frames)
     wins_a = wins_b = timeout_n = timeout_loss = 0
+    exc_a = exc_b = 0   # 审计遗留: 异常计数留痕(不静默吞)
     score_prev = (0, 0)
     inp_a = {}
     inp_b = {}
@@ -122,12 +123,14 @@ def run_delayed_matchup(char_a, char_b, port, games=60, tps=None,
                     inp_a = driver.frame_input(
                         d_left, d_right, d_weather, d_objs, []) or {}
                 except Exception:
+                    exc_a += 1
                     inp_a = {}
             else:
                 inp_a = {}
             try:
                 inp_b = opp.frame_input(right, left, weather, objs, []) or {}
             except Exception:
+                exc_b += 1
                 inp_b = {}
     except Exception as e:
         print('[W1] 对局异常(%s)' % e)
@@ -137,6 +140,9 @@ def run_delayed_matchup(char_a, char_b, port, games=60, tps=None,
         except Exception:
             pass
 
+    if exc_a > 10 or exc_b > 10:
+        print('[W1] 异常率过高: a侧%d b侧%d (计入分母可能失真)' % (
+            exc_a, exc_b))
     return wins_a, wins_b, timeout_n, timeout_loss, dv.warmup
 
 

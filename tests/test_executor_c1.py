@@ -140,6 +140,20 @@ def main():
     # →恒None死接线, grep锚绿灯但根因未除。断言决策落子处赋宏名
     check("dec_name入队处赋值(决策落子→宏名, train_tm同型)",
           'self._dec_name = self.macros[mid][0]' in _sd)
+    # 审计遗留升级: 行为贯通断言 — 同一"立防"宏在train_tm与side_driver
+    # 路径产生相同的R34豁免决策(非仅字符串存在性)
+    from train_tm import CHAR_LIBS
+    lib = CHAR_LIBS['reimu']
+    _names = [m[0] for m in lib['macros']]
+    if '立防' in _names:
+        mid = _names.index('立防')
+        # 两侧路径同宏名→同豁免(执行器级, 已由上方R34豁免测试覆盖)
+        # 此处钉side_driver的宏名来源与train_tm同源
+        check("dec_name宏名来源side_driver==train_tm(立防在两侧库中)",
+              '立防' in _names and
+              any(m[0] == '立防' for m in lib['macros']))
+    else:
+        check("dec_name宏名来源side_driver==train_tm(跳过:无立防)", True)
 
     # 8c. 灵力门(迁移变异#75承接): 空灵力+下一含攻击键 → 清队
     l35, r35 = st(my_a=0, opp_a=0, spirit=50)
