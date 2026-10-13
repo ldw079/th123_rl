@@ -51,9 +51,8 @@ chcp 65001 >nul
 cd /d %~dp0
 echo === TH123RL Kit Setup ===
 echo.
-pip install -r requirements.txt
-echo.
-python setup_helper.py
+set PY=%~dp0python\python.exe
+"%PY%" setup_helper.py
 pause
 '''
 
@@ -73,12 +72,12 @@ echo 2. Go to VS PLAYER mode
 echo 3. P2 profile: RL-AI
 echo 4. The model will auto-takeover P2
 echo.
-python th123rl/tools/human_match_v2.py --char %CHAR% --seconds %SECONDS%
+"%~dp0python\python.exe" th123rl/tools/human_match_v2.py --char %CHAR% --seconds %SECONDS%
 pause
 '''
 
 EXPORT_HELPER = '''import zipfile, glob, os, time
-fn = time.strftime("match_data_%%Y%%m%%d_%%H%%M%%S.zip")
+fn = time.strftime("match_data_%Y%m%d_%H%M%S.zip")
 with zipfile.ZipFile(fn, "w", zipfile.ZIP_DEFLATED) as z:
     for d in ("th123rl/tools/human_match_sessions",
               "th123rl/tools/habit_demos"):
@@ -96,7 +95,7 @@ print("Please send this file back!")
 EXPORT_BAT = '''@echo off
 chcp 65001 >nul
 cd /d %~dp0
-python export_helper.py
+"%~dp0python\python.exe" export_helper.py
 pause
 '''
 
@@ -105,7 +104,7 @@ README = '''TH123RL 人机对战采集套件
 
 使用步骤:
   1. 解压本文件夹到任意位置
-  2. 双击 setup.bat (首次配置: 安装依赖 + 设置游戏路径)
+  2. 双击 setup.bat (首次配置: 设置游戏路径, 自带Python无需安装)
   3. 双击 start.bat 开始对战
      - 启动你的东方非想天则
      - 进入 VS PLAYER 模式
@@ -116,9 +115,9 @@ README = '''TH123RL 人机对战采集套件
 
 要求:
   - Windows 10/11
-  - Python 3.10+ (python.org 下载安装, 勾选Add to PATH)
   - 东方非想天则 (整合包或原版均可)
   - 游戏exe版本需兼容 (setup会自动检查)
+  (Python和依赖已内置, 无需额外安装)
 
 注意事项:
   - 对战期间请不要切换窗口 (AI需要读取游戏内存)
@@ -165,6 +164,55 @@ def trace_imports(entry_file, root):
     return needed
 
 
+
+
+def _bundle_python(kit_dir):
+    """K1便携化: embed Python + numpy → kit/python/."""
+    import urllib.request
+    import zipfile
+    py_dir = os.path.join(kit_dir, 'python')
+    os.makedirs(py_dir, exist_ok=True)
+    ver = '3.12.8'
+    url = ('https://www.python.org/ftp/python/%s/'
+           'python-%s-embed-amd64.zip' % (ver, ver))
+    cache = os.path.join(DIST, 'cache')
+    os.makedirs(cache, exist_ok=True)
+    embed_zip = os.path.join(cache, 'python-%s-embed.zip' % ver)
+    if not os.path.exists(embed_zip):
+        print('[kit] downloading Python %s embed...' % ver)
+        urllib.request.urlretrieve(url, embed_zip)
+    with zipfile.ZipFile(embed_zip) as zf:
+        zf.extractall(py_dir)
+    # numpy wheel
+    numpy_whl = os.path.join(cache, 'numpy.whl')
+    if not os.path.exists(numpy_whl):
+        print('[kit] downloading numpy wheel...')
+        import subprocess
+        subprocess.run([sys.executable, '-m', 'pip', 'download',
+                        'numpy', '--only-binary', ':all:',
+                        '-d', cache, '--no-deps'],
+                       check=True)
+        # pip saves as numpy-*.whl, rename for stability
+        for f in os.listdir(cache):
+            if f.startswith('numpy-') and f.endswith('.whl'):
+                os.rename(os.path.join(cache, f), numpy_whl)
+                break
+    sp_dir = os.path.join(py_dir, 'Lib', 'site-packages')
+    os.makedirs(sp_dir, exist_ok=True)
+    with zipfile.ZipFile(numpy_whl) as zf:
+        zf.extractall(sp_dir)
+    # ._pth: 启用site-packages(embed默认禁用import路径)
+    pth = os.path.join(py_dir, 'python312._pth')
+    open(pth, 'w').write(
+        'python312.zip' + chr(10) + '.' + chr(10)
+        + 'Lib' + chr(92) + 'site-packages' + chr(10))
+    print('[kit] Python bundled: %s (%.1f MB)' % (
+        py_dir,
+        sum(os.path.getsize(os.path.join(dp, f))
+            for dp, _, fs in os.walk(py_dir) for f in fs) / 1048576))
+
+
+
 def build(chars, make_zip):
     kit_dir = os.path.join(DIST, 'th123rl_kit')
     if os.path.exists(kit_dir):
@@ -206,6 +254,9 @@ def build(chars, make_zip):
                 shutil.copy2(src, models_dir)
                 n_model += 1
     print('[kit] models: %d' % n_model)
+
+    # K1: 便携Python
+    _bundle_python(kit_dir)
 
     # 附产物
     open(os.path.join(kit_dir, 'requirements.txt'), 'w').write(

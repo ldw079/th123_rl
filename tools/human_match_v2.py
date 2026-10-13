@@ -369,9 +369,9 @@ def headless_cleanup(pid, bak):
 
 def run(char, headless, seconds=90):
     from side_driver import SideDriver
-    store = os.environ.get('TH123_STORE', r'D:\temp\th123_models')
+    from kit_config import STORE_DIR   # K2: 四层回落(不绕过kit_config)
     driver = SideDriver(char, 'R')
-    driver.load(os.path.join(store, 'model_ppo_%s.npz' % char))
+    driver.load(os.path.join(STORE_DIR, 'model_ppo_%s.npz' % char))
     driver.reset_match()
     print('[hmv2] 模型加载: %s' % char, flush=True)
 

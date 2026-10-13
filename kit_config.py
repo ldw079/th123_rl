@@ -39,10 +39,20 @@ TRAIN_GAME_DIR = (_cfg.get('train_game_dir')
                   or os.environ.get('TH123_TRAIN_GAME_DIR')
                   or r'D:\touhou\hisoutensoku2026-06-15\th123_train')
 
-# 模型存储
-STORE_DIR = (_cfg.get('store_dir')
-             or os.environ.get('TH123_STORE')
-             or r'D:\temp\th123_models')
+# 模型存储 — 四层回落(K2便携化):
+# config.json store_dir > TH123_STORE环境变量 > 包内models/
+# (kit_config同级, 存在即用) > 本机默认D:\temp\th123_models
+# 注意: 开发机kit_config在仓库根(无models同级), 采集包在th123rl/内(有models同级)
+_kit_models = os.path.join(_HERE, 'models')
+if _cfg.get('store_dir'):
+    STORE_DIR = _cfg['store_dir']
+elif os.environ.get('TH123_STORE'):
+    STORE_DIR = os.environ.get('TH123_STORE')
+elif os.path.isdir(_kit_models) and \
+        any(f.endswith('.npz') for f in os.listdir(_kit_models)):
+    STORE_DIR = _kit_models   # 采集包内模型(收件机路径)
+else:
+    STORE_DIR = r'D:\temp\th123_models'   # 开发机默认
 
 # 原版exe MD5(版本兼容性守卫)
 EXE_MD5 = (_cfg.get('exe_md5')
