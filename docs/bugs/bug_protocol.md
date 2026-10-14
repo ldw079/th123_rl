@@ -49,3 +49,4 @@
 - rep→宏专项(2026-10-14): `bug_2026-10-14_matcher_mask_polarity.md` — v3方向轴掩码极性反转, 前进/后退不可区分(P0, 在途未提交, 合入前截获)
 - `bug_2026-10-14_matcher_neutral_absorption.md` — 纯按钮宏吞方向变体, 平局缺特异性优先(P1, 在途)
 - `bug_2026-10-14_bc_trio_swap_lock.md` — BC trio换装无停机硬门禁+mmap句柄锁+集合非原子=混代际库风险(P1, 在途)
+- `bug_2026-10-14_dim_mutation_anchor_drift3.md` — 维度变异锚死串第三次复发(330→343未迁), 根治应改活常量派生(P1, 在途)
