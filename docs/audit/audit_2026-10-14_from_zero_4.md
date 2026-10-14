@@ -65,3 +65,30 @@
    需重开基线)。2. P0-2/3 与部署序列硬门禁一起修(点火预检加 BC 宽度)。
 3. P1 批随下波。4. 文档入口层(HANDOVER/AGENTS/README/INDEX)在
    343 波合入时一次性对齐。5. 特征活性巡检仪表立项(防复发级)。
+
+---
+
+## 修复批复核(2026-10-14 深夜, 在途工作区)
+
+从零#4 九项(3 P0+6 P1)**全部同日修复且逐项验证为真修**:
+- P0-1: 重置块移回 reset_match(:142), note_decision(:188)只留决策序列
+  语义(docstring 记录根因); **新增"侧向量死区门禁"测试**(特征活性
+  巡检建议被落地为防线 — P0-1 类复发从此可拦截)。
+- P0-2: 耗尽减员账本(_exhausted)+心跳异常标记文件(告警重播, offline-gap
+  读数兼容)。
+- P0-3: train_start 点火前置加 BC 宽度硬门禁(派生宽度不符拒点火) —
+  部署序列成为硬顺序。
+- P1-4: 截断保留 dec_name(正常截断结算空挥; 受击/R34/SC 中止才豁免)。
+- P1-5: rec_logp 增 mix_p(混合行为边际, 探针+VG 重选~40% 占比)。
+- P1-6: families(mirror) 按朝向分套缓存, continuation 同 mirror 生成。
+- P1-7: ①sidecar 快照移 begin 前(先验率); ②bc_build 先 build 后 note。
+- P1-8: value_curve 补 reshape(-1,3,60,80)。
+- P1-9: RESERVED 补 danger_reveal 键。
+- 文档层同步对齐(AGENTS/README/INDEX/HANDOVER → 343/618+)。
+- 门禁实测 **623/5/0**(FILES 拦截清零, 断言 618→623); 测试批绿
+  (feat_segments/bc_match_v3 17/my_punish 13/executor 27)。
+- 状态回填: 各 bug 档由施工会话随修更新(抽验2档一致)。
+
+**净结论**: 从零#4 全发现闭环, 且两项防复发件(死区门禁+点火硬门禁)
+超出最小修复 — 质量高。S-2 的 A/B 基线需按 P0-1 影响重开(此前
+特征死区期数据不可比)。
