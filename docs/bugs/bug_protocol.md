@@ -50,3 +50,13 @@
 - `bug_2026-10-14_matcher_neutral_absorption.md` — 纯按钮宏吞方向变体, 平局缺特异性优先(P1, 在途)
 - `bug_2026-10-14_bc_trio_swap_lock.md` — BC trio换装无停机硬门禁+mmap句柄锁+集合非原子=混代际库风险(P1, 在途)
 - `bug_2026-10-14_dim_mutation_anchor_drift3.md` — 维度变异锚死串第三次复发(330→343未迁), 根治应改活常量派生(P1, 在途)
+- 从零#4(2026-10-14)九项立档(详见 docs/audit/audit_2026-10-14_from_zero_4.md):
+- `bug_2026-10-14_note_decision_reset_swallow.md` — note_decision吞并局级重置块, 大片特征恒死(P0)
+- `bug_2026-10-14_restart_exhaust_silent.md` — fleet重启耗尽静默永久减员(P0, 日志实证)
+- `bug_2026-10-14_bc_width_asymmetry.md` — BC宽度失败不对称: actor崩vs learner跳(P0)
+- `bug_2026-10-14_gate_whiff_exempt.md` — 门截断清dec_name, 空挥罚豁免(P1)
+- `bug_2026-10-14_probe_logp_mixture.md` — 探针stored_logp记错分布(P1)
+- `bug_2026-10-14_continuation_mirror_hardcode.md` — 门后延续mirror硬编码, 左朝向错标(P1)
+- `bug_2026-10-14_s2_offline_leakage.md` — S-2离线注入未来信息泄漏+顺序分歧(P1)
+- `bug_2026-10-14_value_curve_dead_on_arrival.md` — W4价值曲线自上线即死(P1)
+- `bug_2026-10-14_danger_reveal_port_key.md` — danger_reveal真实模式KeyError(P1)
