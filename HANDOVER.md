@@ -1,22 +1,23 @@
 # TH123 对战 AI 项目交接文档
 
-> 日期: 2026-10-16 · 增量(**BH-3.2 守备段位逐角色表[clesita实测20/20, 旧表两错修正]**/BH-3.1 untech语义门(P1清偿)/CE-7推板势/CE-3.4位置路由门/CE-5离线分歧率仪表/CE-4目标索引修复) · 供下一个智能体直接接手
+> 日期: 2026-10-16 · 增量(**BH-4.1 matcher连段语境✓[真受击帧攻击标签43/46/33%]**/BH-3感知修复三项✅/BH-1仪表盘✅/BH-4.2采集进行中/BH-4.3先验表✅/CE离线件全谱✅/git两波提交87bb8b3+fa8b34d) · 供下一个智能体直接接手
 
 **当前栈速览(2026-10-16)**: CORE_DIMS=**358**(S-2段343+JZ-1段15);
 宏数reimu88/marisa95/suika91(蓄力cleista真值+系统卡+DD+HJC);
 S-4 GRU序列记忆全链就绪(阶段2a); BH方案v4执行中: **BH-3.1/3.2/3.3
-感知修复✅** / **BH-1 行为健康仪表盘✅**(behavior_health.py+bh旁车+
-CE-0.1帧日志开关[TH123_FRAME_LOG默认关]+tools/behavior_report.py
-八表) / **BH-4.2 语料扩对位采集进行中**(765 rep=15对×51对, tr*分片
-+manifest pair字段, 断点续采, ~过夜; 库内12,246候选全覆盖) /
-**BH-4.3 对位先验表✅**(matchup_combo_prior.json: UU/早苗/YM/⑨
-解码+"19"与高个子名单unverified待确认); **剩余: BH-4.1 matcher
-连段语境(1d) → BH-4.4 合批重建(untech门+段位表+matcher+扩位语料
-四合一, 与S-6同批)**。
-CE离线件全谱就绪(R131-139); 观察期继续。门禁633/0; 变异锚点干跑
-tools/_anchor_check.py(救过两次变异定义写反)。帧日志需
+感知修复✅** / **BH-1 行为健康仪表盘✅**(bh旁车+CE-0.1帧日志开关+
+tools/behavior_report.py八表) / **BH-4.1 matcher连段语境✅**(按钮帧
+评分+中性抑制; 真受击帧攻击标签 reimu 24.6→43.1%/marisa 27.8→
+46.4%/suika 20.4→32.7%[萃香HJC机构归因待全量复核]; 度量环
+tools/bh41_measure.py) / **BH-4.2 对位语料采集进行中**(206/765,
+tr*分片+manifest pair字段, 断点续采) / **BH-4.3 先验表✅**
+(matchup_combo_prior.json; "19"与高个子名单unverified待用户确认)。
+**BH-4.4 合批重建待四子项齐**(untech门+段位表+matcher语境+扩位
+语料四合一, 与S-6同批, 需低载窗口)。
+CE离线件全谱就绪(R131-139); 观察期继续。门禁634/0; 帧日志需
 TH123_FRAME_LOG=1。关键数据: cleista/(API全量+守备段位134档)+
-guard_height.json+matchup_combo_prior.json; move_displacement_*.json。
+guard_height.json+matchup_combo_prior.json+move_displacement_*.json。
+> 读完本文即可开始工作; 细节按需查阅引用文档。历史版见 git log。
 > 读完本文即可开始工作; 细节按需查阅引用文档。历史版见 git log。
 
 ---
