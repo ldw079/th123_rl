@@ -211,6 +211,12 @@ def build_rows(char_id, shards, log=print):
     # lib的attack集=近战/弹幕/必杀/连段/压制/空中体术全攻击族
     from train_tm import CHAR_LIBS as _CL
     _atk_names = _CL[name]['attack'] if name in _CL else None
+    # BH-4.2: 对位语料的对手ID(2-19)超出本文件LIBS键(仅三主力) —
+    # ID→名走全量CHAR_LIBS反向表(首次重建实弹抓出KeyError:12);
+    # 池序=TMTrainer._CHAR_POOL_IDX单源(0/1/2+11-19段11, 20+扩展区)
+    _ID2NAME = {l['id']: n for n, l in _CL.items()}
+    from train_tm import TMTrainer
+    _POOL_IDX = TMTrainer._CHAR_POOL_IDX
     matcher = StreamMatcher(lib, threshold=0.88,
                             attack_names=_atk_names)
     n_macros = len(lib)
@@ -320,7 +326,7 @@ def build_rows(char_id, shards, log=print):
             fb.opp_outside_pool = 0.0 if opp_cid in (0, 1, 9) else 1.0
             # BH-3.2: 守备段位逐角色表按对手名查(与train_tm在线同构;
             # 库内低段位值随下次重建(BH-4.4)吸收)
-            fb._opp_char = LIBS[opp_cid][0]
+            fb._opp_char = _ID2NAME.get(opp_cid) or LIBS[opp_cid][0]
             # P2修(审计2026-10-16): JZ-1冷却char_id双侧注入
             fb._jz1_ids = (char_id, opp_cid)
             _side = 0 if side == 0 else 1
@@ -375,7 +381,19 @@ def build_rows(char_id, shards, log=print):
                         core = fb.build(left, right, weather, bullets)
                         core[33] = min(dir_frames, 62) / 62.0
                         # 对手角色one-hot(train_tm._wire_opp_ids同款池序)
-                        core[227 + _POOL_O[opp_cid]] = 1.0
+                        # BH-4.2: 对位语料对手(2-19) — 池序走全量
+                        # _CHAR_POOL_IDX按名查, 前12走段11槽(11-19),
+                        # 后8走扩展区(core[308+i]) — 原_POOL_O只认三
+                        # 主力(首次重建实弹抓出第二处KeyError:12)
+                        _onm = _ID2NAME.get(opp_cid)
+                        _oid = (_POOL_IDX.get(_onm)
+                                if _onm else None)
+                        if _oid is None:
+                            _oid = _POOL_O[opp_cid]
+                        if _oid <= 19:
+                            core[227 + _oid] = 1.0
+                        else:
+                            core[308 + (_oid - 20)] = 1.0
                         _nm = lib[hit_at[i][0]][0]
                         fb.note_decision(_CLS_ORDER.index(
                             _clsfy(_nm, _CHAR_LIBS_D[name])))
