@@ -61,21 +61,22 @@ def main():
         stream1, [1] * len(stream1), intro_frames=2)
     check('无attack_names向后兼容', sorted(base) == sorted(base2))
 
-    # ===== 语境抑制: ctx内待机标签被丢弃, ctx外保留 =====
+    # ===== 用户裁定(2026-10-16): 连段中的等待(放帧)与位移是极其
+    # 重要的一等技术 — 语境内移动/等待标签必须保留(不抑制) =====
     # 流: 中性×4 + A×1(制造决策点) + 中性×30(松键点→待机标签)
     stream2 = [N] * 4 + [u16('A')] * 1 + [N] * 30
     no_ctx = walk(stream2, ctx=None)
     names_n = {MACROS[h[1]][0] for h in no_ctx}
     check('语境外待机标签正常', '待机' in names_n, str(names_n))
     ctx_all = [False] * len(stream2)
+    ctx_all[4] = True      # 按压点(帧4)
+    ctx_all[5] = True      # 松键点(帧5) — 决策点均落入语境
     in_ctx = walk(stream2, ctx=ctx_all)
     names_c = {MACROS[h[1]][0] for h in in_ctx}
-    check('ctx=False不抑制(兼容)', '待机' in names_c)
-    ctx_all[4] = True      # 按压点(帧4)
-    ctx_all[5] = True      # 松键点(帧5) — 两决策点均落入语境
-    in_ctx2 = walk(stream2, ctx=ctx_all)
-    names_c2 = {MACROS[h[1]][0] for h in in_ctx2}
-    check('ctx=True待机被抑制', '待机' not in names_c2, str(names_c2))
+    check('ctx=True待机仍保留(用户裁定: 放帧位移一等教学)',
+          '待机' in names_c, str(names_c))
+    check('ctx标签集=无ctx标签集(移动等待不动)',
+          names_c == names_n)
 
     # ===== attack_names=None → 语境全灭(开关语义) =====
     m_off = StreamMatcher(MACROS, threshold=0.88, attack_names=None)

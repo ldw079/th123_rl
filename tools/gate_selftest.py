@@ -559,15 +559,13 @@ MUTATIONS = [
      '"chars": ["cirno", "sanae", "youmu", "yuyuko"]',
      '"chars": ["cirno", "sanae", "youmu", "yuyuko", "bogus_char"]',
      "BH-4.3先验表混入非法角色名(污染对位掩码集) → matchup_prior测试必须红"),
-    # BH-4.1(R144): matcher连段语境(tag: BH-4.1)
+    # BH-4.1(R144): matcher连段语境(tag: BH-4.1) — 用户裁定(2026-10-16):
+    # 连段中的等待(放帧)与位移是极其重要的一等技术, 移动/等待标签
+    # 不抑制; 变异守卫=抑制机制复活时保留测试必须红
     ("bc_match.py",
-     "            if (_cfull is not None and f < len(_cfull) and _cfull[f]\n                    and self.macros[idx][0]\n                    in self.NEUTRAL_MOVE_NAMES):\n                continue",
-     "            if False:\n                continue",
-     "BH-4.1中性抑制拆除(连段语境重教待机/走位=H1病灶复活) → matcher_ctx测试必须红"),
-    ("bc_match.py",
-     "    NEUTRAL_MOVE_NAMES = frozenset(('待机', '前进', '后退'))",
-     "    NEUTRAL_MOVE_NAMES = frozenset()",
-     "BH-4.1中性集清空(抑制失效) → matcher_ctx测试必须红"),
+     "            next_free = f + L\n            if idx in fam:",
+     "            if (combo_ctx is not None and f < len(combo_ctx)\n                    and combo_ctx[f] and self.macros[idx][0]\n                    in ('待机', '前进', '后退')):\n                continue\n            next_free = f + L\n            if idx in fam:",
+     "BH-4.1抑制机制复活(违反用户裁定: 连段等待/位移一等教学不删) → matcher_ctx保留测试必须红"),
 ]
 
 

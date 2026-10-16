@@ -128,9 +128,6 @@ class StreamMatcher:
     mode='v2'保留旧路径(前后对比探针/回滚开关)。
     """
 
-    # BH-4.1连段保持: 连段语境内抑制的中性移动标签(松键/微走位节奏)
-    NEUTRAL_MOVE_NAMES = frozenset(('待机', '前进', '后退'))
-
     def __init__(self, macros, threshold=0.85, mode='v3',
                  attack_names=None):
         self.tl_facing = {}
@@ -426,7 +423,10 @@ class StreamMatcher:
 
         BH-4.1: combo_ctx=逐帧bool(对手真受击∧近距, 调用方从游戏状态
         计算) — 连段语境下攻击/连段类宏(attack_idx)启用按钮帧评分
-        (见_match_all_dp), 压碎片被标成移动/待机的份额(H1病灶)。"""
+        (见_match_all_dp)以正确识别攻击按压。**用户裁定(2026-10-16):
+        连段中的等待(放帧)与位移是极其重要的一等技术** — 移动/等待
+        标签一律保留不抑制(首版的中性抑制据此废除), 时机由untech特征
+        承载、间距由移动标签自身教学。"""
         if self.mode == 'v2':
             return self._walk_v2(expert_u16, facings, intro_frames)
         import numpy as np
@@ -460,10 +460,6 @@ class StreamMatcher:
         out.sort(key=lambda h: h[0])
         consumed = []
         next_free = 0
-        # BH-4.1连段保持: 语境帧级数组(消费段用)
-        _cfull = (np.asarray(combo_ctx, dtype=bool)
-                  if combo_ctx is not None and self.attack_idx is not None
-                  else None)
         # P1-6续修: 族表按**每个命中的朝向**取套 — 原:families(循环尾
         # 残留mirror)对纯右朝向输入错取True套(旧单套缓存时代此泄漏
         # 不可见, 分套后暴露, 首版P1-6修法自身引入, 本行为定版)
@@ -472,14 +468,12 @@ class StreamMatcher:
             fam = _fams[m]
             if f < next_free:
                 continue
-            # BH-4.1连段保持: 连段语境内的中性移动标签抑制 — 对手真
-            # 受击近距时, 松键/微走位是连段节奏不是决策, 不教锚"等待/
-            # 走位"(待机×622/前进×329/后退×104为H1实测大头); 不消费,
-            # 让后续攻击按压的标签接管
-            if (_cfull is not None and f < len(_cfull) and _cfull[f]
-                    and self.macros[idx][0]
-                    in self.NEUTRAL_MOVE_NAMES):
-                continue
+            # **用户裁定(2026-10-16): 连段中的等待(放帧)与位移是极其
+            # 重要的一等技术, 不是可忽略项** — 首版BH-4.1的"中性抑制"
+            # (语境内丢弃待机/前进/后退标签)据此废除: 等待时长由untech
+            # 特征(BH-3.1门控后)承载、间距由移动标签自身教学, 压缩它们
+            # = 删掉放帧时机与走位间距的教学信号。语境机制只保留
+            # 按钮帧评分(识别攻击按压), 移动/等待标签一律保留。
             next_free = f + L
             if idx in fam:
                 idx2, extra = self._lookahead(frames, f, L, fam[idx])
@@ -591,6 +585,12 @@ class StreamMatcher:
                     s = sat.mean(axis=1)
                     if _atk and combo_dp[ok].any():
                         # BH-4.1: 按钮帧评分(仅语境位为真的决策点取max)
+                        # — 用于识别攻击按压属于哪个攻击宏。**用户裁定
+                        # (2026-10-16): 连段中的等待与位移是极其重要的
+                        # 一等技术** — 走位帧不计入攻击识别的分母不等于
+                        # 走位被忽略: 走位/等待由它们自己的移动标签教学
+                        # (间距), 时机由untech特征承载, 此处只是不让
+                        # 走位帧的存在稀释攻击按压的识别。
                         btn_req = (req_val[:L, 2:8] == 1).any(axis=1)
                         nb = int(btn_req.sum())
                         if nb >= 2:
@@ -600,10 +600,6 @@ class StreamMatcher:
                                      / float(nb))
                             s = np.where(combo_dp[ok], np.maximum(s, s_btn),
                                          s)
-                        # 近平局翻转: 语境内攻击类+0.04(战胜0.9x的
-                        # 移动模板 — 走位碎片在连段中是噪声不是意图)
-                        s = np.where(combo_dp[ok],
-                                     np.minimum(s + 0.04, 1.0), s)
                     spec = float(req_mask[:L].sum()) / L    # 约束密度
                     cur = res_s[ok]
                     cur_L = res_L[ok]
