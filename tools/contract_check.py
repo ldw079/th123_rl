@@ -2035,6 +2035,11 @@ for _tname, _tdesc in _BEHAVIOR_TESTS:
 
 # ============ P2波锚(审计#3十九项首波, 2026-10-13) ============
 print("=== P2修复波锚(审计#3) ===")
+# 审计2026-10-16 P1-1防复发: CE-1宏层画像的生产调用形态 — begin必须
+# 传name=(测试曾走name=路径全绿而生产恒空, W4同型第三例)
+chk("punish.begin(_dcls, name=" in src("train_tm.py")
+    and "punish.begin(_dcls, name=" in src("side_driver.py"),
+    "CE-1宏层画像生产接线(两调用点传name=宏名; 上线即自检制度化)")
 chk("elif rs > ls" in src("tools/eval_matrix.py")
     and "elif rs > ls" in src("tools/human_match.py"),
     "P2: 平局三态(原平局记右方胜)")

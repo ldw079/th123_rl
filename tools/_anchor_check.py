@@ -20,6 +20,8 @@ stale = []
 for f, old, new, why in entries:
     p = os.path.join(ROOT, f)
     if not os.path.exists(p):
+        if f == 'ModLoaderSettings.json':
+            continue   # 已知假阳性: 沙箱注入件, 非仓内文件
         stale.append((f, 'FILE_MISSING', why[:40]))
         continue
     txt = io.open(p, encoding='utf8').read()

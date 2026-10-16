@@ -939,8 +939,12 @@ class FeatureBuilder:
             self._jz1_cd_my = SpiritCooldownTracker()
             self._jz1_cd_opp = SpiritCooldownTracker()
         _frz = (left.get('hitStop', 0) or 0) > 0 or             (left.get('timeStop', 0) or 0) > 0
-        self._jz1_cd_my.feed(left.get('action', 0), 0, _frz)
-        self._jz1_cd_opp.feed(right.get('action', 0), 0, _frz)
+        # P2修(审计2026-10-16): char_id经_jz1_ids属性注入(train_tm/
+        # side_driver/bc_build三侧wire; 缺省(0,0)=保守方向 — 帕秋莉
+        # 专属短冷却[shot48·skill60]不生效时用默认长冷却, 不虚报快恢复)
+        _jz1_ids = getattr(self, '_jz1_ids', (0, 0))
+        self._jz1_cd_my.feed(left.get('action', 0), _jz1_ids[0], _frz)
+        self._jz1_cd_opp.feed(right.get('action', 0), _jz1_ids[1], _frz)
         o2 = fill_jz1(s, 343, left, right,
                       self._jz1_cd_my, self._jz1_cd_opp, 0, 0)
         o = 343 + o2

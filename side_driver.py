@@ -204,6 +204,11 @@ class SideDriver:
             _oname = _POOL_OPP_NAME.get(_oid)
             if _oname is not None:
                 self.feat_builder._opp_char = _oname
+                # P2修(审计2026-10-16): JZ-1冷却char_id双侧注入
+                _oid_lib = CHAR_LIBS.get(_oname)
+                self.feat_builder._jz1_ids = (
+                    CHAR_LIBS[self.char]['id'],
+                    _oid_lib['id'] if _oid_lib else 0)
             # K5审计收尾(从零#4"未接线"档): 池外位随对手id自动派生 —
             # 评估/人测侧(外部wire oid)此前恒0, 训练侧按名字设1=分布
             # 偏斜; id 0/1/2=池内与train_tm._wire_opp_ids名字推导一致
@@ -299,7 +304,9 @@ class SideDriver:
         if getattr(self, '_punish_active', False):
             self.feat_builder.punish.end()
         self._punish_active = True
-        self.feat_builder.punish.begin(_dcls)
+        # P1-1修(审计2026-10-16): 补name=宏名 — CE-1宏层画像此前
+        # 生产路径恒空(测试走name=路径全绿=W4同型第三例)
+        self.feat_builder.punish.begin(_dcls, name=self.macros[mid][0])
         self.feat_builder.note_decision(
             ('JUMP', 'MELEE', 'BULLET', 'SKILL',
              'GUARD_PREP', 'OTHER').index(_dcls))

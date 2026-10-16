@@ -319,6 +319,8 @@ def build_rows(char_id, shards, log=print):
             # BH-3.2: 守备段位逐角色表按对手名查(与train_tm在线同构;
             # 库内低段位值随下次重建(BH-4.4)吸收)
             fb._opp_char = LIBS[opp_cid][0]
+            # P2修(审计2026-10-16): JZ-1冷却char_id双侧注入
+            fb._jz1_ids = (char_id, opp_cid)
             _side = 0 if side == 0 else 1
             _sc_rate = {}
             _root = os.path.dirname(os.path.abspath(__file__))

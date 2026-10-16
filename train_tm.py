@@ -957,6 +957,10 @@ class TMTrainer:
         R21: feat_builder._opp_char接角色名(opp_model查表用)。"""
         self._opp_char_id = self._CHAR_POOL_IDX.get(opp_char)
         self.feat_builder._opp_char = opp_char
+        # P2修(审计2026-10-16): JZ-1冷却char_id双侧注入(帕秋莉专属覆盖)
+        self.feat_builder._jz1_ids = (
+            CHAR_LIBS[self.char]['id'],
+            CHAR_LIBS[opp_char]['id'] if opp_char in CHAR_LIBS else 0)
         # K5(裁定五并入S-2): 池外位 — R61t扩展one-hot虽全覆盖20角色,
         # 但池外槽位训练中从未激活(权重冷); 紧凑位聚合"陌生对手"信号
         self.feat_builder.opp_outside_pool = (
@@ -964,6 +968,10 @@ class TMTrainer:
         if self.opp is not None:
             self.opp.opp_char_id = self._CHAR_POOL_IDX.get(self.char)
             self.opp.feat_builder._opp_char = self.char
+            # P2修: 对手侧镜像(其feat_builder的my=对手机体, opp=我)
+            self.opp.feat_builder._jz1_ids = (
+                CHAR_LIBS[opp_char]['id'] if opp_char in CHAR_LIBS else 0,
+                CHAR_LIBS[self.char]['id'])
             self.opp.feat_builder.opp_outside_pool = (
                 0.0 if self.char in ('reimu', 'marisa', 'suika') else 1.0)
 
@@ -1926,7 +1934,9 @@ class TMTrainer:
                     if getattr(self, '_punish_active', False):
                         self.feat_builder.punish.end()
                     self._punish_active = True
-                    self.feat_builder.punish.begin(_dcls)
+                    # P1-1修(审计2026-10-16): 补name=宏名 — CE-1宏层
+                    # 画像此前生产路径恒空(测试走name=路径全绿)
+                    self.feat_builder.punish.begin(_dcls, name=dec_name)
                     self.feat_builder.note_decision(
                         ('JUMP', 'MELEE', 'BULLET', 'SKILL',
                          'GUARD_PREP', 'OTHER').index(_dcls))

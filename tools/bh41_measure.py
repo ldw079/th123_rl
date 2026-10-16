@@ -72,7 +72,8 @@ def run(char_id, shards, use_ctx):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--shards', type=int, default=30)
+    ap.add_argument('--shards', type=int, default=20,
+                    help='文档口径=20(审计2026-10-16对齐)')
     ap.add_argument('--chars', default='reimu,marisa,suika')
     a = ap.parse_args()
     shards = sorted(glob.glob(os.path.join(
