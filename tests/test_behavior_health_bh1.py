@@ -78,12 +78,13 @@ def main():
     check('宏转移记账', bh.trans.get('连段A→6A') == 1
           and bh.trans.get('后退→版边连A') == 1)
 
-    # ===== flush → aggregate → rates 往返 =====
+    # ===== flush → aggregate → rates 往返(生产调用形态: 4参+extra) =====
     tmp = tempfile.mkdtemp(prefix='bh_test_')
     try:
-        p = bh.flush(tmp, 3, 42)
-        check('旁车落盘', p is not None and os.path.exists(p))
+        p = bh.flush(tmp, 3, 42, extra={'snap_ver': 7})
+        check('旁车落盘(生产形态)', p is not None and os.path.exists(p))
         r = json.loads(json.dumps(json.load(open(p, encoding='utf8'))))
+        check('extra透传', r.get('snap_ver') == 7)
         check('旁车字段齐', all(k in r for k in
                                 ('char', 'n_dec', 'cls', 'follow',
                                  'combo', 'combo_by_opp', 'trans_top')))

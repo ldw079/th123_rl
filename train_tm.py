@@ -1913,6 +1913,9 @@ class TMTrainer:
                     #  "ep_lens≠R长度"断言, 全部更新丢失)
                     seg_rew = 0.0
                     # BH-1: 决策点记账(在dec_name被替换前 — prev结算口径)
+                    # 对手名源=feat_builder._opp_char(trainer自身无此属性,
+                    # 首版取self._opp_char恒None→表5全是'?' — 上线即自检
+                    # 抓出的第二处接线错)
                     from my_punish_tracker import classify as _bh_clsfy
                     _bh_cur_name = self.macros[mid][0]
                     self.bh.note_decision(
@@ -1921,7 +1924,7 @@ class TMTrainer:
                          if dec_name else None),
                         dec_dmg, dec_guarded, _bh_cur_name,
                         _bh_clsfy(_bh_cur_name, CHAR_LIBS[self.char]),
-                        getattr(self, '_opp_char', None))
+                        getattr(self.feat_builder, '_opp_char', None))
                     if self._fl_decisions is not None:
                         self._fl_decisions.append((frames, int(mid)))
                     dec_name = self.macros[mid][0]
@@ -1984,7 +1987,8 @@ class TMTrainer:
                         self._bh_ep_n))
                 with open(_fnp + '.tmp', 'wb') as _fh:
                     _pkl.dump({'char': self.char,
-                               'opp_char': getattr(self, '_opp_char', None),
+                               'opp_char': getattr(
+                                   self.feat_builder, '_opp_char', None),
                                'fields': FL_FIELDS,
                                'frames': self._fl_frames,
                                'decisions': self._fl_decisions or []},

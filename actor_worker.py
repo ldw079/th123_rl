@@ -186,7 +186,7 @@ def run_actor(char, actor_id, port, tps=480, episodes=1000,
         # 与episode同目录同生命周期, 不动episode契约)
         try:
             getattr(tr, 'bh', None) and tr.bh.flush(
-                EP_DIR, char, actor_id, state['ep'],
+                EP_DIR, actor_id, state['ep'],
                 extra={'snap_ver': state['snap_ver']})
         except Exception as _bhe:
             print('[actor%d] BH旁车异常(%r) — 不影响episode' % (
