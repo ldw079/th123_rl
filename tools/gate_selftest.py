@@ -556,8 +556,8 @@ MUTATIONS = [
      "BH-1续打率键反(hit_atk/hit_n互换=指标反转) → behavior_health测试必须红"),
     # BH-4.3(R143): 对位先验表(tag: BH-4.3)
     ("data/guide_tables/matchup_combo_prior.json",
-     '"chars": ["cirno", "sanae", "youmu", "yuyuko"]',
-     '"chars": ["cirno", "sanae", "youmu", "yuyuko", "bogus_char"]',
+     '"chars": ["cirno", "iku", "sanae", "youmu", "yuyuko"]',
+     '"chars": ["cirno", "iku", "sanae", "youmu", "yuyuko", "bogus_char"]',
      "BH-4.3先验表混入非法角色名(污染对位掩码集) → matchup_prior测试必须红"),
     # BH-4.1(R144): matcher连段语境(tag: BH-4.1) — 用户裁定(2026-10-16):
     # 连段中的等待(放帧)与位移是极其重要的一等技术, 移动/等待标签

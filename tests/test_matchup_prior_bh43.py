@@ -37,9 +37,13 @@ def main():
     # 昵称解码完备: 引文里每个昵称要么解码要么进unverified
     nk = set(d['provenance']['nicknames_decoded'])
     un = set(d['provenance']['unverified'])
-    check('UU/早苗/YM/⑨已解码',
-          {'UU', '早苗', 'YM', '⑨'} <= nk)
-    check('19显式未确认', '19' in un)
+    check('UU/19/早苗/YM/⑨已解码',
+          {'UU', '19', '早苗', 'YM', '⑨'} <= nk)
+    check('19=衣玖(用户确认2026-10-16)',
+          d['provenance']['nicknames_decoded'].get('19') == 'iku')
+    check('19已出unverified(已决不在悬置)', '19' not in un)
+    check('iku入air_juggle_hard集',
+          'iku' in d['restriction_sets']['air_juggle_hard']['chars'])
     check('高个子显式未确认', '高个子限定推板' in un)
 
     # 角色名合法(在20角色库内)
