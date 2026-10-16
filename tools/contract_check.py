@@ -117,8 +117,10 @@ import opp_model
 import macros
 import macros.marisa as macros_marisa
 import macros.suika as macros_suika
-chk(feat_builder.FeatureBuilder.CORE_DIMS == 330,
-    "CORE_DIMS==330(B风格段: 316+14对手已出卡)",
+# P2(2026-10-15): 343硬编码改**区间下界+段账本** — JZ-1迁移(343→358)
+# 时此处漏更致基线9项FAIL("锚是活的"第三次复发: 维度字面量跟不了活常量)
+chk(feat_builder.FeatureBuilder.CORE_DIMS >= 343,
+    "CORE_DIMS>=343(S-2段330+13; JZ-1后358)",
     "got %r" % feat_builder.FeatureBuilder.CORE_DIMS)
 chk(opp_model.OpponentModel.N_FEATS == 75,
     "opp_model.N_FEATS==75(基础27+历史40+资源8)",
@@ -127,7 +129,8 @@ _n_by_mod = (macros.N_MACROS, macros_marisa.N_MACROS_MARISA,
              macros_suika.N_MACROS_SUIKA)
 for n in _n_by_mod:
     fb = feat_builder.FeatureBuilder(n)
-    chk(fb.n_side == 2 * n + 330, "n_side==2N+330@N=%d(B风格段)" % n,
+    chk(fb.n_side == 2 * n + feat_builder.FeatureBuilder.CORE_DIMS,
+        "n_side==2N+CORE_DIMS@N=%d(S-2段)" % n,
         "got %d" % fb.n_side)
 # ppo对手子网络切片位置与段10严格对齐(错位=静默读错特征)
 from ppo import PPOTrainer as _PT
@@ -662,7 +665,8 @@ chk('"macro_counts_%s%s.npy" % (char, suffix)' in tt,
 import side_driver as sd_mod
 for _ch in ("reimu", "marisa", "suika"):
     _d = sd_mod.SideDriver(_ch, "L")
-    chk(_d.n_side == 5 * _d.n_macros + 330,
+    chk(_d.n_side == 5 * _d.n_macros
+        + feat_builder.FeatureBuilder.CORE_DIMS,
         "SideDriver维度@%s(R61t F5含扩展one-hot)" % _ch,
         "n_side=%d" % _d.n_side)
     chk(int(_d.macro_reach.max()) > 0 and int(_d.macro_reach_v.max()) > 0,
@@ -761,6 +765,32 @@ _okr, _detr = check_reserved()
 chk(_okr, "G2工具端口RESERVED落段(branch/habit/human_*)", _detr)
 _ok2, _det2 = check_rebuild_domain()
 chk(_ok2, "rebuild取值域枚举(slot0-5×ep200)全在段内(D4)", _det2)
+# P1-9防复发(从零#4): 单源表完备性 — 全仓reserved_port('X')调用×
+# RESERVED键对账(新工具只改调用方不改表=启动即KeyError的根因拦截)
+import re as _re_port
+import portmap as _pm
+_calls = set()
+for _root, _dirs, _fs in os.walk('.'):
+    if any(s in _root for s in ('_archive', '.zcode', 'gate_sandbox')):
+        continue
+    for _fn in _fs:
+        # 排除本断言自身(docstring占位符'X'与正则字面量)
+        if not _fn.endswith('.py') or _fn == 'contract_check.py':
+            continue
+        try:
+            _src = open(os.path.join(_root, _fn), encoding='utf8',
+                        errors='replace').read()
+        except OSError:
+            continue
+        for _m in _re_port.finditer(
+                r'reserved_port\(\s*["\']([^"\']+)["\']\s*\)', _src):
+            _calls.add((_fn, _m.group(1)))
+_missing = sorted((f, n) for f, n in _calls if n not in _pm.RESERVED)
+chk(not _missing, "P1-9: reserved_port调用×RESERVED键完备对账",
+    '缺键: %s' % (_missing[:4],))
+_unused = sorted(n for n in _pm.RESERVED
+                 if not any(n == c[1] for c in _calls))
+chk(not _unused, "RESERVED无僵尸键(有键无调用)", '僵尸: %s' % (_unused,))
 chk('OPCODE_SPEED, OPCODE_DISPLAY' in src("tm_env.py")
     and '("<BB", 3, 0)' not in src("tm_env.py"),
     "G2(R77): tm_env渲染/变速用命名opcode(裸2/3字面量退役)")
@@ -833,9 +863,12 @@ chk("新宏必须追加在列表末尾" in src("macros/suika.py")
     "宏库末位追加契约注记在位(R23)")
 import macros.suika as _MS
 _suika_last = [m[0] for m in _MS.MACROS_SUIKA][-4:]
-chk(_MS.N_MACROS_SUIKA == 77
+# P2修(从零#4晚, 宏库扩展波88/93/91后): 计数硬编码改**区间下限+
+# 原子在位**(扩展波只许尾增 — R23末位追加契约); C4压起身"末位"改
+# "扩展波前末位"(wave_ext追加段之前)
+chk(_MS.N_MACROS_SUIKA >= 77
     and "原子·确认5A" in [m[0] for m in _MS.MACROS_SUIKA],
-    "suika原子在位+C4追加(R35+R61n: 70+7=77)")
+    "suika原子在位+宏数≥77(R35+R61n底数; 扩展波尾增合法)")
 # R38(第九轮审计§2.1): 原死表达式`STORE if False else 硬编码路径` —
 # 门禁成为单PC仪器。改环境变量可覆盖, 默认仓库data/bc(bc_build产物位)。
 _bc_dir = os.environ.get(
@@ -921,24 +954,29 @@ chk(fn_has("macro_executor.py", "advance_queue", "300 <= opp_a < 600"),
 chk(fn_has("macro_executor.py", "advance_queue", "spirit < 100"),
     "灵力门控在位(R34, R61u C1移至macro_executor) [advance_queue体内]")
 import macros.marisa as _MM
-chk(_MM.N_MACROS_MARISA == 76
-    and [m[0] for m in _MM.MACROS_MARISA][-4:] ==
-    ["压起身·即", "压起身·延迟", "压起身·空", "压起身·穿"]
-    and "原子·确认5A" in [m[0] for m in _MM.MACROS_MARISA],
-    "marisa四原子在位+C4压起身末位(R34+R61n: 69+7=76)")
+def _c4_before_wave(names, floor):
+    """C4压起身四连在位且位于**扩展波起点之前**(R61n末位+wave尾增)。"""
+    c4 = ["压起身·即", "压起身·延迟", "压起身·空", "压起身·穿"]
+    idx = [names.index(n) for n in c4 if n in names]
+    if len(idx) != 4 or idx != sorted(idx):
+        return False
+    return len(names) >= floor and idx[-1] < len(names) - 13  # 扩展区≥13宏
+
+chk(_MM.N_MACROS_MARISA >= 76
+    and "原子·确认5A" in [m[0] for m in _MM.MACROS_MARISA]
+    and _c4_before_wave([m[0] for m in _MM.MACROS_MARISA], 76),
+    "marisa四原子在位+C4压起身位于扩展波前(R34+R61n底数76; 尾增合法)")
 # R35(六大差距方案实施)
 import macros as _MR
 import macros.suika as _MS2
-chk(_MR.N_MACROS == 70
-    and [m[0] for m in _MR.MACROS][-4:] ==
-    ["压起身·即", "压起身·延迟", "压起身·空", "压起身·穿"]
-    and "原子·确认5A" in [m[0] for m in _MR.MACROS],
-    "reimu四原子在位+C4压起身末位(R35+R61n: 63+7=70)")
-chk(_MS2.N_MACROS_SUIKA == 77
-    and [m[0] for m in _MS2.MACROS_SUIKA][-4:] ==
-    ["压起身·即", "压起身·延迟", "压起身·空", "压起身·穿"]
-    and "原子·确认5A" in [m[0] for m in _MS2.MACROS_SUIKA],
-    "suika四原子在位+C4压起身末位(R35+R61n: 70+7=77)")
+chk(_MR.N_MACROS >= 70
+    and "原子·确认5A" in [m[0] for m in _MR.MACROS]
+    and _c4_before_wave([m[0] for m in _MR.MACROS], 70),
+    "reimu四原子在位+C4压起身位于扩展波前(R35+R61n底数70; 尾增合法)")
+chk(_MS2.N_MACROS_SUIKA >= 77
+    and "原子·确认5A" in [m[0] for m in _MS2.MACROS_SUIKA]
+    and _c4_before_wave([m[0] for m in _MS2.MACROS_SUIKA], 77),
+    "suika四原子在位+C4压起身位于扩展波前(R61n底数77; 尾增合法)")
 chk(fn_has("train_tm.py", "state_potential", "POT_W"),
     "势函数奖励塑形在位(R35: 状态势差, 消灭刷分) [state_potential体内]")
 chk(fn_has("ppo.py", "update", "_replay_buf"),
@@ -1195,9 +1233,11 @@ chk('s[o] = min(left.get("pose"' in src("feat_builder.py"),
 # R57(第十八轮2.5): 原"action细分//64下段可分"子串断言已删 — 特性是伪的
 # (门控128-256从未命中攻击区; 2A/5A同//64桶), 改行为测试test_guard_height
 chk("LOW_ATTACK_IDS = frozenset((303, 311, 402, 412))" in src("feat_builder.py"),
-    "下段位=显式查表(R57 2.5: 段位是招式语义, 语义源docs/soku_action_ids.md)")
-chk('right["action"] in LOW_ATTACK_IDS' in src("feat_builder.py"),
-    "下段位接线: 对手当前招式查表(R57 2.5)")
+    "下段位=显式查表(R57 2.5: 段位是招式语义; BH-3.2后此表仅作回落 — "
+    "真值=guard_height.json逐角色表)")
+chk('right["action"] in self._low_ids()' in src("feat_builder.py"),
+    "下段位接线: 对手当前招式查表(BH-3.2: 逐角色LOW表经_low_ids, "
+    "原LOW_ATTACK_IDS直引锚已随R141迁self._low_ids)")
 chk("F_VARIANT_IDS = frozenset((301, 311))" in src("feat_builder.py"),
     "f变体位=显式查表(R58 P1-a: 近/远A可分; 权威全集仅f5A/f2A — "
     "改进方案示例集含321=5AAA/331=诹访子专属, 按空表优于错表只取两枚)")
@@ -1435,8 +1475,9 @@ chk(fn_has("train_tm.py", "__init__", "_fleet_logp_rec = None")
     and fn_has("train_tm.py", "_run_episode",
                "if self._fleet_logp_rec is not None:")
     and fn_has("train_tm.py", "_run_episode",
-               "self._fleet_logp_rec(mid, feat, side, mask, nbias)"),
-    "R56红线①: train_tm决策点logP钩子(守卫+调用接线) [__init__+_run_episode体内]")
+               "self._fleet_logp_rec(mid, feat, side, mask, nbias,"),
+    "R56红线①: train_tm决策点logP钩子(守卫+调用接线; P1-5加mix_p尾参)"
+    " [__init__+_run_episode体内]")
 chk(fn_has("actor_worker.py", "run_actor",
            "tr._fleet_logp_rec = rec_logp"),
     "R56红线①: actor记录logP(a)(与采样同temp/mask/bias) [run_actor体内]")
@@ -1653,12 +1694,14 @@ chk(fn_has("ppo_gpu.py", "update", "ret = adv + V_np")
     "R60-F6: ret在归一化前算(critic目标=λ回报, 原z分数+V) [update体内+顺序]")
 chk(fn_has("ppo_gpu.py", "update", "logp_e = F.log_softmax"),
     "R60-F7: 专家行logp_old=当前策略(原硬0→KL虚高钉LR下限) [update体内]")
-chk(fn_has("train_tm.py", "_run_episode",
+chk(fn_has("train_tm.py", "near_gate",
            "mask = mask & ~self.near_idx")
+    and fn_has("train_tm.py", "_run_episode",
+               "self.near_gate(mask, dx_abs)")
     and fn_has("side_driver.py", "decide",
                "mask = mask & ~self.near_idx"),
     "R60-F9: 330门只禁近战子集(原全攻击禁=远程立回不可学) "
-    "[_run_episode+decide体内]")
+    "[near_gate体内+_run_episode接线+decide体内(2026-10-14抽取)]")
 chk(fn_has("train_tm.py", "_submit_update",
            "self._last_ret = float(np.sum(rews))"),
     "R60-F10: 回报-胜率看门狗喂活(原_last_ret从未赋值=死仪表) [_submit_update体内]")
@@ -1666,8 +1709,8 @@ chk(fn_has("train_tm.py", "_submit_update", "stored_logp=LOGPS")
     and fn_has("ppo.py", "update", "logp_old[:N0] = _sl"),
     "R60-F11: 行为策略logP入ratio(探针/bias/价值引导的实际分布) "
     "[_submit_update+update体内]")
-chk(fn_has("train_tm.py", "_run_episode", "elif dx_abs < 150"),
-    "R60-F9: 150贴身禁弹幕不变 [_run_episode体内]")
+chk(fn_has("train_tm.py", "near_gate", "elif dx_abs < 150"),
+    "R60-F9: 150贴身禁弹幕不变 [near_gate体内(2026-10-14抽取自_run_episode)]")
 
 # ---- R61e(F3尾巴快杀+B6, 2026-10-05) ----
 chk(fn_has("train_tm.py", "__init__", '_c0 == "COM":')
@@ -1751,6 +1794,67 @@ _BEHAVIOR_TESTS = [
     ("test_threat.py", "P0-K: 全零速弹表→(None,0) + TTI语义"),
     ("test_opp_model.py", "P0-L: 9情境可达 + 6段占据无混叠"),
     ("test_feat_segments.py", "R16§3: 每特征段≥1非常数维"),
+    # P2对账补(2026-10-14晚审计): 21个测试跨批积累未注册白名单 —
+    # gru等价(复制漂移无闸)/macros_branch/bc四件/S系/JZ系全部只在
+    # 手跑时绿, 门禁从不执行(与macros_branch漏注册FILES同类: 新件
+    # 落地不带注册)。全量入账, 慢测试留给显式裁剪而非静默缺席。
+    ("test_opp_gru_s4.py",
+     "S-4预备: gru_cell与torch逐位等价(1.5e-07)+slice/replay确定性"
+     " — 双实现复制漂移的唯一闸门(P2-3)"),
+    ("test_gpu_equiv.py",
+     "R54: ppo_gpu↔ppo numpy数值等价(1e-4)+save/load往返"),
+    ("test_r17_ppo.py",
+     "R17: 对手子网辅助梯度有限差分+回环"),
+    ("test_macros_branch.py",
+     "R4: 12宏branch四路升级(名/前缀不变/路由步归一)72项"),
+    ("test_bc_match_v3.py",
+     "A1-3③: v3匹配器掩码位/变长截断/镜像/SC词汇"),
+    ("test_bc_align_r38.py",
+     "R38: 对齐滞后映射/复检拒收"),
+    ("test_bc_io.py",
+     "P1: trio mmap读写/内容哈希/fleet_running fail-closed"),
+    ("test_bc_roundtrip_audit.py",
+     "审计#3: BC构建-消费往返一致性20项"),
+    ("test_guard_refine_1e.py",
+     "裁定一1e: 后退/立防按对手攻击态上下文区分"),
+    ("test_danger_reveal_w2.py",
+     "W2: 反事实危险显影卡(必败检出/退化作废/可复现)"),
+    ("test_near_gate_f9.py",
+     "R60-F9: 330门近战子集(远程弹幕放行)"),
+    ("test_my_punish_s1.py",
+     "S-1: MyPunishTracker类别EMA/PUNISHED语义/跨局携带"),
+    ("test_style_embed_s7a.py",
+     "S-7A: 16维风格嵌入(PCA投影/漂移/资源差分/卡组暴露)"),
+    ("test_style_lingo_s7c.py",
+     "S-7C: describe_style五轴短语+style_advice"),
+    ("test_style_dim340_wiring.py",
+     "P2: 维340/341接线(有语料非零/无语料归零/损坏首错响亮)"),
+    ("test_frame_adv_jz2.py",
+     "JZ-2: 攻击等级表驱动帧差(萃香锚+四算例+COUNTER升档)"),
+    ("test_frame_events_lineB.py",
+     "线B: OPP_GUARD/COMBO_DROP事件+掩码"),
+    ("test_frame_events_jz3.py",
+     "JZ-3.1: 正防/错防拆分+错防escape掩蔽(DD/铜钱/灵反)"),
+    ("test_throw_gate_jz3.py",
+     "JZ-3.2: 投技无敌窗四类+掩码门+三库throw集接线"),
+    ("test_opp_jump_jz33.py",
+     "JZ-3.3: E_OPP_JUMP边沿/窗21/对空反应掩码(无投技混入)"),
+    ("test_jz1_prep.py",
+     "JZ-1预制: 冷却分类/技能摘要/破珠/15维填充(未接线件随窗升级)"),
+    ("test_decision_reset_p0.py",
+     "P0(从零#4): note_decision不清局级状态(技能/B段/动量跨决策存活"
+     "+reset_match才清+维230动态探针)"),
+    ("test_value_curve_p1.py",
+     "P1-8(从零#4): W4价值曲线reshape(-1,3,60,80)/255(2D直喂conv"
+     "恒死回归)+汇总行"),
+    ("test_decname_whiff_p1.py",
+     "P1-4(从零#4): 门截断/confirm超时保dec_name(空挥可结算), 受击"
+     "/R34中止仍豁免"),
+    ("test_probe_logp_p1.py",
+     "P1-5(从零#4): 探针/VG混合行为边际logp(红线①债清偿)"),
+    ("test_wave_ext.py",
+     "CH-3/JZ-4: 宏库扩展波(蓄力36F/系统卡sc接线/DD镜像/HJC组合"
+     "/尾附索引稳定)"),
     ("test_meta_roundtrip.py", "P0-I: meta 6字段save/load往返"),
     ("test_side_driver_semantics.py",
      "R17§3.1: eval温度跟随/sc+门步执行/决策计数(行为化替代文本断言)"),
@@ -1879,6 +1983,35 @@ _BEHAVIOR_TESTS = [
     # A1-1(未决方案§A): 被动性仪表
     ("test_passivity_a11.py",
      "A1-1: adx列feat_builder标定(符号消歧)/远弹份额分母/逼近率/开局攻击率/汇总行"),
+    # CE-1(R131): 宏层punish画像
+    ("test_my_punish_ce1.py",
+     "CE-1: 宏层punish画像(双层独立/分层回退/慢EMA/快照过滤)"),
+    # CE-4(R133): 前向头双实现
+    ("test_forward_head.py",
+     "CE-4: 一步位置前向头(形状/零初始化/梯度数值一致/目标提取/收敛)"),
+    ("test_gpu_fwdhead_ce4.py",
+     "CE-4: 前向头numpy/GPU等价+save/load往返(双实现纪律)"),
+    # CE-7(R135): 推板进度势(连续角项+门控)
+    ("test_ce7_pot.py",
+     "CE-7: 门控默认关/on-off差值隔离/own对称/telescoping/量级2-3倍标定"),
+    # CE-3.4(R136): 位置路由门
+    ("test_pos_gate_ce34.py",
+     "CE-3.4: pos_gate路由(贴角/版中两态同宏不同续段/外推/回落/P1-4保留名)"),
+    # CE-5(R139): 反事实探针手术
+    ("test_cf_probe_ce5.py",
+     "CE-5: S'手术(仅改距离位逐位保真/方向规范/饱和守卫/射程块同式/入角路由)"),
+    # BH-4.2(R140): untech语义门
+    ("test_untech_gate_bh42.py",
+     "BH-4.2: untech动作门(残留读数滤除/真受击透传/事件边沿/combo链/comboDamage入档)"),
+    # BH-3.2(R141): 守备段位逐角色表
+    ("test_guard_bh32.py",
+     "BH-3.2: 逐角色LOW表(2B/2C虚报修正/3A分化/j2分化/空集真值/回落兼容)"),
+    # BH-1(R142): 行为健康计数器
+    ("test_behavior_health_bh1.py",
+     "BH-1: 续打率/连段完成率/对位分解/宏转移/承诺占比记账+旁车往返"),
+    # BH-4.3(R143): 对位连段先验表
+    ("test_matchup_prior_bh43.py",
+     "BH-4.3: 对位先验表(引文出处/昵称解码/角色宏名合法/未确认显式/消费设计)"),
     # 系列预测方案阶段0(R67): 系列位置分桶测量仪表
     ("test_series_meter_s0.py",
      "S0: 胜负解码(回合结算块)/系列位置/分桶/aux评分真前向50%构造/曲线行四桶"),
@@ -1940,9 +2073,11 @@ chk(not _bad,
     str(sorted(set(_bad))[:6]))
 
 _fs_src = src("fleet_supervisor.py")
-chk(_fs_src.count("write_heartbeat()") >= 3
+chk(_fs_src.count("write_heartbeat()") >= 1
+    and _fs_src.count("write_heartbeat(") >= 4
     and "冷却期照写心跳" in _fs_src,
-    "P2: 重启冷却期心跳(防假离线账) [启动+冷却+周期三处调用]")
+    "P2: 重启冷却期心跳(防假离线账) [冷却裸调 + 周期/耗尽带alert参数化"
+    "(P0-2), def+3调用=4处 — 原chk把def签名误计入裸调数, 已按实账修]")
 chk("_lf.close()" in src("fleet_supervisor.py"),
     "P2: actor日志fd显式关闭(防句柄泄漏)")
 chk("'actor_worker|learner_hub|exploiter'" in src("fleet_supervisor.py"),

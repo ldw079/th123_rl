@@ -1,0 +1,44 @@
+{
+ "ts": "2026-10-15 17:09:09",
+ "char": "marisa",
+ "headless": false,
+ "frames": 16532,
+ "matches": [
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ]
+ ],
+ "human_wins": 5,
+ "model_wins": 0,
+ "hp0": [
+  10000,
+  10000
+ ],
+ "new_reps": [
+  "D:\\temp\\th123_models\\human_reps\\20261015_170909_26-10-15_17-03-32>_player_anon2(爱丽丝)_RL-AI(魔理沙)_(2︰0_负).rep",
+  "D:\\temp\\th123_models\\human_reps\\20261015_170909_26-10-15_17-05-00>_player_anon2(爱丽丝)_RL-AI(魔理沙)_(2︰0_负).rep",
+  "D:\\temp\\th123_models\\human_reps\\20261015_170909_26-10-15_17-06-10>_player_anon2(爱丽丝)_RL-AI(魔理沙)_(2︰0_负).rep",
+  "D:\\temp\\th123_models\\human_reps\\20261015_170909_26-10-15_17-07-34>_player_anon2(爱丽丝)_RL-AI(魔理沙)_(2︰0_负).rep",
+  "D:\\temp\\th123_models\\human_reps\\20261015_170909_26-10-15_17-09-06>_player_anon2(爱丽丝)_RL-AI(魔理沙)_(2︰0_负).rep"
+ ],
+ "exe_md5": "DF35D1FBC7B583317ADABE8CD9F53B2E",
+ "delay_frames": 5,
+ "protocol": "RPM观察+内存写inKeys(v2)"
+}

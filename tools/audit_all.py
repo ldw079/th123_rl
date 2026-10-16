@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 """审计功能集合(用户2026-10-07指令: 定时审计已关, 功能归本脚本手动调用)。
 
-一个脚本跑完历次周期诊断的全部内容:
-  1. 训练健康(th123/python进程数)
-  2. 三角色策略树审计(红线)
-  3. learner/actor日志尾读(批更新/奖励成分/matchup/异常)
-  4. COM难度阶梯读数
-  5. 异常标记(红线增加/防御收入0/进程死/木桩警报残留)
+开头跑综合仪表板(status_dashboard), 后接深度审计段:
+  A. 综合仪表板(一屏全貌: 舰队/角色/特征/GRU/行为/数据层)
+  1. 策略树审计(红线)
+  2. 日志尾读(批更新/奖励/matchup/异常)
+  3. COM难度阶梯
+  4. fleet附录(episodes/快照/宏计数)
+  5. 特征活性巡检(oracle重放)
 
-用法: python tools/audit_all.py [--chars reimu,marisa,suika]
+用法: python tools/audit_all.py [--chars reimu,marisa,suika] [--quick]
+  --quick  跳过耗时项(活性巡检/策略树)
 """
 from __future__ import annotations
 
@@ -36,8 +38,17 @@ def sec(t):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--chars', default='reimu,marisa,suika')
+    ap.add_argument('--quick', action='store_true',
+                    help='跳过耗时项')
     args = ap.parse_args()
     chars = args.chars.split(',')
+
+    # A. 综合仪表板(一屏全貌)
+    sec('A 综合仪表板')
+    r = subprocess.run(
+        [PY, '-X', 'utf8', os.path.join(HERE, 'status_dashboard.py')]
+        + (['--quick'] if args.quick else []),
+        cwd=ROOT)
 
     # 1. 训练健康
     sec('1 训练健康')
@@ -116,6 +127,20 @@ def main():
         vf = r'D:\temp\th123_models\fleet\snap_%s\version' % ch
         if os.path.exists(vf):
             print('  %s 快照v%s' % (ch, open(vf).read().strip()))
+
+    # 6. 特征活性巡检(P2防复发级, 从零#4建议#5 — ~1.5min/角色;
+    #    应活段恒死=exit 1在此显红)
+    sec('6 特征活性巡检(oracle重放)')
+    r = subprocess.run([PY, '-X', 'utf8',
+                        os.path.join(HERE, 'feature_liveness.py'),
+                        '--shards', '6', '--char', '0'],
+                       capture_output=True, cwd=ROOT)
+    out = r.stdout.decode('utf-8', errors='replace')
+    for ln in out.splitlines():
+        if 'ALERT' in ln or '巡检' in ln:
+            print(' ', ln.strip())
+    if r.returncode != 0:
+        print('  !! 巡检红 — 应活段恒死(P0-1类), 见上')
 
     print('\n(基线红线可在本文件RED_BASE更新; 历次周期诊断内容已全集于本脚本)')
 

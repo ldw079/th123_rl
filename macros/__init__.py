@@ -184,7 +184,14 @@ _RAW = list(MACROS)
 MACROS = [(n, _norm_presteps(sc)) for n, sc in _RAW]
 # D13配套: 精确受影响集合导出(重播种工具消费, 替代宽口径)
 NORMALIZED_AFFECTED = {n for (n, s0), (_, s1) in zip(_RAW, MACROS)
-                      if s0 != s1}
+                       if s0 != s1}
+
+# 分支门启用·线A(2026-10-14, plans/branch_gate_activation): 12门宏
+# confirm二值→branch四路 — 同名同前缀(训练面/BC前缀兼容零变化);
+# 路由步骤经_norm_presteps规范化(执行器直插队列不走主管线)
+from macros_branch import upgrade_branches   # noqa: E402
+MACROS = upgrade_branches(MACROS, norm=_norm_presteps)
+
 
 MELEE_MACROS = {"5A", "2A", "6A", "623B", "空连A", "5A确认", "2A确认"}  # 近身判定类(远距空放受罚; 空连另需敌空中)
 BULLET_MACROS = {"5B", "6B", "2B", "5C", "6C", "jB", "236B", "236C"}   # 弹幕类(贴身空放受罚: 无近身判定)
@@ -196,6 +203,7 @@ AIR_MACROS = {"jA", "j6A", "j8A", "j2A", "j2B", "jC"}          # 空压武器包
 COMBO_MACROS = {"连段A", "连段B", "连段C", "版边连A", "TM·2a连", "TM·4a连", "原子·确认5A", "原子·地面链", "原子·空链", "原子·收尾"}          # 民工连(命中后整套输出; 版边连另需敌在角)
 STRING_MACROS = {"压制A", "压制B"}                             # 压制链(推板/伪压, 接触确认)
 SC_MACROS = {"卡·鬼神玉", "卡·妙珠", "卡·灵击札", "卡·药水", "卡·当前"}   # 符卡使用类
+
 ATTACK_MACROS_ALL = (MELEE_MACROS | BULLET_MACROS | SKILL_MACROS
                      | AIR_MACROS | COMBO_MACROS | STRING_MACROS)   # 全部攻击类(贴身滞留罚豁免用)
 
@@ -203,7 +211,10 @@ ATTACK_MACROS_ALL = (MELEE_MACROS | BULLET_MACROS | SKILL_MACROS
 # R39(第十轮§4-6): 补204/206/207/214(原缺→默认费1高估可用性, 游戏内使用
 # 失败→重试作废) — 耗费值取card_tables(解包CSV), 与既有6项全部吻合
 SC_COST = {0: 1, 1: 1, 200: 2, 201: 5, 204: 2, 206: 4, 207: 3,
-           208: 1, 209: 2, 210: 4, 214: 3, 219: 5}
+           208: 1, 209: 2, 210: 4, 214: 3, 219: 5,
+           # JZ-4系统卡(2026-10-14晚): 2怀表/3白楼剑/4人偶/12铜钱/
+           # 14绯想剑 — 系统卡均耗1张(card_tables口径)
+           2: 1, 3: 1, 4: 1, 12: 1, 14: 1}
 
 
 def sc_consumption(card_id):
@@ -315,5 +326,17 @@ COMBO_MACROS |= {'择·中段', '择·下段', '择·投', '压起身·即', '�
 MACRO_NAMES = [m[0] for m in MACROS]
 # R61n: 追加宏的规范化(预置帧≥5 — hitlab标定阈值)
 MACROS[-7:] = [(n, _norm_presteps(sc)) for n, sc in MACROS[-7:]]
+# CH-3/JZ-4扩展波(2026-10-14晚): 蓄力/系统卡/DD变体/HJC取消 —
+# **真末位追加**(择/压起身之后 — R23契约; 首版插在upgrade后致择/压起身
+# 被顶移+18索引, 模型迁移错挂+BC标签错位, 深夜修复)
+from macros.wave_ext import wave_extensions, wave_registrations  # noqa: E402
+_WAVE = wave_extensions(MACROS, 'reimu')
+MACROS = MACROS + _WAVE
+# CH-3/JZ-4扩展波集合注册(2026-10-14晚)
+_WB, _WS, _WD = wave_registrations(_WAVE)
+BULLET_MACROS |= _WB
+SC_MACROS |= _WS
+DASH_MACROS |= _WD
+
 MACRO_NAMES = [m[0] for m in MACROS]
 N_MACROS = len(MACROS)

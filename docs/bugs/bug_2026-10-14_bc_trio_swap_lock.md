@@ -23,4 +23,10 @@
   把集合原子性升级为代际契约; ③runbook 补"换装前置=停机"步骤。
   验证: 模拟持锁进程跑 swap 断言拒载; 断在一半的 trio 断言 loader 拒。
 - **防复发**: bc_io 行为测试补"锁冲突拒载/混代际拒载"两用例。
-- **状态**: 未修(在途)。
+- **状态**: 已修(2026-10-14, 同日闭环)。①swap入口fleet_running()硬门禁
+  (进程扫描, 探测失败fail-closed; 活舰队实测exit=2拒绝对); ②npz_to_trio
+  meta.json最后写+三数组内容哈希(分块计算不整块驻内存), load_bank
+  verify_trio校验(缺meta/哈希不符/行数不符→RuntimeError响亮拒载,
+  不静默回落; verify=False仅诊断通道); ③HANDOVER runbook补"换装
+  前置=停机"。测试: test_bc_io 18/18(缺meta拒载+混代际哈希拒载两
+  复现用例); 门禁600/0/0。

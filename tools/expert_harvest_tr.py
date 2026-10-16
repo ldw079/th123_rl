@@ -45,8 +45,8 @@ def _md5(path):
 
 
 def scan(kind='both'):
-    """walk TR集合 → [('both'|'ours', path, rel)]. both=双侧现役;
-    ours=高手侧现役(对手任意)."""
+    """walk TR集合 → [('both'|'ours', path, rel, (cx, cy))]. both=双侧现役;
+    ours=高手侧现役(对手任意)。BH-4.2: 返回值加(char_x, char_y)供对位分组。"""
     out = []
     for dirpath, _dirs, files in os.walk(SRC_ROOT):
         for fn in sorted(files):
@@ -67,11 +67,59 @@ def scan(kind='both'):
             ours = (cx in OURS or cy in OURS)
             if kind == 'both':
                 if both:
-                    out.append(('both', p, os.path.relpath(p, SRC_ROOT)))
+                    out.append(('both', p, os.path.relpath(p, SRC_ROOT),
+                                (cx, cy)))
             elif kind == 'ours':
                 if ours and not both:
-                    out.append(('ours', p, os.path.relpath(p, SRC_ROOT)))
+                    out.append(('ours', p, os.path.relpath(p, SRC_ROOT),
+                                (cx, cy)))
     return out
+
+
+def select_per_pair(todo, per_pair, man):
+    """BH-4.2对位扩采选片: (主力, 对手)对分组, 每对取per_pair个,
+    对间交错(round-robin — 前几个小时即覆盖全部对, 长任务友好);
+    manifest里已采的pair计数抵扣(断点续采)。"""
+    done_pair = {}
+    if os.path.exists(man):
+        for ln in open(man, encoding='utf-8'):
+            try:
+                m = json.loads(ln)
+                pr = m.get('pair')
+                if pr and m.get('ilog'):
+                    done_pair[tuple(pr)] = done_pair.get(tuple(pr), 0) + 1
+            except ValueError:
+                continue
+    groups = {}
+    for kind, p, rel, (cx, cy) in todo:
+        if cx in OURS and 2 <= cy <= 19:
+            key = (cx, cy)
+        elif cy in OURS and 2 <= cx <= 19:
+            key = (cy, cx)
+        else:
+            continue
+        groups.setdefault(key, []).append((kind, p, rel))
+    sel = []
+    keys = sorted(groups)
+    idx = {k: 0 for k in keys}
+    # 对按"缺口"排序(缺口大的先 — 断点续采时补短板)
+    keys.sort(key=lambda k: (done_pair.get(k, 0) >= per_pair,
+                             done_pair.get(k, 0)))
+    while True:
+        progressed = False
+        for k in keys:
+            if done_pair.get(k, 0) + sum(1 for x in sel if x[0] == k) \
+                    >= per_pair:
+                continue
+            lst = groups[k]
+            if idx[k] < len(lst):
+                item = lst[idx[k]]
+                sel.append((k, item[0], item[1], item[2]))
+                idx[k] += 1
+                progressed = True
+        if not progressed:
+            break
+    return sel
 
 
 def _done_md5s(man):
@@ -100,6 +148,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--limit', type=int, default=0, help='0=不限')
     ap.add_argument('--kind', choices=['both', 'ours'], default='both')
+    ap.add_argument('--per-pair', type=int, default=0,
+                    help='>0=Bh-4.2对位扩采: 每主力×17对手各采N个'
+                         '(kind强制ours, 对间交错, 断点续采)')
     args = ap.parse_args()
 
     from soku_arch.rep_file import parse_rep_file
@@ -107,13 +158,15 @@ def main():
     os.makedirs(shards_dir, exist_ok=True)
     man = os.path.join(OUT, 'manifest.jsonl')
 
-    print('[TR] 扫描源(%s)...' % args.kind)
-    todo_all = scan(args.kind)
+    pair_mode = args.per_pair > 0
+    kind = 'ours' if pair_mode else args.kind
+    print('[TR] 扫描源(%s)...' % kind)
+    todo_all = scan(kind)
     print('[TR] 候选 %d 个 — 计算去重集(旧库1521个md5)...' % len(todo_all))
     done = _done_md5s(man)
     todo = []
     seen = set()
-    for kind, p, rel in todo_all:
+    for kind_, p, rel, _ids in todo_all:
         try:
             h = _md5(p)
         except OSError:
@@ -121,11 +174,24 @@ def main():
         if h in done or h in seen:
             continue
         seen.add(h)
-        todo.append((kind, p, rel, h))
+        todo.append((kind_, p, rel, _ids, h))
         if args.limit and len(todo) >= args.limit:
             break
-    print('[TR] 去重后待采 %d 个%s' % (
-        len(todo), '(limit=%d)' % args.limit if args.limit else ''))
+    if pair_mode:
+        pre = len(todo)
+        sel = select_per_pair(
+            [(k, p, r, ids) for k, p, r, ids, _h in todo],
+            args.per_pair, man)
+        md5_of = {p_: h for _k, p_, _r, _ids, h in todo}
+        # sel项=(pair_key, kind, path, rel) → 主循环5元组(ids=pair)
+        todo = [(kind, p, r, list(pk), md5_of[p])
+                for pk, kind, p, r in sel]
+        print('[BH-4.2] 对位选片: 去重候选%d → 选中%d '
+              '(每对%d × 3主力 × 17对手)' % (pre, len(todo), args.per_pair))
+    else:
+        todo = [(k, p, r, ids, h) for k, p, r, ids, h in todo]
+        print('[TR] 去重后待采 %d 个%s' % (
+            len(todo), '(limit=%d)' % args.limit if args.limit else ''))
 
     # mod切换(oracle观测集) + 用后逐字节恢复
     orig = None
@@ -139,7 +205,7 @@ def main():
     t0 = time.time()
     ok_n = bad_n = 0
     try:
-        for i, (kind, path, rel, h) in enumerate(todo):
+        for i, (kind, path, rel, ids, h) in enumerate(todo):
             shard = 'tr%05d_%s.npz' % (i, h[:8])
             ilog_tmp = os.path.join(shards_dir, shard + '.ilog.tmp')
             try:
@@ -164,6 +230,7 @@ def main():
             meta = {'rep': os.path.basename(path), 'src': 'TR精选',
                     'kind': kind, 'folder': rel.split(os.sep)[0:2][-1],
                     'md5': h, 'char_x': rep.char_x, 'char_y': rep.char_y,
+                    'pair': list(ids) if pair_mode else None,
                     'pal_x': rep.pal_x, 'pal_y': rep.pal_y,
                     'deck_x': list(rep.deck_x), 'deck_y': list(rep.deck_y),
                     'seed': rep.seed, 'n_inputs': rep.n_frames,

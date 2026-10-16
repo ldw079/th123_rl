@@ -72,6 +72,20 @@ def main():
     # 2+F-7: KL sane(原bug实测0.62; 修后远小于0.5)
     check("F7带BC锚KL sane", max(kls) < 0.5, "kl=%s" % kls)
 
+    # F-7强化(2026-10-14变异漏网补): 专家行占比高的批 — 稀释不再
+    # 掩盖logp_e语义错误(softmax冒充log_softmax时专家行|Δ|≈2.2,
+    # 200/240占比 → kl≈1.8必红; 正确logp_e时kl=更新漂移, 远小于0.5)
+    b3 = synth(40, rng)
+    bc3 = (rng.integers(0, 255, (200, 14400)).astype(np.uint8),
+           rng.standard_normal((200, n_side)).astype(np.float32),
+           rng.integers(0, n_out, 200).astype(np.int64))
+    st3 = gpu.update(
+        b3["feats"], b3["acts"], b3["rews"], b3["sides"], [40],
+        masks=b3["masks"], bc_targets=b3["acts"], temp=1.0,
+        bc_extra=bc3, opp_next=rng.integers(0, 8, 40).astype(np.int64))
+    check("F7专家重载KL sane", st3.get("kl", 0) < 0.5,
+          "kl=%.3f" % st3.get("kl", 0))
+
     # 3+F-6: numpy对照同批也不崩(行为基准一致; numpy版BC分支要求
     # bc_mask非None — 生产路径_submit_update恒传, 此处同参)
     st_np = nptr.update(
@@ -96,7 +110,7 @@ def main():
             b1["feats"][:32].reshape(-1, 3, CONV_H, CONV_W)
             .astype(np.float32) / 255.0).to("cpu")
         S = torch.from_numpy(b1["sides"][:32]).to("cpu")
-        _, V, _ = gpu.net(X, S, 1.0, None)
+        _, V, _, _ = gpu.net(X, S, 1.0, None)
     check("F6 critic输出有限非常数",
           bool(torch.isfinite(V).all()) and float(V.std()) > 1e-4,
           "V.std=%.4f" % float(V.std()))

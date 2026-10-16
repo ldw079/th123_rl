@@ -46,6 +46,9 @@ OPP_CORE_OFF = 152
 OPP_H1, OPP_H2 = 32, 16
 AUX_H = 32
 N_OPP_CLS = 8
+# S-4阶段2a: GRU形状常量(opp_gru同源)
+OPP_GRU_IN = 87
+OPP_GRU_H = 24
 
 # numpy版save的键名(必须逐字一致)
 _PI_KEYS = ['W1', 'b1', 'W2', 'b2', 'W_side', 'Ws1', 'bs1', 'Ws2', 'bs2',
@@ -121,9 +124,30 @@ if HAS_TORCH:
             self.bq1 = nn.Parameter(torch.zeros(AUX_H))
             self.Wq2 = nn.Linear(AUX_H, N_OPP_CLS, bias=False)
             self.bq2 = nn.Parameter(torch.zeros(N_OPP_CLS))
+            # S-4阶段2a(2026-10-15): GRU表征头 — 参数=OppGRU容器映射
+            # (gru_cell冻结: 输入为learner确定性重放的detached repr16;
+            # 只训练W_gru; 阶段2b解冻GRU做全BPTT)
+            self.gru_cell = nn.GRUCell(OPP_GRU_IN, OPP_GRU_H, bias=True)
+            self.gru_W_proj = nn.Linear(OPP_GRU_H, 16, bias=False)
+            self.W_gru = nn.Linear(16, n_out, bias=False)
+            with torch.no_grad():
+                self.W_gru.weight.zero_()   # 零初始化=位等价
 
-        def forward(self, X, S, temp=1.0, mask=None):
-            """X:(B,3,60,80) S:(B,n_side) → logits, value, opp_pred。"""
+            # CE-4(2026-10-15): 一步位置前向头 — trunk+side→隐32→4维
+            # (adx'/own_corner'/opp_corner'/air'); MSE辅助损失λ=0.05
+            _fin = TRUNK_FLAT + n_side
+            self.Wf1 = nn.Linear(_fin, 32, bias=False)
+            self.bf1 = nn.Parameter(torch.zeros(32))
+            self.Wf2 = nn.Linear(32, 4, bias=False)
+            self.bf2 = nn.Parameter(torch.zeros(4))
+            with torch.no_grad():
+                nn.init.normal_(self.Wf1.weight, std=1.0 / (_fin ** 0.5))
+                nn.init.normal_(self.Wf2.weight,
+                                std=0.01 / (32 ** 0.5))  # 小初始化
+
+        def forward(self, X, S, temp=1.0, mask=None, gru_reprs=None):
+            """X:(B,3,60,80) S:(B,n_side) → logits, value, opp_pred。
+            gru_reprs: (B,16) S-4阶段2a — learner按局重放的detached表征。"""
             B = X.shape[0]
             t = self.trunk(X)
             h = F.relu(self.W1(t) + self.b1)
@@ -135,6 +159,9 @@ if HAS_TORCH:
             oh = F.relu(self.Wo2(F.relu(self.Wo1(So) + self.bo1))
                         + self.bo2)
             z = z + self.W_opp(oh)
+            if gru_reprs is not None:
+                # S-4阶段2a: GRU表征→logits(封顶前, 与numpy同位)
+                z = z + self.W_gru(gru_reprs)
             # logit封顶(与numpy一致)
             zmax = z.abs().max(dim=1, keepdim=True).values
             z = z / torch.clamp(zmax / 8.0, min=1.0)
@@ -149,7 +176,11 @@ if HAS_TORCH:
             # 预测头
             q_in = torch.cat([t, oh], dim=1)
             q = self.Wq2(F.relu(self.Wq1(q_in) + self.bq1)) + self.bq2
-            return logits, v.squeeze(-1), q
+            # CE-4: 一步位置前向头(独立计算, 不影响主策略路径)
+            fwd_in = torch.cat([t, S], dim=1)
+            fwd_h = F.relu(self.Wf1(fwd_in) + self.bf1)
+            fwd_pred = self.Wf2(fwd_h) + self.bf2
+            return logits, v.squeeze(-1), q, fwd_pred
 
 
     class PPOTrainerGPU:
@@ -196,8 +227,11 @@ if HAS_TORCH:
             self._adaptive_lr_scale = 1.0
             self._replay_buf = None
 
-        def sample(self, feat, side, temp=None, mask=None, bias=None):
-            """单样本采样(与numpy版接口兼容, 返回宏ID)。"""
+        def sample(self, feat, side, temp=None, mask=None, bias=None,
+                   return_pred=False):
+            """单样本采样(与numpy版接口兼容, 返回宏ID)。
+            return_pred=True(S-3, P2从零#4补): 附带(top1宏idx, top1概率)
+            — numpy版同契约, 原缺失=GPU路径调用方传参即TypeError(潜伏)。"""
             t = temp if temp is not None else self._temp
             X = torch.from_numpy(
                 feat.reshape(1, 3, CONV_H, CONV_W).astype(np.float32)
@@ -210,7 +244,7 @@ if HAS_TORCH:
                 b = torch.from_numpy(
                     bias.reshape(1, -1).astype(np.float32)).to(DEVICE)
                 with torch.no_grad():
-                    logits, _, _ = self.net(X, S, t, m)
+                    logits, _, _, _ = self.net(X, S, t, m)
                     # R61f(F3): bias/temp对齐numpy语义(ppo.py:514-516的
                     # softmax((Z+bias)/temp)=Z/temp+bias/temp; 原加在
                     # /temp后差×T系数, 探索强度随温度漂移)
@@ -218,9 +252,13 @@ if HAS_TORCH:
                     probs = F.softmax(logits, dim=1).cpu().numpy()[0]
             else:
                 with torch.no_grad():
-                    logits, _, _ = self.net(X, S, t, m)
+                    logits, _, _, _ = self.net(X, S, t, m)
                     probs = F.softmax(logits, dim=1).cpu().numpy()[0]
-            return int(self.rng.choice(len(probs), p=probs))
+            a = int(self.rng.choice(len(probs), p=probs))
+            if return_pred:
+                top1 = int(np.argmax(probs))
+                return a, (top1, float(probs[top1]))
+            return a
 
         def update(self, feats, acts, rewards, sides, ep_lens,
                    ep_terms=None, ep_first=None, bc_targets=None,
@@ -267,9 +305,13 @@ if HAS_TORCH:
             A_cpu = np.asarray(acts).astype(np.int64)
             M_cpu = np.asarray(masks).astype(bool) \
                 if masks is not None else None
+            # S-4阶段2a: 按局重放的detached GRU表征(detach — 只训W_gru)
+            gru_reprs = kw.get('gru_reprs')
+            G = (torch.from_numpy(np.asarray(gru_reprs, dtype=np.float32))
+                 .to(DEVICE) if gru_reprs is not None else None)
 
             with torch.no_grad():
-                logits, V, _ = self.net(X, S, temp, Mt)
+                logits, V, _, _ = self.net(X, S, temp, Mt, gru_reprs=G)
                 logp = F.log_softmax(logits, dim=1)
                 # R56(fleet红线①): 采样时记录的logp优先 — ratio=π_new/
                 # π_snapshot为真重要性比(陈旧快照经clip正确处理); 无记录
@@ -310,6 +352,10 @@ if HAS_TORCH:
                     _rows[1]).float().to(DEVICE)])
                 A = torch.cat([A, torch.from_numpy(
                     _rows[2]).long().to(DEVICE)])
+                if G is not None:
+                    # S-4: 回放行补零GRU表征(跨批无当前序列上下文)
+                    G = torch.cat([G, torch.zeros(
+                        _rp_n, 16, device=DEVICE)])
                 if Mt is not None:
                     Mt = torch.cat([Mt, torch.from_numpy(
                         _rows[6]).to(DEVICE)])
@@ -345,7 +391,7 @@ if HAS_TORCH:
                 # 原硬0.0 → KL检查|0-logp_new|对低概率专家动作恒读20
                 # → 混BC锚时KL虚高0.6+ → 自适应LR永钉0.3×下限
                 with torch.no_grad():
-                    lo_e, Ve_t, _ = self.net(Xe_t, Se_t, temp,
+                    lo_e, Ve_t, _, _ = self.net(Xe_t, Se_t, temp,
                                              None)
                     logp_e = F.log_softmax(lo_e, dim=1)[
                         torch.arange(len(Ye_t)), Ye_t].cpu().numpy()
@@ -353,6 +399,10 @@ if HAS_TORCH:
                 X = torch.cat([X, Xe_t])
                 S = torch.cat([S, Se_t])
                 A = torch.cat([A, Ye_t])
+                if G is not None:
+                    # S-4: BC锚行补零GRU表征(无序列上下文=中性)
+                    G = torch.cat([G, torch.zeros(
+                        len(Ye_t), 16, device=DEVICE)])
                 if Mt is not None:
                     Mt = torch.cat([Mt,
                                     torch.ones(len(Ye_t), self.n_out,
@@ -409,6 +459,12 @@ if HAS_TORCH:
             aux_hits = 0
             aux_n = 0
             kl_val = 0.0
+            # S-4守卫: G行数须与批N一致(回放/BC拼接后) — 不等则
+            # 降级G=None(W_gru本批不更新), 防IndexError崩训练
+            if G is not None and G.shape[0] != N:
+                print('[GPU] GRU降级: G=%d行≠批N=%d — 本批W_gru不更新'
+                      % (G.shape[0], N))
+                G = None
             for _epoch in range(self.EPOCHS):
                 perm = self.rng.permutation(N)
                 for i0 in range(0, N, self.MINIBATCH):
@@ -423,7 +479,8 @@ if HAS_TORCH:
                     retb = ret_t[idx_t]
                     lpb = lp_old_t[idx_t]
 
-                    logits, V, Q = self.net(xb, sb, temp, mb)
+                    logits, V, Q, _fwd = self.net(xb, sb, temp, mb,
+                                            gru_reprs=G[idx_t] if G is not None else None)
                     logp_new = F.log_softmax(logits, dim=1)
                     logp_act = logp_new[torch.arange(len(idx)), ab]
                     # P2(审计#3): 对齐numpy侧logp差±20钳制(原缺失=
@@ -507,7 +564,7 @@ if HAS_TORCH:
             _kidx = self.rng.choice(N, size=min(500, N), replace=False)
             _kt = torch.from_numpy(_kidx).long().to(DEVICE)
             with torch.no_grad():
-                _lk, _, _ = self.net(X[_kt], S[_kt], temp,
+                _lk, _, _, _ = self.net(X[_kt], S[_kt], temp,
                                      Mt[_kt] if Mt is not None else None)
                 _lpk = F.log_softmax(_lk, dim=1)[
                     torch.arange(len(_kidx)), A[_kt]]
@@ -636,6 +693,22 @@ if HAS_TORCH:
             ]
             pi_out = {}
             v_out = {}
+            # S-4阶段2a: GRU键直卸(GRUCell weight_ih→W_ih等; proj线性
+            # torch(out,in)→numpy需转置 — 与_to_np的.T规则不同路径,
+            # GRUCell的weight_ih_l0本身就是(3H,IN)=numpy同形, 直拷)
+            with torch.no_grad():
+                sd_g = self.net.state_dict()
+                pi_out['gruW_ih'] = sd_g['gru_cell.weight_ih'].cpu().numpy()
+                pi_out['gruW_hh'] = sd_g['gru_cell.weight_hh'].cpu().numpy()
+                pi_out['grub_ih'] = sd_g['gru_cell.bias_ih'].cpu().numpy()
+                pi_out['grub_hh'] = sd_g['gru_cell.bias_hh'].cpu().numpy()
+                pi_out['gruW_proj'] = sd_g['gru_W_proj.weight'].cpu().numpy()  # (16,24)同形直拷
+                pi_out['W_gru'] = sd_g['W_gru.weight'].cpu().numpy().T
+                # CE-4: 前向头(numpy键; Linear权重torch(out,in)→numpy需.T)
+                pi_out['Wf1'] = sd_g['Wf1.weight'].cpu().numpy().T
+                pi_out['bf1'] = sd_g['bf1'].cpu().numpy()
+                pi_out['Wf2'] = sd_g['Wf2.weight'].cpu().numpy().T
+                pi_out['bf2'] = sd_g['bf2'].cpu().numpy()
             _V_KEYS = {'W1v', 'b1v', 'W2v', 'b2v', 'W3v', 'b3v'}
             for tname, nname, in_ch in _CONV_MAP:
                 r = _to_np(tname, nname, in_ch)
@@ -720,6 +793,34 @@ if HAS_TORCH:
                 ('W2v', 'W2v.weight'), ('b2v', 'b2v'),
                 ('W3v', 'W3v'), ('b3v', 'b3v'),
             ]
+            # S-4阶段2a: GRU键(numpy→torch; 旧档缺键=位等价起步)
+            # S-4阶段2a: GRU参数无条件入sd(strict要求全覆盖) —
+            # 缺省=构造初值(W_gru零=位等价), 有键则覆盖
+            with torch.no_grad():
+                _cur = dict(self.net.named_parameters())
+                sd['gru_cell.weight_ih'] = _cur['gru_cell.weight_ih'].data.clone()
+                sd['gru_cell.weight_hh'] = _cur['gru_cell.weight_hh'].data.clone()
+                sd['gru_cell.bias_ih'] = _cur['gru_cell.bias_ih'].data.clone()
+                sd['gru_cell.bias_hh'] = _cur['gru_cell.bias_hh'].data.clone()
+                sd['gru_W_proj.weight'] = _cur['gru_W_proj.weight'].data.clone()
+                sd['W_gru.weight'] = _cur['W_gru.weight'].data.clone()
+                sd['Wf1.weight'] = _cur['Wf1.weight'].data.clone()
+                sd['bf1'] = _cur['bf1'].data.clone()
+                sd['Wf2.weight'] = _cur['Wf2.weight'].data.clone()
+                sd['bf2'] = _cur['bf2'].data.clone()
+            if 'gruW_ih' in merged:
+                sd['gru_cell.weight_ih'] = torch.from_numpy(merged['gruW_ih'])
+                sd['gru_cell.weight_hh'] = torch.from_numpy(merged['gruW_hh'])
+                sd['gru_cell.bias_ih'] = torch.from_numpy(merged['grub_ih'])
+                sd['gru_cell.bias_hh'] = torch.from_numpy(merged['grub_hh'])
+                sd['gru_W_proj.weight'] = torch.from_numpy(
+                    merged['gruW_proj'])   # (16,24)同形
+                sd['W_gru.weight'] = torch.from_numpy(merged['W_gru'].T)
+                if 'Wf1' in merged:
+                    sd['Wf1.weight'] = torch.from_numpy(merged['Wf1'].T)
+                    sd['bf1'] = torch.from_numpy(merged['bf1'])
+                    sd['Wf2.weight'] = torch.from_numpy(merged['Wf2'].T)
+                    sd['bf2'] = torch.from_numpy(merged['bf2'])
             # R63(P1-5): 可选参数(旧代际档合法缺失 — 与numpy版load同哲学:
             # 侧非线性头Ws1/Ws2与对手子网络Wo1/Wo2/W_opp/Wq1/Wq2在早期档
             # 中不存在, 缺失时保持"零输出起步"的init值, 不算腐坏)。

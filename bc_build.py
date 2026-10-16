@@ -29,7 +29,7 @@ sys.path.insert(0, r'%USERPROFILE%\Desktop\workplace\th123_rl')
 from soku_arch.packet_schema import CS_SIZE, unpack_player
 from bc_align import estimate_lag_map, realign, post_validate
 from bc_match import StreamMatcher, LOW_INFO
-from feat_builder import FeatureBuilder
+from feat_builder import FeatureBuilder, eff_untech
 from macros import MACROS, NORMALIZED_AFFECTED  # noqa: F401 (导入触发规范化)
 from macros import MACROS as M_REIMU
 from macros.marisa import MACROS_MARISA
@@ -167,6 +167,43 @@ def mirror_input(u16):
             ).astype(np.uint16)
 
 
+# 裁定一1e: 后退/立防按对手攻击态区分(action_tables的ATTACK/SHOT集)
+from action_tables import (reimu_ATTACK_IDS, reimu_SHOT_IDS,   # noqa: E402
+                           marisa_ATTACK_IDS, marisa_SHOT_IDS,
+                           suika_ATTACK_IDS, suika_SHOT_IDS)
+_OPP_ATK = {
+    0: reimu_ATTACK_IDS | reimu_SHOT_IDS,
+    1: marisa_ATTACK_IDS | marisa_SHOT_IDS,
+    9: suika_ATTACK_IDS | suika_SHOT_IDS,
+}
+_ALL_ATK = frozenset().union(*_OPP_ATK.values())
+GUARD_WINDOW = 10      # 对手攻击判定窗(含startup, 帧)
+
+
+def refine_guard_labels(hits, fr, opp_cid, lib):
+    """后退↔立防重归属: 对手[hit帧, hit帧+GUARD_WINDOW)内进入
+    攻击/射击action → 立防; 否则后退。非此二宏的hits原样透传。"""
+    idx_back = idx_guard = None
+    for i, m in enumerate(lib):
+        if m[0] == '后退':
+            idx_back = i
+        elif m[0] == '立防':
+            idx_guard = i
+    if idx_back is None or idx_guard is None:
+        return hits
+    atk = _OPP_ATK.get(opp_cid, _ALL_ATK)
+    out = []
+    for h in hits:
+        f = h[0]
+        if h[1] in (idx_back, idx_guard):
+            opp_attacking = any(
+                fr[j][1].get('action', 0) in atk
+                for j in range(f, min(f + GUARD_WINDOW, len(fr))))
+            h = (f, idx_guard if opp_attacking else idx_back, h[2])
+        out.append(h)
+    return out
+
+
 def build_rows(char_id, shards, log=print):
     """一个角色的全部BC行。"""
     name, lib = LIBS[char_id]
@@ -253,9 +290,39 @@ def build_rows(char_id, shards, log=print):
                     h = (h[0], _ri, h[2])
                 _fixed.append(h)
             hits = _fixed
+            # 裁定一1e(2026-10-14用户裁定): 后退/立防状态上下文 —
+            # 两者输入全同(按住后), 仅对手攻击态可分; 对手攻击/射击
+            # 窗口内的back-hold=立防, 否则=后退(取代纯时长机械区分)
+            hits = refine_guard_labels(hits, fr, opp_cid, lib)
             if not hits:
                 continue
             fb.reset_match()
+            # S-2离线注入(2026-10-14): 维330-342的BC行来源 —
+            # ①K5池外位; ②S-5 sidecar的punish率(同款匹配器命中帧1:1
+            # join, 无sidecar=0); ③决策序列由下方逐hit喂note_decision;
+            # ④风格段由fb.opp(fb.update_opp驱动)+语料PCA原生产出;
+            # ⑤S-3预测位离线=0(专家无自身模型 — 在线/离线分布差在案)
+            from my_punish_tracker import classify as _clsfy
+            from train_tm import CHAR_LIBS as _CHAR_LIBS_D
+            fb.opp_outside_pool = 0.0 if opp_cid in (0, 1, 9) else 1.0
+            # BH-3.2: 守备段位逐角色表按对手名查(与train_tm在线同构;
+            # 库内低段位值随下次重建(BH-4.4)吸收)
+            fb._opp_char = LIBS[opp_cid][0]
+            _side = 0 if side == 0 else 1
+            _sc_rate = {}
+            _root = os.path.dirname(os.path.abspath(__file__))
+            _scp = os.path.join(_root, 'data', 'oracle_v2', 'punish',
+                                os.path.basename(sp))
+            if os.path.exists(_scp):
+                try:
+                    _sd = np.load(_scp)
+                    for _f, _r in zip(_sd['%d_f' % _side],
+                                      _sd['%d_rate' % _side]):
+                        _sc_rate[int(_f)] = _r
+                except Exception:
+                    pass
+            _CLS_ORDER = ('JUMP', 'MELEE', 'BULLET', 'SKILL',
+                          'GUARD_PREP', 'OTHER')
             hist = []
             last_m, last_m2 = 0, 0
             last_dir, dir_frames = 1, 0
@@ -281,10 +348,27 @@ def build_rows(char_id, shards, log=print):
                     if len(hist) == 3:
                         fb.update_opp(10 / 62, left, right, weather,
                                       opp_vx=opp_vx)
+                        # S-2离线注入: sidecar先验punish率(1e同源)
+                        # P1-7②(从零#4): **先build后note** — 对齐在线
+                        # 时序(train_tm :1623 build → :1805 note)。原版
+                        # 先note后build=维336(streak含当前)/338(换类)在
+                        # 离线含当前标签而在线不含 → 标签经维度泄漏给BC锚
+                        _r = _sc_rate.get(i)
+                        if _r is not None:
+                            for _ci, _cn in enumerate(_CLS_ORDER):
+                                fb.punish.rate[_cn] = float(_r[_ci])
                         core = fb.build(left, right, weather, bullets)
                         core[33] = min(dir_frames, 62) / 62.0
                         # 对手角色one-hot(train_tm._wire_opp_ids同款池序)
                         core[227 + _POOL_O[opp_cid]] = 1.0
+                        _nm = lib[hit_at[i][0]][0]
+                        fb.note_decision(_CLS_ORDER.index(
+                            _clsfy(_nm, _CHAR_LIBS_D[name])))
+                        if _r is not None:
+                            _c_id = _CLS_ORDER.index(
+                                _clsfy(_nm, _CHAR_LIBS_D[name]))
+                            fb.punish.n_done[_CLS_ORDER[_c_id]] = (
+                                fb.punish.n_done.get(_CLS_ORDER[_c_id], 0) + 1)
                         # R38: 布局[宏N][上宏N][core][gap_x N][gap_y N]
                         # [untech N] — 与train_tm._build_side逐位同构
                         s = np.zeros(5 * n_macros + fb.CORE_DIMS,
@@ -300,7 +384,9 @@ def build_rows(char_id, shards, log=print):
                         s[_b0 + n_macros:_b0 + 2 * n_macros] = np.clip(
                             (_ady - reach_v_arr) / 200.0, -1, 1) \
                             * reach_v_mask
-                        _opp_ut = right.get('untech', 0) or 0
+                        # BH-4.2: untech过动作门(与train_tm同构; 库内
+                        # untech块值随下次重建(BH-4.4)吸收此变化)
+                        _opp_ut = eff_untech(right)
                         s[_b0 + 2 * n_macros:] = np.clip(
                             (_opp_ut - startup_arr) / 50.0, -1, 1) \
                             * startup_mask
@@ -335,20 +421,68 @@ def build_rows(char_id, shards, log=print):
                                 'shards_exact': n_exact}
 
 
-def main():
-    shards = sorted(glob.glob(
+def _shard_meta_probe(sp):
+    """加速(2026-10-14, 用户令·CPU余量): npz成员惰性解压 — 只读meta
+    即可判角色/err, 免掉无关分片的全量解压(pkts/inputs才是解压大头)。
+    判据与build_rows主循环内的continue完全一致 → 行集不变, 纯IO节省。
+    读坏的分片返回err=True(主循环同样会跳过)。"""
+    try:
+        with np.load(sp, allow_pickle=True) as d:
+            m = json.loads(str(d['meta']))
+            return m.get('char_x'), m.get('char_y'), bool(m.get('err'))
+    except Exception:
+        return None, None, True
+
+
+def main(suffix=''):
+    """suffix: 输出文件名后缀(--suffix _v3 → bc_reimu_v3.npz) —
+    A/B窗口期不动在用库, 新版并行落盘, 验收后换装.
+    --char CID: 只建该角色(0/1/9) — 三进程并行加速用(输出文件按
+    角色天生不相交, 无写冲突)。"""
+    import sys as _s
+    only = None
+    if '--char' in _s.argv:
+        only = int(_s.argv[_s.argv.index('--char') + 1])
+    shards_all = sorted(glob.glob(
         r'%USERPROFILE%\Desktop\workplace\th123_rl\data\oracle_v2\shards\*.npz'))
-    print('v2分片:', len(shards))
-    out_dir = r'%USERPROFILE%\Desktop\workplace\th123_rl\data\bc'
+    print('v2分片:', len(shards_all))
+    # 预过滤索引(每分片一次meta读, ~ms级)
+    _probe = {sp: _shard_meta_probe(sp) for sp in shards_all}
+    # 输出目录可配(默认C盘data/bc — 2026-10-14 C盘满事故后v3重建
+    # 改道D盘; 换装时拷回或TH123_BC_DIR指认)
+    out_dir = os.environ.get(
+        'TH123_BC_OUT', r'D:\temp\th123_bc_v3' if suffix
+        else r'%USERPROFILE%\Desktop\workplace\th123_rl\data\bc')
     os.makedirs(out_dir, exist_ok=True)
     for cid in (0, 1, 9):
+        if only is not None and cid != only:
+            continue
+        shards = [sp for sp in shards_all
+                  if not _probe[sp][2] and cid in _probe[sp][:2]]
+        print('[加速] %s: 相关分片%d/%d (meta预过滤)' % (
+            LIBS[cid][0], len(shards), len(shards_all)))
         name, rows, st = build_rows(cid, shards)
         if rows is None:
             print('%s: 无数据 (%s)' % (name, st))
             continue
         X, S, Y, C = rows
+        # 行数上限(2026-10-14): mmap方案裁定后默认0=全量(trio驻磁盘);
+        # BC_MAX_ROWS仅作内存受限机器的回退(分层比例采样, 分布不变)
+        # 修复(2026-10-14晚): 原漏'max_rows and'守卫 — 默认0时
+        # 'len(Y)>0'恒真 → 每标签k=max(1,·)=1 → 60行假库事故
+        max_rows = int(os.environ.get('BC_MAX_ROWS', '0'))
+        if max_rows and len(Y) > max_rows:
+            rng = np.random.default_rng(1234 + cid)
+            keep_n = max_rows
+            sel = np.zeros(len(Y), dtype=bool)
+            for lab in np.unique(Y):
+                li = np.where(Y == lab)[0]
+                k = max(1, int(round(len(li) * keep_n / len(Y))))
+                sel[rng.choice(li, size=min(k, len(li)), replace=False)] = True
+            X, S, Y, C = X[sel], S[sel], Y[sel], C[sel]
+            print('  行数封顶: %d→%d(分层比例采样)' % (len(sel), int(sel.sum())))
         dist = np.bincount(Y, minlength=len(LIBS[cid][1]))
-        p = os.path.join(out_dir, 'bc_%s.npz' % name)
+        p = os.path.join(out_dir, 'bc_%s%s.npz' % (name, suffix))
         # P2(审计#3, 宪法§5.2): 原直写savez非原子 — 中断=半档损坏
         _tmp = p + '.tmp.npz'
         np.savez(_tmp, X=X.astype(np.uint8), S=S, Y=Y, C=C,
@@ -364,4 +498,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    import sys as _sys
+    _sfx = ''
+    if '--suffix' in _sys.argv:
+        _sfx = _sys.argv[_sys.argv.index('--suffix') + 1]
+    main(_sfx)

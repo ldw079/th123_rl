@@ -1,0 +1,45 @@
+{
+ "ts": "2026-10-13 21:32:52",
+ "char": "suika",
+ "headless": false,
+ "frames": 13558,
+ "matches": [
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ]
+ ],
+ "human_wins": 5,
+ "model_wins": 0,
+ "hp0": [
+  10000,
+  10000
+ ],
+ "new_reps": [
+  "><other-machine>\\Users\\Downloads\\th123rl_kit_v20261013 (1)\\th123rl_kit\\th123rl\\models\\human_reps\\20261013_213251_26-10-13_21-22-18_>_player_anon(帕秋莉)_profile2p(萃香)_(0︰0_无).rep",
+  "><other-machine>\\Users\\Downloads\\th123rl_kit_v20261013 (1)\\th123rl_kit\\th123rl\\models\\human_reps\\20261013_213251_26-10-13_21-23-32_>_player_anon(帕秋莉)_RL-AI(萃香)_(2︰0_负).rep",
+  "><other-machine>\\Users\\Downloads\\th123rl_kit_v20261013 (1)\\th123rl_kit\\th123rl\\models\\human_reps\\20261013_213251_26-10-13_21-24-48_>_player_anon(帕秋莉)_RL-AI(萃香)_(2︰0_负).rep",
+  "><other-machine>\\Users\\Downloads\\th123rl_kit_v20261013 (1)\\th123rl_kit\\th123rl\\models\\human_reps\\20261013_213251_26-10-13_21-29-24_>_player_anon(帕秋莉)_RL-AI(萃香)_(2︰0_负).rep",
+  "><other-machine>\\Users\\Downloads\\th123rl_kit_v20261013 (1)\\th123rl_kit\\th123rl\\models\\human_reps\\20261013_213251_26-10-13_21-30-52_>_player_anon(帕秋莉)_RL-AI(萃香)_(2︰0_负).rep",
+  "><other-machine>\\Users\\Downloads\\th123rl_kit_v20261013 (1)\\th123rl_kit\\th123rl\\models\\human_reps\\20261013_213251_26-10-13_21-32-48_>_player_anon(萃香)_RL-AI(萃香)_(2︰0_负).rep"
+ ],
+ "exe_md5": "DF35D1FBC7B583317ADABE8CD9F53B2E",
+ "delay_frames": 5,
+ "protocol": "RPM观察+内存写inKeys(v2)"
+}

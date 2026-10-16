@@ -18,9 +18,10 @@ d.load(r'D:\temp\th123_models\model_ppo_reimu.npz')
 recorded = {}
 
 
-def _spy_sample(feat, side, mask=None, temp=1.0, bias=None):
+def _spy_sample(feat, side, mask=None, temp=1.0, bias=None,
+                return_pred=False):
     recorded['temp'] = temp
-    return 0
+    return (0, (0, 0.5)) if return_pred else 0
 
 
 orig = d.ppo.sample

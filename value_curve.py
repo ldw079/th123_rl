@@ -18,6 +18,10 @@ def episode_values(net, arr, every=30, chunk=512):
 
     torch导入失败/前向异常由调用方try捕获并响亮降级(不静默)。
     net(X,S)返回(logits, value, opp)三态(net.forward契约)。
+    P1-8(从零#4): feats必须reshape(-1,3,60,80)/255再喂conv网 —
+    原版直喂[N,14400] 2D张量, 每批RuntimeError降级但零数据
+    (W4自上线114/147次异常恒空; series_meter.aux_predict同型
+    调用内部有reshape而此处漏)。
     """
     import torch
     feats = np.asarray(arr['feats'])
@@ -30,7 +34,9 @@ def episode_values(net, arr, every=30, chunk=512):
         for i0 in range(0, len(idx), chunk):
             sub = idx[i0:i0 + chunk]
             X = torch.from_numpy(
-                np.ascontiguousarray(feats[sub])).float()
+                np.ascontiguousarray(
+                    feats[sub]).reshape(-1, 3, 60, 80
+                                        ).astype(np.float32) / 255.0)
             S = torch.from_numpy(
                 np.ascontiguousarray(sides[sub])).float()
             r = net(X, S)

@@ -23,6 +23,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from feat_builder import eff_untech  # BH-4.2: untech动作门(bug档)
+
 # ---- 事件定义 ----
 E_NONE = 0
 E_GUARDSTUN = 1     # 被防开始
@@ -31,6 +33,9 @@ E_OPP_STARTUP = 3   # 对手攻击启动(300-598)
 E_WAKEUP = 4        # 自身起身
 E_AIRTECH = 5       # 自身受身窗口
 E_NEAR_MISS = 6     # 对手攻击末端(可插动)
+E_OPP_GUARD = 7     # 对手进入防御态(我方压制中 — 换磨灵/换择/撤)
+E_COMBO_DROP = 8    # 连段中断(对手untech恢复而我未在攻击 — 收招/防/重入)
+E_OPP_JUMP = 9      # 对手起跳(JZ-3.3: 确认起跳→对空反应窗)
 
 # R52: 事件名映射(train_tm的[帧级事件]日志用)
 EV_NAMES = {
@@ -41,12 +46,31 @@ EV_NAMES = {
     E_WAKEUP: 'E_WAKEUP',
     E_AIRTECH: 'E_AIRTECH',
     E_NEAR_MISS: 'E_NEAR_MISS',
+    E_OPP_GUARD: 'E_OPP_GUARD',
+    E_COMBO_DROP: 'E_COMBO_DROP',
+    E_OPP_JUMP: 'E_OPP_JUMP',
 }
 
 # R61d(A3裁决): 防御硬直族 = 150-166 除158 — 150-157正确防御硬直
 # (SokuLib: RIGHTBLOCK_*_BLOCKSTUN; hitlab实测151于正防接触) +
 # 159-166错误防御硬直。158=空防状态/167=无枚举, 均不入边沿。
+# JZ-3.1(2026-10-14): 正防/错防拆分 — 攻略(attack_level_stun.json
+# guard_actions): 错防中DD/铜钱/灵反(防御反击)全部封锁, 仅可切换
+# 防御段位; 错防硬直也更长(11/19/27/31F vs 9/15/21/27F)。
 _GUARD_STUN_IDS = frozenset(range(150, 167)) - {158}
+_CORRECT_GUARD_IDS = frozenset(range(150, 158))    # 正防硬直
+_WRONG_GUARD_IDS = frozenset(range(159, 167))      # 错防硬直
+# JZ-3.1: 错防中封锁的escape反应(默认掩蔽, 策略在事件窗外仍自由 —
+# "默认掩蔽+策略可学习解除"而非硬规则)。
+# 掩蔽集=攻略明文(fangyu.txt:453"错防的话DD和灵反和铜钱都不能使用"):
+# DD(结界2/4)/铜钱/灵反(=身代わり人形, 28F反击, JZ-4入卡后加名)。
+# **灵击札不在封锁列**(灵击12F低档反击保持可用 — fangyu.txt:460反击表
+# 三卡并列而错防禁令只点灵反/铜钱/DD; 2026-10-14卡研究修正, 原版误列)
+_WRONG_GUARD_BANNED = frozenset({
+    '结界2', '结界4',            # DD回避结界(2DD/4DD)
+    '卡·铜钱',                    # 宵越しの銭(sc:12, JZ-4入卡)
+    '卡·人偶',                    # 身代わり人形=灵反(sc:4, JZ-4入卡)
+})
 # R61d: 真倒地集(起身事件只认这些 → 可行动的转出)
 _TRUE_DOWN_ACTS = frozenset({88, 89, 97, 98, 100, 143, 145})
 
@@ -58,6 +82,13 @@ FRAME_WINDOWS = {
     E_WAKEUP: 20,        # 起身无敌+选择窗
     E_AIRTECH: 15,       # 受身15F完全无敌
     E_NEAR_MISS: 10,     # 攻击末端插动窗
+    E_OPP_GUARD: 8,      # 换择窗口(方案线B-1: 对手防御确立→磨灵/择/撤)
+    E_COMBO_DROP: 6,     # 收招窗口(方案线B-2: 连段确认失败→攻防转换)
+    # JZ-3.3: 大跳上升段被COUNTER窗21F(jump_recovery_windows.json
+    # super_jump.counter_window) — "确认对手起跳→升JA/对空"是全游戏
+    # 最确定的帧数收益之一(立回压制攻略); 小跳窗更短, 事件窗取
+    # 最长可反应窗, 迟反应落空由执行器自然止损
+    E_OPP_JUMP: 21,
 }
 
 # 反应宏候选表: 事件→[(宏名模式, 条件, 优先级)]
@@ -70,6 +101,8 @@ REACTION_TABLE = {
         ('蹲防',  'opp_low', 0.4),          # 对手下段习惯
         ('后跳',  'always', 0.5),           # 后跳脱离(升权: 主动逃压)
         ('623B',  'reversal_ok', 0.5),      # 凹升龙(升权: 主动反制)
+        # 线B-3审查补(2026-10-14): 灵击札=无敌防反脱连段, 打防本职选项
+        ('卡·灵击札', 'always', 0.6),       # 无敌防反(SC门控管可用性)
     ],
     E_GUARDSTUN_END: [
         ('5A',   'advantage', 0.8),         # 有利帧抢攻
@@ -85,6 +118,8 @@ REACTION_TABLE = {
         ('623C',  'reversal_ok', 0.6),      # 凹升龙C
         ('2A',    'close_range', 0.7),      # 近距插动(升权: 主动abare)
         ('DA',    'mid_range', 0.5),        # 中距冲刺插
+        # 线B-3审查补(2026-10-14): 远程起手缺擦弹回避
+        ('高跳',  'far_range', 0.4),        # 高跳GRAZE穿弹(远程起手回避)
     ],
     E_WAKEUP: [
         ('起身穿', 'always', 0.7),           # 移动起身穿人
@@ -97,12 +132,43 @@ REACTION_TABLE = {
         ('受身',  'always', 0.6),            # 受身(方向由mirror处理)
         ('jA',    'always', 0.6),            # 空中反击
         ('jB',    'always', 0.5),            # 空中弹幕
+        # 线B-3审查补(2026-10-14): 受身后被追打缺防御选项
+        ('空防',  'always', 0.5),            # 空中防御(对空追打)
     ],
     E_NEAR_MISS: [
         ('5A',   'close_range', 0.7),        # 近距插动
         ('2A',   'close_range', 0.6),        # 下段插
         ('前冲', 'mid_range', 0.5),          # 中距前冲
         ('5B',   'far_range', 0.4),          # 远距弹幕
+    ],
+    # 线B-1(2026-10-14): 对手进入防御态 → 我方压制应变
+    # (此前此信息只在cconfirm门内间接感知; 事件级触发让策略更早介入)
+    E_OPP_GUARD: [
+        ('5B',   'always', 0.6),            # 弹幕磨灵(主力应防)
+        ('2B',   'always', 0.6),            # 下段弹幕磨灵
+        ('5C',   'far_range', 0.5),         # 远距重弹幕
+        ('6A',   'close_range', 0.6),       # 近距换择(中段)
+        ('3A',   'close_range', 0.5),       # 下段换择
+        ('后退', 'always', 0.4),            # 撤退重整(降权: 防被动)
+        ('结界4', 'back_guard', 0.4),       # 后撤结界
+    ],
+    # 线B-2(2026-10-14): 连段确认失败(对手恢复而我未在攻) → 收招/防/重入
+    E_COMBO_DROP: [
+        ('后退', 'always', 0.5),            # 收招撤退
+        ('立防', 'always', 0.5),            # 防对手反打
+        ('前冲', 'always', 0.5),            # 压制重入
+        ('5B',   'far_range', 0.5),         # 远距弹幕盖
+    ],
+    # JZ-3.3(2026-10-14): 对手起跳 → 对空反应(确认起跳窗=确定帧数收益)
+    # 注意: 不用623B — 萃香623B=萃鬼投技(地面投, 非对空), 反应表按
+    # 宏名跨库解析会张冠李戴; 对空由3A/6A承担
+    E_OPP_JUMP: [
+        ('3A',   'close_range', 0.65),      # 对空主力(reimu库无→自动跳过)
+        ('6A',   'close_range', 0.5),       # 通用对空
+        ('高跳', 'mid_range', 0.45),        # 跳起对空(air-to-air)
+        ('5B',   'far_range', 0.45),        # 对空弹幕
+        ('前冲', 'always', 0.4),            # 横穿落点
+        ('空防', 'always', 0.35),           # 保守对跳入
     ],
 }
 
@@ -114,9 +180,16 @@ class FrameEventDetector:
         self.last_action = 0
         self.last_opp_action = 0
         self.last_untech = 0
+        self.last_opp_untech = 0
         self.guardstun_frames = 0
         self.opp_startup_seen = False
         self.event_cooldown = {}   # 事件→剩余冷却帧(防重复触发)
+        # JZ-3.1: 正防/错防标记(最近一次GUARDSTUN/OPP_GUARD的类别)
+        self.last_guard_kind = None        # 'correct'|'wrong'|None
+        self.last_opp_guard_kind = None    # 对手侧镜像
+        self.guard_kind_counts = {'correct': 0, 'wrong': 0}
+        # JZ-3.3: 对手离地边沿基线
+        self.last_opp_air = False
 
     def detect(self, left: dict, right: dict, frozen: bool) -> tuple:
         """检测当前帧的帧级事件。
@@ -129,12 +202,14 @@ class FrameEventDetector:
             # 冻结时更新基线但不触发
             self.last_action = left.get('action', 0)
             self.last_opp_action = right.get('action', 0)
+            self.last_opp_air = bool(right.get('airBorne', False))
             self._tick_cooldown()
             return E_NONE, 0
 
         my_a = left.get('action', 0)
         opp_a = right.get('action', 0)
-        untech = left.get('untech', 0) or 0
+        # BH-4.2: 过动作门(残留untech会伪造AIRTECH/COMBO_DROP边沿)
+        untech = eff_untech(left)
 
         # 冷却
         self._tick_cooldown()
@@ -149,6 +224,10 @@ class FrameEventDetector:
                 and self.last_action not in _GUARD_STUN_IDS):
             if self._can_fire(E_GUARDSTUN):
                 self._fire(E_GUARDSTUN)
+                # JZ-3.1: 携带正/错标记(150-157正防/159-166错防)
+                self.last_guard_kind = ('wrong' if my_a in _WRONG_GUARD_IDS
+                                        else 'correct')
+                self.guard_kind_counts[self.last_guard_kind] += 1
                 self.last_action = my_a
                 self.last_opp_action = opp_a
                 return E_GUARDSTUN, FRAME_WINDOWS[E_GUARDSTUN]
@@ -161,6 +240,17 @@ class FrameEventDetector:
                 self.last_action = my_a
                 self.last_opp_action = opp_a
                 return E_GUARDSTUN_END, FRAME_WINDOWS[E_GUARDSTUN_END]
+
+        # --- 事件2.5(JZ-3.3): 对手起跳(离地边沿 → 对空反应窗) ---
+        # my_a<50=自身可行动(受击/攻击中无力对空, 同事件4口径)
+        opp_air = bool(right.get('airBorne', False))
+        if opp_air and not self.last_opp_air and my_a < 50:
+            if self._can_fire(E_OPP_JUMP):
+                self._fire(E_OPP_JUMP)
+                self.last_action = my_a
+                self.last_opp_action = opp_a
+                self.last_opp_air = opp_air
+                return E_OPP_JUMP, FRAME_WINDOWS[E_OPP_JUMP]
 
         # --- 事件3: 对手攻击启动(300-598) ---
         if (300 <= opp_a <= 598
@@ -210,10 +300,40 @@ class FrameEventDetector:
                 self.last_opp_action = opp_a
                 return E_NEAR_MISS, FRAME_WINDOWS[E_NEAR_MISS]
 
+        # --- 事件7(线B-1): 对手进入防御态(我方压制应变) ---
+        # 沿: opp_a进入GUARD_STUN族且last不在(与事件1镜像, 视角反转)
+        # BH-4.2: 过动作门(自由飞翔的残留untech不构成COMBO_DROP沿)
+        opp_untech = eff_untech(right)
+        if (opp_a in _GUARD_STUN_IDS
+                and self.last_opp_action not in _GUARD_STUN_IDS):
+            if self._can_fire(E_OPP_GUARD):
+                self._fire(E_OPP_GUARD)
+                # JZ-3.1: 对手正/错防标记(错防=对手不能DD/铜钱/灵反,
+                # 且硬直更长 → 压制继续/换择的直读信号)
+                self.last_opp_guard_kind = ('wrong' if opp_a in _WRONG_GUARD_IDS
+                                            else 'correct')
+                self.last_action = my_a
+                self.last_opp_action = opp_a
+                self.last_opp_untech = opp_untech
+                return E_OPP_GUARD, FRAME_WINDOWS[E_OPP_GUARD]
+
+        # --- 事件8(线B-2): 连段中断(对手untech恢复而我未在攻击) ---
+        # 沿: opp_untech从>0到0 且 my_a<100(非攻击中=确认失败)
+        if (opp_untech == 0 and self.last_opp_untech > 0
+                and my_a < 100):
+            if self._can_fire(E_COMBO_DROP):
+                self._fire(E_COMBO_DROP)
+                self.last_action = my_a
+                self.last_opp_action = opp_a
+                self.last_opp_untech = opp_untech
+                return E_COMBO_DROP, FRAME_WINDOWS[E_COMBO_DROP]
+
         # 更新基线
         self.last_action = my_a
         self.last_opp_action = opp_a
         self.last_untech = untech
+        self.last_opp_untech = opp_untech
+        self.last_opp_air = opp_air
         return E_NONE, 0
 
     def _can_fire(self, event: int) -> bool:
@@ -228,6 +348,46 @@ class FrameEventDetector:
             self.event_cooldown[k] -= 1
             if self.event_cooldown[k] <= 0:
                 del self.event_cooldown[k]
+
+
+class ThrowInvulnTracker:
+    """JZ-3.2: 对手投技无敌窗跟踪(data/guide_tables/throw_invuln.json口径)。
+
+    无敌来源四类(攻略表): 起身10F / 防御硬直中+后10F / 起跳1F / 受身全程。
+    受身全程在线不可直读(受身动作无独立观测), 以untech>0浮空近似
+    (浮空连段不可投, 保守覆盖)。frozen帧不推进不更新基线 — 与
+    FrameEventDetector同拍。决策点读invuln>0时掩蔽投技宏(掩码层,
+    零奖励改动, 窗外策略仍自由选投)。
+    """
+
+    WAKEUP_F = 10        # 起身后投技无敌
+    GUARD_AFTER_F = 10   # 防硬直结束后投技无敌
+    JUMP_F = 1           # 起跳瞬间
+
+    def __init__(self):
+        self.invuln = 0
+        self._last_opp_action = 0
+        self._last_opp_air = False
+
+    def feed(self, opp: dict, frozen: bool = False):
+        if frozen:
+            return
+        if self.invuln > 0:
+            self.invuln -= 1             # 帧首老化上一窗(1F窗对读者可见)
+        a = opp.get('action', 0)
+        air = bool(opp.get('airBorne', False))
+        # BH-4.2: 过动作门(自由空中行动的残留untech不标记投技无敌)
+        untech = eff_untech(opp)
+        if a in _GUARD_STUN_IDS:      # 防硬直中持续刷新, 出防后余10F
+            self.invuln = max(self.invuln, self.GUARD_AFTER_F + 1)
+        if self._last_opp_action in _TRUE_DOWN_ACTS and a < 50:
+            self.invuln = max(self.invuln, self.WAKEUP_F)
+        if air and not self._last_opp_air:
+            self.invuln = max(self.invuln, self.JUMP_F)
+        if untech > 0:                # 浮空受身不可期(受身全程的保守近似)
+            self.invuln = max(self.invuln, 1)
+        self._last_opp_action = a
+        self._last_opp_air = air
 
 
 def _match_macro(name_pattern, macro_names):
@@ -290,8 +450,12 @@ def pick_reaction(event: int, left: dict, right: dict,
         return False
 
     # 过滤候选(从零#2 P1-H: 精确名优先 — 原首个前缀命中即break)
+    wrong_guard = (event == E_GUARDSTUN
+                   and left.get('action', 0) in _WRONG_GUARD_IDS)
     candidates = []
     for name_prefix, cond, priority in REACTION_TABLE[event]:
+        if wrong_guard and name_prefix in _WRONG_GUARD_BANNED:
+            continue               # JZ-3.1: 错防封锁DD/铜钱/防御反击
         i = _match_macro(name_prefix, macro_names)
         if i < 0:
             continue
@@ -354,7 +518,11 @@ def reaction_mask(event: int, left: dict, right: dict,
         return False
 
     out = np.zeros(len(macro_names), dtype=bool)
+    wrong_guard = (event == E_GUARDSTUN
+                   and left.get('action', 0) in _WRONG_GUARD_IDS)
     for name_prefix, cond, _priority in REACTION_TABLE[event]:
+        if wrong_guard and name_prefix in _WRONG_GUARD_BANNED:
+            continue               # JZ-3.1: 错防封锁DD/铜钱/防御反击
         # 从零#2 P1-H: 与pick_reaction同源解析(原两处continue/break不对称)
         i = _match_macro(name_prefix, macro_names)
         if i < 0:

@@ -7,8 +7,10 @@
   不红)。
 - **根因**: RESERVED 单源表(R77)加了访问器, 但新工具注册端口时只改
   调用方未改表(单源表的两半不同步)。
-- **修复与验证**: 未修。修法: RESERVED 补 danger_reveal 段键。验证:
-  reserved_port('danger_reveal') 返回值+真实模式冒烟到游戏拉起前。
-- **防复发**: 仓库 grep reserved_port 调用 × RESERVED 键对账断言入
-  contract_check(单源完备性)。
-- **状态**: 未修。
+- **修复与验证**: **已修(2026-10-14晚)**: RESERVED补danger_reveal
+  ('probe', 20976), reserved_port()返回20976验证。
+- **防复发**: contract_check新增**单源完备性对账断言**(全仓
+  reserved_port调用[双引号兼容]×RESERVED键双向: 缺键红/僵尸键红;
+  首版断言自身两bug已修: 单引号正则漏双引号调用/自docstring占位
+  误报)。真实模式冒烟待舰队空闲窗。
+- **状态**: ✅已修+验证(2026-10-14晚; 真实模式冒烟待窗)。

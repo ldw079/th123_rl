@@ -18,6 +18,25 @@ HITBOX_Y = 90.0
 # 地面2系=蹲防必: 2A(303)/f2A(311)/2B(402)/2C(412)。
 # 空中j2系(308/406/416)段位角色相关不纳入(保守); 3系(304/403)按中段。
 LOW_ATTACK_IDS = frozenset((303, 311, 402, 412))
+# ↑遗留假设表(地面2系+2B/2C=蹲防必) — 仅作表缺/角色未注入时的回落。
+# BH-3.2(行为健康方案v4): cleista权威实测推翻两条——2B/2C蹲防必
+# (实测两主力均无blockLow, 全20角色仅此假设无出处); 3A中段(实测
+# 15/20角色3A=blockLow, 灵梦/小町/咲夜/宇佐见/天子=blockHigh)。
+# 逐角色真值: data/guide_tables/guard_height.json(api detail
+# properties.blockLow, 2026-10-16采集, 生成器tools/gen_guard_table.py;
+# 沙箱随guide_tables/*.json规则复制)。
+try:
+    import json as _json
+    import os as _os
+    with open(_os.path.join(
+            _os.path.dirname(__file__), 'data', 'guide_tables',
+            'guard_height.json'), encoding='utf8') as _gf:
+        _GUARD = _json.load(_gf)
+    LOW_ATTACK_IDS_BY_CHAR = {
+        _ch: frozenset(_ids)
+        for _ch, _ids in _GUARD['low'].items()}
+except Exception:
+    LOW_ATTACK_IDS_BY_CHAR = {}
 
 # R58(改进方案P1-a): f变体(远版A系)ID表 — 近/远A不可分是技法覆盖§2.4
 # 盲区(300/301同//128桶)。语义源=docs/soku_action_ids.md: 小写f前缀=
@@ -45,6 +64,19 @@ HIT_ACT_IDS = {
     100,                        # 被投技抓住
     143, 145,                   # 地面/空中被压溃
 }
+
+
+def eff_untech(side):
+    """BH-4.2(bug_2026-10-15): 有效硬直 = untech>0 ∧ action∈受击族。
+
+    实证(bug档①): untech>0 在自由空中行动也有读数 — 萃香150分片,
+    "空中且untech≥9F"的587,542帧中对手action属受击族仅28.4%, 其余
+    为飞翔214(16%)/空中攻击(~18%)/大跳/下落。**所有把 untech>0 当
+    "该角色不能动"用的消费方(特征/R30目押块/combo_chain/COMBO_DROP/
+    AIRTECH/空中被动豁免/投技无敌/link门)一律过此门**; 原始值仅
+    hitlab测量类工具继续直读。side: 玩家状态dict(本侧或对侧)。"""
+    return ((side.get("untech", 0) or 0)
+            if side.get("action", 0) in HIT_ACT_IDS else 0)
 
 # 天气ID(v2实测表 hud_sensor.py WEATHER_NAMES; 与mod SokuLib/Weather.hpp枚举同源)
 WEATHER_SEIRAN = 11   # 晴岚(Mountain Vapor)
@@ -74,17 +106,33 @@ def fair_weather_id(weather):
 class FeatureBuilder:
     """每次决策调用build(); 每帧调用track_bullets()更新弹速。"""
 
-    CORE_DIMS = 330  # R61t(F5): 308+8扩展one-hot(20角色全覆盖)
+    CORE_DIMS = 358  # JZ-1(2026-10-15): 343+15(A档字段段[343..357])
+    #                # S-2(合并终版方案2026-10-14): 330+13(变招6+心理4
+    #                # +风格2+K5池外1)
+    #                # R61t(F5): 308+8扩展one-hot(20角色全覆盖)
     #                # B(用户2026-10-07"开工B"): 316+14 = 对手风格感知段
     #                # [316..327]=对手已出技能卡槽位flag×12(100-111映射,
     #                #  跨角色统一槽位语义, 角色身份由one-hot消歧)
     #                # [328]=对手已出SC张数(/5)  [329]=对手已出系统卡张数(/10)
     #                # 仅"对手已打出过的卡"=对人类同样可见的合法信息
+    #                # S-2段[330..342]:
+    #                # [330..333]=S-1我方四类punish率(jump/melee/bullet/skill)
+    #                # [334]=S-3自身预测类(/8)  [335]=预测置信
+    #                # [336]=S-5同类别连出次数(/5)  [337]=近5招熵(/log5)
+    #                # [338]=本招换类(0/1)  [339]=对手punish我主导类率
+    #                # [340..341]=S-7风格pc1/pc2(/4)
+    #                # [342]=K5对手池外位(0/1)
 
     def __init__(self, n_macros):
         self.n_macros = n_macros
         self.n_side = 2 * n_macros + self.CORE_DIMS
         self.opp = OpponentModel()
+        # S-2源状态(2026-10-14): 在线由训练/评估驱动, 离线bc_build注入
+        from my_punish_tracker import MyPunishTracker
+        self.punish = MyPunishTracker()      # S-1(维330-333,339)
+        self._last_pred = (0.0, 0.0)         # S-3(维334-335)
+        self._dec_hist = []                  # S-5(维336-338) 类别id序列
+        self.opp_outside_pool = 0.0          # K5(维342)
         self._prev_bullets = []      # [(x,y,img,act),...] 上帧弹表(最近邻差分)
         self._graze_events = 0
         # R14: 逐帧差分状态(own_vy/opp_vy) + guard/evasion计数
@@ -136,13 +184,18 @@ class FeatureBuilder:
         self._opp_vy_ema = 0.0
         self._guard_frames = 0
         self._evasion_count = 0
+        # S-2(2026-10-14): 局边界语义 — punish率**跨局携带**(B5跨局
+        # 记忆: 上局被防→这局开局就换), 决策序列/预测局内重置
+        self._dec_hist = []
+        self._last_pred = (0.0, 0.0)
+        # ---- 局级重置块(P0回迁2026-10-14从零#4): 原被note_decision
+        # 错并(S-2波), 每决策点执行"跨局重置"致技能等级[230..233]/
+        # B风格段差分[316..329]/动量/动作历史恒死 — 现回到随局语义 ----
         self._last_tti = None
         self._opp_vx_ema = 0.0   # 第四轮审计: 对手速度EMA跨局泄漏修复
         self._own_x_prev = None
         self._evasion_armed = False
-        # R16§0.1: 弹匹配计数跨局累积(全局频率统计, 不随局重置)
-        # R16§3: 新增段状态(动量EMA/滞空计数) + R14遗留(_prev_my_cls/_prev_grid)
-        # 原漏reset → 跨局泄漏
+        # R16§3: 段状态(动量EMA/滞空计数) + R14遗留(_prev_my_cls/_prev_grid)
         self._own_vx_m = self._dx_m = self._adx_m = 0.0
         self._mom_x_prev = self._mom_dx_prev = self._mom_adx_prev = None
         self._own_air_f = 0
@@ -160,6 +213,23 @@ class FeatureBuilder:
         self._opp_skill_overflow = 0   # R63(P2): 超槽位技能id计数随局重置
         self._combo_chain = 0
         self._chain_gap = 0    # R17③: 连段间隔容忍计数
+
+    def set_last_pred(self, cls_id, conf):
+        """S-3: 决策点采样后回写自身预测(下一build()可见)。"""
+        self._last_pred = (float(cls_id), float(conf))
+
+    def note_decision(self, cls_id):
+        """S-5: 决策落子记入类别序列(streak/entropy/switch之源)。
+
+        P0修复(2026-10-14从零#4, bug_note_decision_reset_swallow):
+        原版把整个局级重置块并进本函数(每决策点≈10帧执行一次) —
+        技能等级/B风格段差分/动量/动作历史等大片特征在训练+评估+
+        BC三侧恒死(自称"随局重置"却在局内每拍重置)。重置块已移回
+        reset_match; 本函数只做决策序列语义。
+        """
+        self._dec_hist.append(int(cls_id))
+        if len(self._dec_hist) > 32:
+            del self._dec_hist[:16]
 
     def track_bullets(self, objs, own=None):
         """每帧调用: 差分弹速 → 返回 [(dir_,x,y,vx,vy), ...]
@@ -351,6 +421,13 @@ class FeatureBuilder:
                     return 1
         self._last_tti = None
         return 0
+
+    def _low_ids(self):
+        """BH-3.2: 对手下段ID集 — 逐角色表, 缺角色回落全局假设表。
+        已测角色的空集(青蛙全中段)=真值"无下段", 不回落。"""
+        _ch = getattr(self, '_opp_char', None)
+        _tab = LOW_ATTACK_IDS_BY_CHAR.get(_ch) if _ch else None
+        return LOW_ATTACK_IDS if _tab is None else _tab
 
     def build(self, left, right, weather, bullets):
         """构建侧特征向量(308维核心)。bullets = track_bullets返回的带速度弹表。"""
@@ -647,10 +724,15 @@ class FeatureBuilder:
             self._guard_frames += 1
         s[o + 1] = min(1.0, self._guard_frames / GAME_FPS)
         s[o + 2] = min(1.0, self._evasion_count / 10.0)
+        # BH-4.2语义入档(bug档②): comboDamage = **本角色造成的**连段伤害
+        # (dealt, 非"正被打") — 右掉血帧68:0全为left.cd>0实测。双侧对称
+        # 暴露无害, 但当"被打指示"用是反的。
         s[o + 3] = min(1.0, left["comboDamage"] / 3000.0) if left["comboDamage"] else 0
         s[o + 4] = min(1.0, right["comboDamage"] / 3000.0) if right["comboDamage"] else 0
-        s[o + 5] = min(1.0, left["untech"] / GAME_FPS) if left["untech"] else 0
-        s[o + 6] = min(1.0, right["untech"] / GAME_FPS) if right["untech"] else 0
+        # BH-4.2(bug档①): untech过动作门 — 原始值在自由空中行动有残留
+        # 读数(仅28.4%真受击), 未门控时"对手被锁"信号~70%失真
+        s[o + 5] = min(1.0, eff_untech(left) / GAME_FPS)
+        s[o + 6] = min(1.0, eff_untech(right) / GAME_FPS)
         s[o + 7] = float(left["timeStop"] > 0)
         s[o + 8] = float(left["hitStop"] > 0)
         s[o + 9] = min(1.0, (weather.get("timer") or 0) / 999.0)
@@ -766,10 +848,14 @@ class FeatureBuilder:
         self._own_air_f = self._own_air_f + 1 if left["airBorne"] else 0
         s[o] = min(1.0, self._own_air_f / GAME_FPS)
         # R57(2.5): 对手下段攻击位 — 显式查表(段位是招式语义, 不在ID
-        # 区间折半: 2A=303与5A=300同//64桶)。语义源=docs/soku_action_ids.md
-        # (SokuLib权威): 地面2系=蹲防必(2A/f2A/2B/2C)。空中j2系段位角色
-        # 相关不纳入(保守); 3系按中段。
-        s[o + 1] = 1.0 if right["action"] in LOW_ATTACK_IDS else 0.0
+        # 区间折半: 2A=303与5A=300同//64桶)。
+        # BH-3.2: 逐角色精确表(cleista blockLow实测) — 语义源从
+        # soku_action_ids假设升级为cleista api detail; 对手名经
+        # _opp_char注入(train_tm._wire_opp_ids/side_driver._side_feat/
+        # bc_build逐侧), 未注入或表外角色回落全局假设表。
+        # 实测要点: 15/20角色3A=下段(灵梦/小町/咲夜/宇佐见/天子=中段);
+        # 2B/2C无一下段(旧表虚报); j2A按角色可低可高(天子混合段位)。
+        s[o + 1] = 1.0 if right["action"] in self._low_ids() else 0.0
         o += 2
         # 14j. R49 pose块 (4): [my_pose, opp_pose, my_poseFrame, opp_poseFrame]
         # (蓄力/段内进度可见; 原R49写尾静默覆盖14i后4维, R57移入账内)
@@ -792,9 +878,74 @@ class FeatureBuilder:
         s[316:328] = self._opp_revealed_skill
         s[328] = min(1.0, self._opp_revealed_sc / 5.0)
         s[329] = min(1.0, self._opp_revealed_sys / 10.0)
-        o = 330
 
-        assert o <= self.CORE_DIMS
+        # 14m. S-2段[330..342](变招×心理博弈捕获, 2026-10-14):
+        # 源: self.punish(S-1在线)/self._last_pred(S-3)/self._dec_hist
+        # (S-5)/风格嵌入(S-7)/self.opp_outside_pool(K5)。离线(bc_build)
+        # 由调用方注入同构值 — 在线/离线同一build路径, 无双拷贝。
+        p = getattr(self, 'punish', None)
+        if p is not None:
+            s[330] = p.rate.get('JUMP', 0.0)
+            s[331] = p.rate.get('MELEE', 0.0)
+            s[332] = p.rate.get('BULLET', 0.0)
+            s[333] = p.rate.get('SKILL', 0.0)
+            s[339] = p.my_dominant_punished()
+        _lp = getattr(self, '_last_pred', None)
+        if _lp is not None:
+            s[334] = min(_lp[0], 7) / 8.0
+            s[335] = min(max(_lp[1], 0.0), 1.0)
+        _dh = getattr(self, '_dec_hist', None)
+        if _dh:
+            import math as _m
+            # 同类别连出(含当前)
+            streak = 1
+            for c in reversed(_dh[:-1]):
+                if c == _dh[-1]:
+                    streak += 1
+                else:
+                    break
+            s[336] = min(streak, 5) / 5.0
+            if len(_dh) >= 2:
+                s[338] = 1.0 if _dh[-1] != _dh[-2] else 0.0
+            last5 = _dh[-5:]
+            if len(last5) >= 2:
+                import collections as _co
+                cnt = _co.Counter(last5)
+                _n = len(last5)
+                s[337] = min(1.0, -sum(
+                    (v / _n) * _m.log(v / _n) for v in cnt.values())
+                    / _m.log(5))
+        # S-7风格pc1/pc2: 惰性(语料缺=embedding返回None→0, 不阻塞)
+        try:
+            from style_embedding import style_embedding
+            _emb = style_embedding(self.opp, s[316:330])
+            if _emb is not None:
+                s[340] = float(np.clip(_emb[0], -4, 4)) / 4.0
+                s[341] = float(np.clip(_emb[1], -4, 4)) / 4.0
+        except Exception as _style_err:
+            # P2(2026-10-14晚审计): 无语料(style_embedding返回None, 上面
+            # if分支自然走0)≠损坏(npz坏/PCA形状漂移/import错) — 原
+            # 宽except静默归零把损坏伪装成"无风格"。首错响亮留痕(此后
+            # 静默防刷屏), 损坏可从日志定位而不是特征层悄悄变零。
+            if not getattr(self, '_style_err_seen', False):
+                self._style_err_seen = True
+                print('[feat_builder] S-7风格段异常(首错, 此后静默): %r'
+                      % (_style_err,))
+        s[342] = getattr(self, 'opp_outside_pool', 0.0)
+        # JZ-1 A档字段段[343..357](2026-10-15): airDash2+冷却2+comboLimit2
+        # +技能摘要4+破珠2+蹲姿+hitStop+healingCharm — 预制件jz1_features
+        from jz1_features import fill_jz1, SpiritCooldownTracker
+        if not hasattr(self, '_jz1_cd_my'):
+            self._jz1_cd_my = SpiritCooldownTracker()
+            self._jz1_cd_opp = SpiritCooldownTracker()
+        _frz = (left.get('hitStop', 0) or 0) > 0 or             (left.get('timeStop', 0) or 0) > 0
+        self._jz1_cd_my.feed(left.get('action', 0), 0, _frz)
+        self._jz1_cd_opp.feed(right.get('action', 0), 0, _frz)
+        o2 = fill_jz1(s, 343, left, right,
+                      self._jz1_cd_my, self._jz1_cd_opp, 0, 0)
+        o = 343 + o2
+
+        assert o <= self.CORE_DIMS, (o, self.CORE_DIMS)
 
         return s
 

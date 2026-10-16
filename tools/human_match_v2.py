@@ -90,8 +90,13 @@ class Observer:
         self.buf = []
         self._obj_prev = {}     # ptr → (x,y,poseFrame) 活性追踪
         import hashlib as _hl
-        _md5 = _hl.md5(open(os.path.join(GAME, 'th123.exe'), 'rb')
-                       .read()).hexdigest().upper()
+        _exe = os.path.join(GAME, 'th123.exe')
+        if not os.path.exists(_exe):
+            raise RuntimeError(
+                '[hmv2] 游戏路径无效: %s 不存在。\n'
+                '  → 请重新运行kit根目录的setup.bat, 填写你本机的'
+                'th123游戏目录(含th123.exe)' % _exe)
+        _md5 = _hl.md5(open(_exe, 'rb').read()).hexdigest().upper()
         if _md5 != EXE_MD5:
             raise RuntimeError('th123.exe哈希漂移(%s≠%s)'
                                % (_md5[:8], EXE_MD5[:8]))
@@ -429,8 +434,9 @@ def run(char, headless, seconds=90):
         print('[hmv2] P2管理器暂无(VS COM锚定期正常) — 观察模式,'
               ' VS PLAYER进场后自动接管', flush=True)
     else:
-        print('[hmv2] 战斗就绪 — P2管理器0x%X, 开始驱动(%ds)' %
-              (actor.km2, seconds), flush=True)
+        _dur = ('无限(Ctrl+C结束)' if seconds <= 0 else '%ds' % seconds)
+        print('[hmv2] 战斗就绪 — P2管理器0x%X, 开始驱动(%s)' %
+              (actor.km2, _dur), flush=True)
 
     # 会话产物: 系列计分(比分字节)+rep归档+session JSON(B-4消费)
     import glob as _glob
@@ -448,7 +454,8 @@ def run(char, headless, seconds=90):
     human_w = model_w = 0
     matches = []
     last_scores = (0, 0)
-    t_end = time.time() + seconds
+    # 时长: seconds<=0 = 无限(打到你自己停, Ctrl+C 结束并出报告)
+    t_end = (time.time() + seconds) if seconds > 0 else float('inf')
     def _end_scores():
         try:
             bm_ = obs.u32(BM_P)
@@ -490,12 +497,21 @@ def run(char, headless, seconds=90):
                 try:
                     inp = driver.frame_input(right, left, weather, objs, []) or {}
                 except Exception as e:
+                    # 完整栈(2026-10-15): 原只打一行消息 — 定位困难;
+                    # 首错打栈, 后续静默(防每帧刷屏)
+                    if not globals().get('_hmv2_exc_logged'):
+                        import traceback as _tb
+                        _tb.print_exc()
+                        globals()['_hmv2_exc_logged'] = True
                     print('[hmv2] 驱动异常(%s) — 中止' % e, flush=True)
                     break
                 actor.write(inp)
             acts.append(right.get('action', 0))
             n += 1
             time.sleep(1 / 60)
+    except KeyboardInterrupt:
+        print('\n[hmv2] 收到中断(Ctrl+C) — 正在收尾并生成报告...',
+              flush=True)
     finally:
         actor.release()
         if last_scores not in ((0, 0),) and last_scores[0] + last_scores[1] > 0:
@@ -504,9 +520,10 @@ def run(char, headless, seconds=90):
                 human_w += 1
             else:
                 model_w += 1
-        # rep归档(会话期间新增)
+        # rep归档(会话期间新增) — REP_DIR随kit_config走,
+        # 收件机=包内models/human_reps(export.bat从这里收集)
         new_reps = []
-        _hr = r'D:\temp\th123_models\human_reps'
+        from kit_config import REP_DIR as _hr
         os.makedirs(_hr, exist_ok=True)
         for _dp, _dn, _fns in os.walk(rep_dir):
             for _fn in _fns:
@@ -548,7 +565,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--char', default='suika')
     ap.add_argument('--headless', action='store_true')
-    ap.add_argument('--seconds', type=int, default=90)
+    ap.add_argument('--seconds', type=int, default=0,
+                    help='会话时长秒; 0=无限(默认, 打到手动停)')
     a = ap.parse_args()
     rc = run(a.char, a.headless, a.seconds)
     sys.stdout.flush()

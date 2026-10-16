@@ -125,23 +125,24 @@ def disk_guard(ep_dir, snap_dir, char=None):
 
 
 def load_bc_bank(char, n_side):
-    """加载BC库**全量**(只读共享 — 与单实例trainer同一份锚, scenario_b §5:
-    "bc_extra照常(BC库只读共享)"; 路径模式同train_tm._load_bc_bank)。
+    """加载BC库(只读共享 — 与单实例trainer同一份锚, scenario_b §5:
+    "bc_extra照常(BC库只读共享)")。
     R57(第十八轮2.2): 原启动时固定采64行终身复用 — bcw拉力会过拟合到
     固定64样本(单实例是每次update重采样)。改为返回全库, 每次update由
     update_from_episodes按updates序号派生rng重采样(可复现)。
+    2026-10-14 mmap方案(用户裁定): bc_io单源 — trio三件套mmap优先
+    (全量驻磁盘, 内存近零, 零采样损失), npz回退兼容。
     返回(X,S,Y)全量或None。"""
-    pats = [os.path.join(STORE, 'bc_%s.npz' % char),
-            os.path.join(HERE, 'data', 'bc', 'bc_%s.npz' % char)]
-    p = next((q for q in pats if os.path.exists(q)), None)
-    if p is None:
+    from bc_io import load_bank
+    bank = load_bank(char, store=STORE)
+    if bank is None:
         return None
-    d = np.load(p)
-    if d['S'].shape[1] != n_side:
+    X, S, Y = bank
+    if S.shape[1] != n_side:
         print('[learner] BC库宽度不符(%d≠%d) — 跳过' % (
-            d['S'].shape[1], n_side))
+            S.shape[1], n_side))
         return None
-    return (d['X'], d['S'], d['Y'])
+    return (X, S, Y)
 
 
 def publish_snapshot(snap_dir, trainer):
@@ -292,6 +293,27 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
 
     feats = np.concatenate(all_feats)
     sides = np.concatenate(all_sides)
+    # S-4阶段2a(2026-10-15): 按局重放GRU(确定性, ep边界h=None) →
+    # detached repr16逐决策对齐批 — 行为侧(train_tm逐步step)与更新侧
+    # 用同一重放语义, ratio干净; 阶段2a细胞冻结只训W_gru
+    try:
+        from opp_gru import OppGRU as _OGRU
+        _g = gpu_tr.net
+        import torch as _torch
+        _gru = _OGRU()
+        with _torch.no_grad():
+            _gru.W_ih = _g.gru_cell.weight_ih.detach().cpu().numpy()
+            _gru.W_hh = _g.gru_cell.weight_hh.detach().cpu().numpy()
+            _gru.b_ih = _g.gru_cell.bias_ih.detach().cpu().numpy()
+            _gru.b_hh = _g.gru_cell.bias_hh.detach().cpu().numpy()
+            _gru.W_proj = _g.gru_W_proj.weight.detach().cpu().numpy()
+        gru_reprs = np.concatenate([
+            np.stack([_gru.repr16(h) for h in _gru.replay(
+                _ep_sides, n_macros)])
+            for _ep_sides in all_sides])
+    except Exception as _ge:
+        gru_reprs = None
+        print('[learner] GRU重放异常(%r) — 本批W_gru不更新' % (_ge,))
     acts = np.concatenate(all_acts)
     rews = np.concatenate(all_rews)
     masks = np.concatenate(all_masks)
@@ -318,7 +340,7 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
         feats, acts, rews, sides, ep_lens,
         ep_terms=ep_terms, masks=masks, bc_targets=bc_t,
         opp_next=opp_next, bc_extra=bc_use,
-        temp=gpu_tr._temp, stored_logp=logps)
+        temp=gpu_tr._temp, stored_logp=logps, gru_reprs=gru_reprs)
     # ---- update成功 → 提交副作用(P1-C: 删除/蒸馏/计数下行) ----
     for ep_path, dist in zip(ok_paths, distill_batches):
         if len(dist):

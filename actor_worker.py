@@ -111,7 +111,12 @@ def run_actor(char, actor_id, port, tps=480, episodes=1000,
     # 会遮蔽它; A2点火首局实测: 断言读参数恒0, 红线①防线拦截了序列化)
     fleet_logps = []
 
-    def rec_logp(mid, feat, side, mask, nbias):
+    def rec_logp(mid, feat, side, mask, nbias, mix_p=None):
+        # P1-5(从零#4): mix_p=混合行为边际(探针12%均匀+π88%×VG30%重选)
+        # — 探针/VG路径占比~40%, 原记纯π系有偏(红线①债)
+        if mix_p is not None:
+            fleet_logps.append(float(np.log(max(mix_p, 1e-10))))
+            return
         P = tr._ppo_act._pi_forward(
             feat.reshape(1, -1), side.reshape(1, -1),
             temp=tr._ppo_act._temp,
@@ -177,6 +182,15 @@ def run_actor(char, actor_id, port, tps=480, episodes=1000,
                             len(acts), contract=_contract)
         dst = save_episode_npz(EP_DIR, char, actor_id, state['ep'],
                                arrays, meta)
+        # BH-1: 行为健康旁车(承诺占比/续打率/连段完成率/对位分解/宏转移;
+        # 与episode同目录同生命周期, 不动episode契约)
+        try:
+            getattr(tr, 'bh', None) and tr.bh.flush(
+                EP_DIR, char, actor_id, state['ep'],
+                extra={'snap_ver': state['snap_ver']})
+        except Exception as _bhe:
+            print('[actor%d] BH旁车异常(%r) — 不影响episode' % (
+                actor_id, _bhe))
         print('[actor%d] %s ep%d %d决策 v%d 帧%.0f → %s' % (
             actor_id, time.strftime('%H:%M:%S'), state['ep'], len(acts),
             state['snap_ver'], frames, os.path.basename(dst)))

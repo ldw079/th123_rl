@@ -17,3 +17,6 @@ __pycache__/
 # 落根目录时保持未跟踪(历史残留distill_data.npz/wm_dynamics.npz已归档)
 /*.npz
 /*.json.tmp
+
+# R92(kit制品): dist/为build_kit输出(收件人包), 不入库
+dist/

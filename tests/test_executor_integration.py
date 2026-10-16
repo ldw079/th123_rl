@@ -180,9 +180,74 @@ def test_sidedriver_branch_macro_roundtrip():
     print("PASS SideDriver branch宏往返")
 
 
+def test_sc_first_frame_mirror():
+    """审计从零#3推迟项(sc步首帧镜像泄漏): 执行器按键步输入不镜像,
+    存入_sc_next_input后sc步首帧原样泄出 — 背向时方向反一帧。
+    修后: 背向(_last_dir<0)时sc首帧发出的H已镜像(-1)。"""
+    d = _load_driver()
+    if d is None:
+        return
+    me.enqueue_script(d.macro_queue,
+                      [(("right",), 4), ("sc:-1", 0)])
+    own, opp = _own(), _opp()
+    own["direction"] = -1          # 背向(朝左) — 需要镜像
+    _w = {"active": 0}
+    d._last_dir = -1
+    first_sc_inp = None
+    for _ in range(30):
+        inp = d.frame_input(dict(own), dict(opp), _w, [], [])
+        if d.macro_queue and isinstance(d.macro_queue[0][0], str) \
+                and str(d.macro_queue[0][0]).startswith("sc:"):
+            first_sc_inp = inp   # 键步刚弹出、sc成为队首的那帧发射
+            break
+    assert first_sc_inp is not None, "应推进至sc步"
+    assert first_sc_inp.get("H") == -1, \
+        "sc首帧必须发出镜像后H=-1(未镜像泄漏=+1): %r" % (first_sc_inp,)
+    print("PASS sc步首帧镜像(背向H已翻转)")
+
+
 def fl_zero(fl, ks):
     return isinstance(fl, int) and fl == 0 and ks in ("branch", "link",
                                                       "ender")
+
+
+def test_sidedriver_gate_hold_input():
+    """C12(2026-10-14变异漏网补): 门步帧保持上一拍输入。
+
+    变异面: side_driver门步分支`isinstance(keys,str) and sc:`→
+    `isinstance(keys,str):` — confirm/cconfirm/branch门帧返回
+    _sc_next_input(空)→门等待期松键(对手侧开环对赌复活面)。
+    正确行为: 门帧返回_last_inp保持(第六轮审计§4同构)。
+    """
+    d = _load_driver()
+    if d is None:
+        return
+    me.enqueue_script(d.macro_queue,
+                      [(("down",), 4), (("down", "B"), 10),
+                       ("confirm", 0), (("A",), 8)])
+    own, opp = _own(), _opp()
+    _w = {"active": 0}
+    # 推进到confirm门位于队首(14帧按键步消耗完)
+    for _ in range(30):
+        d.frame_input(dict(own), dict(opp), _w, [], [])
+        if d.macro_queue and d.macro_queue[0][0] == "confirm":
+            break
+    assert d.macro_queue and d.macro_queue[0][0] == "confirm", \
+        "应推进至confirm门: %r" % (d.macro_queue[:1],)
+    # 门观察窗第一帧: 队列仍持confirm(窗未满未判) → 输入=保持down+B
+    # (执行侧V极性: train_tm.KEY_TO_BIT down=V:-1, 与标注侧bc_match相反)
+    inp = d.frame_input(dict(own), dict(opp), _w, [], [])
+    still_gate = bool(d.macro_queue) and d.macro_queue[0][0] == "confirm"
+    if still_gate:
+        assert inp.get("B") is True and inp.get("V") == -1, \
+            "门步帧必须保持上一拍输入(down+B): %r" % (inp,)
+        print("PASS SideDriver门步输入保持(C12)")
+    else:
+        # 窗口极短时门已判—用_last_inp直接断言门帧语义
+        assert d._last_inp.get("B") is True, \
+            "_last_inp应保留门步前输入: %r" % (d._last_inp,)
+        print("PASS SideDriver门步_last_inp保持(C12, 窗内快判路径)")
+    del d
 
 
 if __name__ == "__main__":
@@ -191,4 +256,6 @@ if __name__ == "__main__":
     test_enqueued_ender_signal()
     test_sidedriver_ender_wiring()
     test_sidedriver_branch_macro_roundtrip()
+    test_sidedriver_gate_hold_input()
+    test_sc_first_frame_mirror()
     print("ALL PASS: %s" % os.path.basename(__file__))

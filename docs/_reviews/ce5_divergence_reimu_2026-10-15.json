@@ -1,0 +1,95 @@
+{
+ "char": "reimu",
+ "rows": 1000,
+ "topk": 3,
+ "n_cf": 132,
+ "divergence_rate": 0.803030303030303,
+ "mean_v_gap": 0.06747877822732026,
+ "examples": [
+  {
+   "row": 11123,
+   "policy": "5A确认",
+   "cf_best": "2A",
+   "v_gap": 0.0876,
+   "adx": 153.3
+  },
+  {
+   "row": 315763,
+   "policy": "5A确认",
+   "cf_best": "2A",
+   "v_gap": 0.0626,
+   "adx": 150.9
+  },
+  {
+   "row": 17909,
+   "policy": "5A确认",
+   "cf_best": "2A",
+   "v_gap": 0.0426,
+   "adx": 23.1
+  },
+  {
+   "row": 182066,
+   "policy": "5A确认",
+   "cf_best": "2A",
+   "v_gap": 0.0894,
+   "adx": 54.0
+  },
+  {
+   "row": 34653,
+   "policy": "5A确认",
+   "cf_best": "2A",
+   "v_gap": 0.0631,
+   "adx": 114.0
+  },
+  {
+   "row": 235684,
+   "policy": "5A确认",
+   "cf_best": "2A",
+   "v_gap": 0.0752,
+   "adx": 75.0
+  },
+  {
+   "row": 257070,
+   "policy": "5A确认",
+   "cf_best": "连段C",
+   "v_gap": 0.0,
+   "adx": 203.2
+  },
+  {
+   "row": 134181,
+   "policy": "5A确认",
+   "cf_best": "2A",
+   "v_gap": 0.0016,
+   "adx": 39.0
+  },
+  {
+   "row": 42342,
+   "policy": "5A确认",
+   "cf_best": "2A",
+   "v_gap": 0.0921,
+   "adx": 46.0
+  },
+  {
+   "row": 4990,
+   "policy": "5A确认",
+   "cf_best": "2A",
+   "v_gap": 0.081,
+   "adx": 96.3
+  },
+  {
+   "row": 101243,
+   "policy": "5A确认",
+   "cf_best": "2A",
+   "v_gap": 0.0179,
+   "adx": 157.4
+  },
+  {
+   "row": 31274,
+   "policy": "原子·空链",
+   "cf_best": "原子·收尾",
+   "v_gap": 0.1832,
+   "adx": 38.0
+  }
+ ],
+ "note": "离线BC库行; 在线版待迁移窗挂F6"
+}

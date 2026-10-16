@@ -1,0 +1,95 @@
+{
+ "char": "marisa",
+ "rows": 1000,
+ "topk": 3,
+ "n_cf": 123,
+ "divergence_rate": 0.6097560975609756,
+ "mean_v_gap": 0.7671475219726562,
+ "examples": [
+  {
+   "row": 156928,
+   "policy": "jA",
+   "cf_best": "6A",
+   "v_gap": 0.1221,
+   "adx": 372.3
+  },
+  {
+   "row": 14172,
+   "policy": "3A",
+   "cf_best": "2A",
+   "v_gap": 0.0681,
+   "adx": 250.2
+  },
+  {
+   "row": 198439,
+   "policy": "TM·6a终结",
+   "cf_best": "j8A",
+   "v_gap": 1.494,
+   "adx": 39.0
+  },
+  {
+   "row": 130722,
+   "policy": "3A",
+   "cf_best": "TM·6a终结",
+   "v_gap": 0.0683,
+   "adx": 585.2
+  },
+  {
+   "row": 106333,
+   "policy": "5A确认",
+   "cf_best": "连段B",
+   "v_gap": 0.0,
+   "adx": 380.1
+  },
+  {
+   "row": 159311,
+   "policy": "TM·6a终结",
+   "cf_best": "3A",
+   "v_gap": 0.6709,
+   "adx": 39.0
+  },
+  {
+   "row": 24056,
+   "policy": "3A",
+   "cf_best": "2A",
+   "v_gap": 0.5524,
+   "adx": 184.8
+  },
+  {
+   "row": 24003,
+   "policy": "jA",
+   "cf_best": "j8A",
+   "v_gap": 0.1981,
+   "adx": 184.7
+  },
+  {
+   "row": 111297,
+   "policy": "jA",
+   "cf_best": "连段B",
+   "v_gap": 0.6078,
+   "adx": 533.3
+  },
+  {
+   "row": 207198,
+   "policy": "TM·6a终结",
+   "cf_best": "j8A",
+   "v_gap": 3.0561,
+   "adx": 5.8
+  },
+  {
+   "row": 156578,
+   "policy": "TM·6a终结",
+   "cf_best": "3A",
+   "v_gap": 0.436,
+   "adx": 83.5
+  },
+  {
+   "row": 142879,
+   "policy": "5A确认",
+   "cf_best": "DA",
+   "v_gap": 0.0238,
+   "adx": 387.0
+  }
+ ],
+ "note": "离线BC库行; 在线版待迁移窗挂F6"
+}

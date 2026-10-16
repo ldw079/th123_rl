@@ -217,7 +217,9 @@ SC_MACROS_MARISA = {"卡·星星", "卡·钻头", "卡·星炮SC", "卡·邪恋"
 
 # 符卡消费表(从card_tables: 魔理沙卡费)
 SC_COST_MARISA = {0: 1, 1: 1, 200: 3, 202: 5, 203: 5, 204: 4, 205: 2, 206: 3,
-                  207: 5, 208: 1, 209: 3, 211: 2, 212: 3, 214: 4, 215: 2, 219: 5}
+                  207: 5, 208: 1, 209: 3, 211: 2, 212: 3, 214: 4, 215: 2, 219: 5,
+           # JZ-4系统卡(2026-10-14晚)
+           2: 1, 3: 1, 4: 1, 12: 1, 14: 1}
 
 # ==== R61n(C4): 表里择+压起身套件 ====
 MACROS_MARISA.append(('择·中段', [(('right', 'D'), 6), ((), 2), (('right',), 6), (('right', 'A'), 10)]))
@@ -232,5 +234,17 @@ COMBO_MACROS_MARISA |= {'择·中段', '择·下段', '择·投', '压起身·�
 MACRO_NAMES_MARISA = [m[0] for m in MACROS_MARISA]
 # R61n: 追加宏的规范化(预置帧≥5 — hitlab标定阈值)
 MACROS_MARISA[-7:] = [(n, _norm_presteps(sc)) for n, sc in MACROS_MARISA[-7:]]
+MACRO_NAMES_MARISA = [m[0] for m in MACROS_MARISA]
+N_MACROS_MARISA = len(MACROS_MARISA)
+# CH-3/JZ-4扩展波(2026-10-14晚): 蓄力/系统卡/DD变体/HJC取消 —
+# 尾部追加+基础宏派生(wave_ext), 索引稳定=ppo零初始化迁移适用
+from macros.wave_ext import wave_extensions, wave_registrations
+_WAVE = wave_extensions(MACROS_MARISA, 'marisa')
+MACROS_MARISA.extend(_WAVE)
+_B, _S, _D = wave_registrations(_WAVE)
+BULLET_MACROS_MARISA |= _B
+SC_MACROS_MARISA |= _S
+DASH_MACROS_MARISA |= _D
+MACROS_MARISA[-len(_WAVE):] = [(n, _norm_presteps(sc)) for n, sc in MACROS_MARISA[-len(_WAVE):]]
 MACRO_NAMES_MARISA = [m[0] for m in MACROS_MARISA]
 N_MACROS_MARISA = len(MACROS_MARISA)

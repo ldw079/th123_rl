@@ -51,11 +51,27 @@ check('满min_suspend给最早暂停的',
       wd.pop_resumable(t + SUSPEND_MIN_S) == ('reimu', 0))
 check('恢复后簿记清空', wd.suspended_at == {})
 
-# ---- 3. 低CPU满窗→resume(一次一个) ----
+# ---- 3. 低CPU连续两满窗→resume(P2从零#4: 单窗即恢复=震荡环) ----
+# 冷启动: 建窗(6样本)+连续平稳2×窗宽(12样本) = 3×窗宽才恢复(9min)
 wd = CpuWatchdog()
+dec = None
 for i in range(CPU_WINDOW):
     dec, avg = wd.sample(40.0, t + i)
-check('低CPU满窗→resume决策(均值40)', dec == 'resume' and avg == 40.0)
+check('低CPU首满窗→不resume(需连续两窗)', dec is None)
+for i in range(CPU_WINDOW):
+    dec, avg = wd.sample(40.0, t + 10 + i)
+check('低CPU次满窗→仍不resume', dec is None)
+fired = None
+for i in range(CPU_WINDOW):
+    dec, avg = wd.sample(40.0, t + 20 + i)
+    if dec == 'resume':
+        fired = avg
+check('低CPU第三满窗→resume决策(均值40)', fired == 40.0)
+# 哨兵拒收: cpu<0(查询失败)不入窗
+wd2 = CpuWatchdog()
+for i in range(CPU_WINDOW):
+    dec2, _ = wd2.sample(-1.0, t + i)
+check('查询失败哨兵(-1)不入窗不决策', dec2 is None and len(wd2.win) == 0)
 
 # ---- 4. 今日事故序列全回放 ----
 wd = CpuWatchdog()

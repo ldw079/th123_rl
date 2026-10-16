@@ -155,13 +155,19 @@ def main():
     else:
         check("dec_name宏名来源side_driver==train_tm(跳过:无立防)", True)
 
-    # 8c. 灵力门(迁移变异#75承接): 空灵力+下一含攻击键 → 清队
+    # 8c. 灵力门(迁移变异#75承接; 裁定四A改): 空灵力+B/C真耗灵键→清队;
+    # 近战A零灵耗放行(原连带清空=残血没收近战手段)
     l35, r35 = st(my_a=0, opp_a=0, spirit=50)
-    q = [(("A",), 10)]
+    q = [(("B",), 10)]
     q2, _, _, _ = advance_queue(
+        q, 0, l35, r35, 0, 0, False, 50, 100, "5B",
+        GUARD_PREP, GUARD_IDS, fake_sc, noop)
+    check("灵力门(空灵力+B清队)", len(q2) == 0)
+    q = [(("A",), 10)]
+    q3, _, _, _ = advance_queue(
         q, 0, l35, r35, 0, 0, False, 50, 100, "5A",
         GUARD_PREP, GUARD_IDS, fake_sc, noop)
-    check("灵力门(空灵力清队)", len(q2) == 0)
+    check("灵力门放行近战A(裁定四A)", len(q3) == 1)
 
     # 8d. 空队安全(迁移变异#76语义承继): 清队路径全部立即return,
     # 空队列推进不得异常且不发输入

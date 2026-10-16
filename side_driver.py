@@ -18,13 +18,16 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from feat_builder import FeatureBuilder  # noqa: E402
+from feat_builder import FeatureBuilder, eff_untech  # noqa: E402
 from opp_model import GUARD_ALL_IDS  # noqa: E402 (R34中断判定 — 第九轮审计P0-2: 原遗漏导入, 对手攻击+我方硬直时NameError炸局)
 from ppo import PPOTrainer  # noqa: E402
 from soku_client2 import GameEnded  # noqa: E402
 from tm_env import TMEnv  # noqa: E402
 from train_tm import (CHAR_LIBS, keys_to_input, _parse_sc_targets,  # noqa: E402
                       GUARD_PREP_MACROS)  # noqa: E402
+
+# BH-3.2: 池序→角色名(守备段位逐角色表查名用)
+_POOL_OPP_NAME = {l['id']: n for n, l in CHAR_LIBS.items()}
 
 
 class EvalEnv(TMEnv):
@@ -85,6 +88,11 @@ class SideDriver:
                  | lib.get("string", set()))
         self.near_idx = np.array([n in _near for n in self.names],
                                  dtype=bool)
+        # JZ-3.2(2026-10-14): 投技宏索引+对手投技无敌窗(与train_tm同源)
+        self.throw_idx = np.array(
+            [n in lib.get("throw", set()) for n in self.names], dtype=bool)
+        from frame_events import ThrowInvulnTracker
+        self._throw_invuln_trk = ThrowInvulnTracker()
         # R23: 位置特化连段门控(与train_tm同源)
         self.corner_combo_idx = np.array(["版边" in n for n in self.names],
                                          dtype=bool)
@@ -136,6 +144,11 @@ class SideDriver:
         self._ender_mask = None     # R61w(C5): ender菜单掩码(P1-A接线)
         self.feat_builder.reset_match()
         self._sc_reset()   # R16: 符卡状态机随局复位(训练同款)
+        # P2修(从零#4): 局末收尾上宏punish窗 — 原跨局残留一拍(下局首个
+        # decide才end上一局的窗, 语义污染); 局边界显式结算
+        if getattr(self, '_punish_active', False):
+            self.feat_builder.punish.end()
+            self._punish_active = False
 
     def _push_frame(self, own, opp, objs):
         """R19(审查2026-10-02): 逐帧压栈(5帧) — 与train_tm._push_frame同构。
@@ -187,6 +200,15 @@ class SideDriver:
             else:
                 # 扩展区(core[308+i], R61t F5)
                 core[308 + (_oid - 20)] = 1.0
+            # BH-3.2: 守备段位逐角色表按对手名查(feat_builder._low_ids)
+            _oname = _POOL_OPP_NAME.get(_oid)
+            if _oname is not None:
+                self.feat_builder._opp_char = _oname
+            # K5审计收尾(从零#4"未接线"档): 池外位随对手id自动派生 —
+            # 评估/人测侧(外部wire oid)此前恒0, 训练侧按名字设1=分布
+            # 偏斜; id 0/1/2=池内与train_tm._wire_opp_ids名字推导一致
+            self.feat_builder.opp_outside_pool = (
+                0.0 if _oid in (0, 1, 2) else 1.0)
         s = np.zeros(self.n_side, dtype=np.float32)
         s[self.last_macro] = 1.0
         s[self.n_macros + self.last_macro2] = 1.0
@@ -203,7 +225,8 @@ class SideDriver:
             np.clip((_ady - self.macro_reach_v) / 200.0, -1, 1) \
             * self.reach_v_mask_idx
         # R30: untech差值块(与train_tm同构)
-        _opp_ut = opp.get("untech", 0) or 0
+        # BH-4.2: 过动作门(与训练侧同步 — 评估/人测输入口径一致)
+        _opp_ut = eff_untech(opp)
         s[_b0 + 2 * self.n_macros:] = \
             np.clip((_opp_ut - self.macro_startup) / 50.0, -1, 1) \
             * self.startup_mask_idx
@@ -254,16 +277,32 @@ class SideDriver:
                 _ady > self.macro_reach_v + self._reach_margin)
             if _outv.any():
                 mask = mask & ~_outv
+        # JZ-3.2: 对手投技无敌窗内禁采样投技(与train_tm同源, 掩码层)
+        if self.throw_idx.any() and self._throw_invuln_trk.invuln > 0:
+            mask = mask & ~self.throw_idx
         if not mask.any():
             mask = (_end_mask if _end_mask is not None
                     and _end_mask.any() else self.base_mask)
-        mid = self.ppo.sample(feat, side, mask=mask,
-                              temp=getattr(self.ppo, "_temp", 1.0))
+        mid, _pred = self.ppo.sample(feat, side, mask=mask,
+                                     temp=getattr(self.ppo, "_temp", 1.0),
+                                     return_pred=True)
         # R16: 温度跟随模型meta退火值(评估=训练行为策略; 原1.0冷静采样
         # 与训练玩家行为分布不一致, 战报低估)
         self.decisions += 1
         self.last_macro2 = self.last_macro
         self.last_macro = mid
+        # S-2接线(2026-10-14, 评估侧对称): 预测回写/类别序列/
+        # 上宏结算+新宏punish开始(S-1在线源, 维330-339)
+        self.feat_builder.set_last_pred(*_pred)
+        from my_punish_tracker import classify as _clsfy
+        _dcls = _clsfy(self.macros[mid][0], CHAR_LIBS[self.char])
+        if getattr(self, '_punish_active', False):
+            self.feat_builder.punish.end()
+        self._punish_active = True
+        self.feat_builder.punish.begin(_dcls)
+        self.feat_builder.note_decision(
+            ('JUMP', 'MELEE', 'BULLET', 'SKILL',
+             'GUARD_PREP', 'OTHER').index(_dcls))
         # 第六轮审计§4修复: 门步(confirm/cconfirm)必须入队 — 原版直接跳过,
         # 使门后步骤无条件执行(开环对赌在对手侧复活)且门观察窗代码不可达。
         # R16: sc:步也入队(状态机已移植, 在frame_input执行; 原v1跳过使
@@ -371,6 +410,11 @@ class SideDriver:
         d_deal = max(0, self.hp_opp_prev - opp["hp"])
         d_take = max(0, self.hp_own_prev - own["hp"])
         self.hp_opp_prev, self.hp_own_prev = opp["hp"], own["hp"]
+        # S-1接线(评估侧): punish证据逐帧入账(与train_tm同判据)
+        self.feat_builder.punish.frame(
+            d_take, 300 <= opp.get("action", 0) <= 598,
+            d_deal, 150 <= own.get("action", 0) <= 166
+            and own.get("action", 0) != 158)
         d_now = 1 if own["direction"] > 0 else -1
         if d_now != self._last_dir:
             self._dir_frames = 0
@@ -385,6 +429,8 @@ class SideDriver:
                                            - self._opp_x_prev_f))
         self._opp_x_prev_f = opp["position.x"]
         frozen = (own["hitStop"] > 0) or (own["timeStop"] > 0)
+        # JZ-3.2: 投技无敌窗逐帧跟踪(与train_tm同拍)
+        self._throw_invuln_trk.feed(opp, frozen)
         # R61u(C1): 统一宏执行器 — 原~60行内联推进已抽至
         # macro_executor.py(与train_tm共同调用, 双拷贝终结)
         if self.macro_queue and not frozen:
@@ -417,6 +463,12 @@ class SideDriver:
                             _m[_ei] = True
                     self._ender_mask = _m if _m.any() else None
                 else:
+                    # 审计从零#3推迟项(sc步首帧镜像泄漏)同型: 执行器
+                    # 按键步输入不镜像 — 存入时按当前朝向镜像(评估侧)
+                    if isinstance(_inp, dict) and _inp.get("H"):
+                        _inp = dict(_inp)
+                        if self._last_dir < 0:
+                            _inp["H"] = -_inp["H"]
                     self._sc_next_input = _inp
         if not self.macro_queue:
             self.decide(own, opp, weather, objs, bullets)

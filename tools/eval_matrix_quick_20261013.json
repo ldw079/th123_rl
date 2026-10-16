@@ -11,7 +11,7 @@
    "games": 2,
    "timeout_n": 2,
    "timeout_loss": 2,
-   "timeout_hp_mean": -582.0
+   "timeout_hp_mean": null
   },
   "reimu|suika": {
    "a_wins": 0,
@@ -19,7 +19,7 @@
    "games": 2,
    "timeout_n": 2,
    "timeout_loss": 2,
-   "timeout_hp_mean": -1668.0
+   "timeout_hp_mean": null
   },
   "marisa|suika": {
    "a_wins": 2,
@@ -27,7 +27,7 @@
    "games": 2,
    "timeout_n": 1,
    "timeout_loss": 0,
-   "timeout_hp_mean": 616.0
+   "timeout_hp_mean": 2591.0
   }
  },
  "report": {
@@ -234,10 +234,21 @@
    "Wilson 区间已含抽样误差; 但重放抽取偏差(对手水平/角色选择)不在区间内 — 人类锚的解读须带此限定。",
    "真人打 COM 恒100% → COM 标尺在天花板处饱和, 只能诊断\"是否低于人类下限\", 不能度量\"高于人类多少\"。"
   ],
+  "four_lenses": {
+   "targeted_value": {
+    "pair": "reimu|marisa",
+    "wr": 0.0,
+    "games": 2
+   },
+   "population_avg": 0.333,
+   "worst_exploit": null,
+   "adapt_persistence": null,
+   "notes": []
+  },
   "passivity": {
    "timeout_rate": 0.8333333333333334,
    "timeout_loss_share": 0.8,
-   "timeout_hp_mean_avg": -544.6666666666666
+   "timeout_hp_mean_avg": 2591.0
   },
   "superhuman_distance": {
    "metric": null,

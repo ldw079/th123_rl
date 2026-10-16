@@ -71,6 +71,9 @@ RESERVED = {
     "human_match":       ("probe", 20975),
     "human_solo_oracle": ("probe", 20970),
     "expert_harvest":    ("probe", 20971),
+    # P1-9(从零#4): danger_reveal真实模式启动即KeyError — 新工具注册
+    # 端口时只改调用方未改表(单源表的两半不同步)
+    "danger_reveal":     ("probe", 20976),
 }
 
 

@@ -77,7 +77,7 @@ X_t = torch.from_numpy(
 S_t = torch.from_numpy(S).to(__import__('ppo_gpu').DEVICE)
 M_t = torch.from_numpy(mask).to(__import__('ppo_gpu').DEVICE)
 with torch.no_grad():
-    logits_t, v_t, _ = gpu_tr.net(X_t, S_t, 1.0, M_t)
+    logits_t, v_t, _, _ = gpu_tr.net(X_t, S_t, 1.0, M_t)
 P_gpu = torch.softmax(logits_t, dim=1).cpu().numpy()
 V_gpu = v_t.cpu().numpy()
 

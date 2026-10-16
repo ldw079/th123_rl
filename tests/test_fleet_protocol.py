@@ -179,7 +179,7 @@ def main():
                              .astype(np.float32) / 255.0)
         S = torch.from_numpy(side.reshape(1, -1))
         with torch.no_grad():
-            logits, _, _ = gpu_tr.net(X, S, 1.0,
+            logits, _, _, _ = gpu_tr.net(X, S, 1.0,
                                       torch.from_numpy(
                                           mask.reshape(1, -1)))
             P_gpu = F.softmax(logits, dim=1).numpy()[0]

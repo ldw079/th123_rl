@@ -106,6 +106,11 @@ def run_delayed_matchup(char_a, char_b, port, games=60, tps=None,
                     break
                 continue
             if r is None:
+                # P2修(从零#4): timeout_n原为死计数器(初始化+返回但永不
+                # 递增 — 承诺的超时统计不存在)。真语义: env无果终止
+                # (连接断/局中止)计timeout; 顶时判负(game无时钟, 见
+                # JZ-2§1.6撤回)不存在, timeout_loss恒0并注记
+                timeout_n += 1
                 break
             left, right, weather, objs = r
             sl, sr = left.get('score', 0), right.get('score', 0)
@@ -143,6 +148,8 @@ def run_delayed_matchup(char_a, char_b, port, games=60, tps=None,
     if exc_a > 10 or exc_b > 10:
         print('[W1] 异常率过高: a侧%d b侧%d (计入分母可能失真)' % (
             exc_a, exc_b))
+    # timeout_loss: 非想天则无回合时钟(JZ-2§1.6撤回记录) — 恒0,
+    # 保留签名兼容; timeout_n=env无果终止计数(P2从零#4激活)
     return wins_a, wins_b, timeout_n, timeout_loss, dv.warmup
 
 

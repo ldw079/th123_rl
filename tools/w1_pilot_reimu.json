@@ -1,0 +1,50 @@
+{
+ "marisa@0": {
+  "wins": 0,
+  "losses": 0,
+  "wr": 0.0,
+  "wall_s": 789
+ },
+ "marisa@3": {
+  "wins": 0,
+  "losses": 1,
+  "wr": 0.0,
+  "wall_s": 794
+ },
+ "marisa@5": {
+  "wins": 0,
+  "losses": 1,
+  "wr": 0.0,
+  "wall_s": 794
+ },
+ "marisa@8": {
+  "wins": 0,
+  "losses": 0,
+  "wr": 0.0,
+  "wall_s": 788
+ },
+ "suika@0": {
+  "wins": 0,
+  "losses": 0,
+  "wr": 0.0,
+  "wall_s": 787
+ },
+ "suika@3": {
+  "wins": 0,
+  "losses": 1,
+  "wr": 0.0,
+  "wall_s": 794
+ },
+ "suika@5": {
+  "wins": 0,
+  "losses": 1,
+  "wr": 0.0,
+  "wall_s": 803
+ },
+ "suika@8": {
+  "wins": 0,
+  "losses": 0,
+  "wr": 0.0,
+  "wall_s": 794
+ }
+}

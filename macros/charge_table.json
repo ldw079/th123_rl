@@ -1,0 +1,145 @@
+{
+ "source": "CH-2蓄力帧数据表 — 主源=cleista帧数据库(用户2026-10-14裁定权威源,\n游戏内部数据派生, data/guide_tables/cleista/{char}.json 蓄力行);\nCHM攻略降为交叉验证源(charge_findings.md).",
+ "discipline": "零编造: 站数据已入的用真值(source=cleista); 魔理沙站数据\n暂缺(反爬未取得) — 显式标extrapolated_from_suika待替换, 不冒充真值;\n耗灵站页未载=null不推算.",
+ "hold_note": "宏保持时长=蓄力完成点+4帧余量(CH-3口径不变): 阈值帧列为完成点,\nthreshold_frames列为宏保持(完成点+4).",
+ "chars": {
+  "suika": {
+   "source": "cleista/suika.json蓄力行(2026-10-14)",
+   "moves": [
+    {
+     "move": "5B蓄",
+     "base": "5B",
+     "completion": 30,
+     "threshold_frames": 34,
+     "site_row": "5[B] 30f/81f",
+     "note": "站萃香5[B]完成点30f(旧外推36→修正)"
+    },
+    {
+     "move": "jB蓄",
+     "base": "jB",
+     "completion": 29,
+     "threshold_frames": 33,
+     "site_row": "j.5[B] 29f/75f"
+    }
+   ],
+   "superseded": "旧32F注释口径(发生17F通常/32F蓄力)已被站数据30f修正"
+  },
+  "reimu": {
+   "source": "cleista/reimu.json蓄力行(2026-10-14)",
+   "moves": [
+    {
+     "move": "5B蓄",
+     "base": "5B",
+     "completion": 31,
+     "threshold_frames": 35,
+     "site_row": "5[B] 31f/65f"
+    },
+    {
+     "move": "6B蓄",
+     "base": "6B",
+     "completion": 30,
+     "threshold_frames": 34,
+     "site_row": "6[B] 30f/64f"
+    },
+    {
+     "move": "jB蓄",
+     "base": "jB",
+     "completion": 31,
+     "threshold_frames": 35,
+     "site_row": "j.5[B] 31f/69f"
+    },
+    {
+     "move": "j2B蓄",
+     "base": "j2B",
+     "completion": 30,
+     "threshold_frames": 34,
+     "site_row": "j.2[B] 30f/68f"
+    },
+    {
+     "move": "5C蓄",
+     "base": "5C",
+     "completion": 50,
+     "threshold_frames": 54,
+     "site_row": "5[C] 50f/84f"
+    },
+    {
+     "move": "jC蓄",
+     "base": "jC",
+     "completion": 43,
+     "threshold_frames": 47,
+     "site_row": "j.5[C] 43f/77f"
+    },
+    {
+     "move": "j2C蓄",
+     "base": "j2C",
+     "completion": 46,
+     "threshold_frames": 50,
+     "site_row": "j.2[C] 46f/102f"
+    }
+   ],
+   "superseded": "原extrapolated_from_suika(36)全部替换为站真值"
+  },
+  "marisa": {
+   "source": "cleista API /api/v1/framedata/marisa/{mv}?charged=1 (2026-10-14晚, build 8bd50f33)",
+   "moves": [
+    {
+     "move": "5B蓄",
+     "base": "5B",
+     "completion": 28,
+     "threshold_frames": 32,
+     "site_row": "5B?charged=1 startup=28"
+    },
+    {
+     "move": "6B蓄",
+     "base": "6B",
+     "completion": 28,
+     "threshold_frames": 32,
+     "site_row": "6B?charged=1 startup=28"
+    },
+    {
+     "move": "2B蓄",
+     "base": "2B",
+     "completion": 12,
+     "threshold_frames": 16,
+     "site_row": "2B?charged=1 startup=12 — 多段蓄弹快完成, 外推36错24F"
+    },
+    {
+     "move": "jB蓄",
+     "base": "jB",
+     "completion": 31,
+     "threshold_frames": 35,
+     "site_row": "j.5B?charged=1 startup=31"
+    },
+    {
+     "move": "j2B蓄",
+     "base": "j2B",
+     "completion": 31,
+     "threshold_frames": 35,
+     "site_row": "j.2B?charged=1 startup=31"
+    },
+    {
+     "move": "5C蓄",
+     "base": "5C",
+     "completion": 47,
+     "threshold_frames": 51,
+     "site_row": "5C?charged=1 startup=47"
+    },
+    {
+     "move": "jC蓄",
+     "base": "jC",
+     "completion": 48,
+     "threshold_frames": 52,
+     "site_row": "j.5C?charged=1 startup=48"
+    }
+   ],
+   "superseded": "extrapolated_from_suika(36)全部替换为API真值"
+  }
+ },
+ "cross_validation": {
+  "suika_vs_chm": "萃香5[B]: 站30f vs 旧宏注释32F(萃香注释级) — 差2F,\n站为游戏内部数据派生, 采站值",
+  "hitlab_discrepancy_rule": "与hitlab实测出入并列上报用户裁定, 不自动取舍\n(JZ-2数据源升级裁定)"
+ },
+ "non_main_chars_registered": "妖梦蓄力择/美铃蓄6A·3A/帕秋莉蓄B爪 — 站数据\n全20角色在库, 待逐角色提取(反爬限制, 分批补)",
+ "system_actions_note": "站System actions区含SokuLib枚举无敌窗(萃香:\nKNOCKED_DOWN_STATIC 1-10f全无敌=起身无敌表实证; NEUTRAL_HIGH_JUMP\n擦弹1-21f=大跳被康窗实证; 三tech无敌窗1-48/36/15f) — throw_invuln与\njump_recovery_windows的站源交叉验证通过",
+ "pending": null
+}

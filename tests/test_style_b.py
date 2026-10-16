@@ -57,10 +57,12 @@ def hand5(*ids):
 
 def main():
     # 1. CORE_DIMS=330
-    check('CORE_DIMS=330', FeatureBuilder.CORE_DIMS == 330)
+    # P2(2026-10-15): 硬编码343随JZ-1迁移(→358)失效 — 改区间下界
+    check('CORE_DIMS>=343', FeatureBuilder.CORE_DIMS >= 343)
 
     f = fb()
-    check('n_side含B段', f.n_side == 2 * 6 + 330)
+    check('n_side含B段',
+          f.n_side == 2 * 6 + FeatureBuilder.CORE_DIMS)
 
     # 2. 初始状态: 风格段全零
     l, r = own(), opp()
@@ -118,9 +120,9 @@ def main():
     old_pi = os.path.join(tmp, 'old.npz')
     old_v = os.path.join(tmp, 'old_v.npz')
     old_t.save(old_pi, old_v)
-    new_t = PPOTrainer(n_side=5 * 6 + 330, n_out=6)
+    new_t = PPOTrainer(n_side=5 * 6 + 343, n_out=6)
     new_t.load(old_pi, old_v)
-    check('load旧模型→新宽', new_t.W_side.shape[0] == 5 * 6 + 330)
+    check('load旧模型→新宽', new_t.W_side.shape[0] == 5 * 6 + 343)
 
     # 8. 旧策略保持: 用旧模型前向(取前316维=旧布局)与新模型
     #    前316位权重相同→旧策略逐位不变(B段零权重=零贡献)

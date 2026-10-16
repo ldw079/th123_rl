@@ -64,15 +64,20 @@ frame(d, own, opp)
 assert len(d.macro_queue) == 1, '防御态不应被R34中断: %s' % d.macro_queue
 print('✓ R34不误触防御态')
 
-# ---- 3) 灵力门控: 攻击键+灵力不足 → 清队 ----
+# ---- 3) 灵力门控(裁定四A, 2026-10-14): B/C真耗灵键+灵力不足→清队;
+# 近战A零灵耗放行(原连带清空=残血没收近战手段) ----
 d = mk_driver()
-d.macro_queue = [(("A",), 3)]
+d.macro_queue = [(("B",), 3)]
 own = dict(BASE)
 own["spirit"] = 50
 opp = dict(BASE)
 opp.update({"position.x": 1000.0, "action": 130})   # 远距 → R34不触发
 frame(d, own, opp)
-assert d.macro_queue == [], '灵力门控应清队: %s' % d.macro_queue
+assert d.macro_queue == [], '灵力门控应清队(B): %s' % d.macro_queue
+d = mk_driver()
+d.macro_queue = [(("A",), 3)]
+frame(d, dict(own), dict(opp))
+assert d.macro_queue, '灵力门放行近战A(裁定四A): %s' % d.macro_queue
 print('✓ 灵力门控清队(攻击步+灵力<100)')
 
 # ---- 3b) 移动键+灵力不足 → 保留 ----

@@ -43,7 +43,8 @@ def save_synthetic(ep_dir, char, ep_idx, adx_rows, act_ids,
     """真实写者路径存一局, 再改名为受控时间戳(工具按文件名排序)."""
     names = [m[0] for m in CHAR_LIBS[char]["macros"]]
     n_macros = len(names)
-    n_side = 5 * n_macros + 330
+    from feat_builder import FeatureBuilder
+    n_side = 5 * n_macros + FeatureBuilder.CORE_DIMS
     n = len(act_ids)
     sides = np.zeros((n, n_side), dtype=np.float32)
     sides[:, 2 * n_macros + 4] = np.clip(

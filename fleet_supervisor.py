@@ -54,9 +54,15 @@ class CpuWatchdog:
         self.avg = None
 
     def sample(self, cpu, now=0.0):
-        """喂一次CPU采样(心跳节奏), 返回(决策, 均值)。"""
+        """喂一次CPU采样(心跳节奏), 返回(决策, 均值)。
+
+        P2修(从零#4, 震荡实测446次降容/恢复): ①cpu<0=查询失败哨兵
+        (日志实证"均值-1%"入窗) — 拒收不入窗, 防假均值错误触发恢复;
+        ②恢复须**连续两个满窗**低于回入场线(原单窗即恢复, 突发负载
+        下快闪: 恢复→下一窗又降容的震荡环)。
+        """
         self.avg = None
-        if cpu is None:
+        if cpu is None or cpu < 0:
             return None, None
         self.win.append(cpu)
         if len(self.win) > self.window:
@@ -66,9 +72,16 @@ class CpuWatchdog:
         self.avg = sum(self.win) / len(self.win)
         if self.avg > self.red_line:
             self.win = []   # 降容判定后窗口重置: 新均值再判(防连环杀)
+            self._calm = 0
             return 'kill', self.avg
         if self.avg < self.reenter:
-            return 'resume', self.avg
+            # 连续样本计数: 稳足2×窗宽(=连续两满窗均值都在场下)才恢复
+            self._calm = getattr(self, '_calm', 0) + 1
+            if self._calm >= 2 * self.window:
+                self._calm = 0
+                return 'resume', self.avg
+            return None, self.avg
+        self._calm = 0
         return None, self.avg
 
     def suspend(self, key, now):
@@ -111,12 +124,20 @@ HEARTBEAT = os.path.join(STORE, 'fleet_heartbeat')
 HEARTBEAT_EVERY = 3   # 每3个监督循环(30s)写一次
 
 
-def write_heartbeat():
+def write_heartbeat(alert=None):
+    """P0(从零#4): alert≠None时同步写异常标记文件(耗尽减员等事故),
+    恢复调用(alert=None)清除 — 主时间戳格式不变(offline-gap读数兼容)。"""
     try:
         tmp = HEARTBEAT + '.tmp'
         with open(tmp, 'w') as f:
             f.write(str(time.time()))
         os.replace(tmp, HEARTBEAT)
+        ap = HEARTBEAT + '.alert'
+        if alert:
+            with open(ap, 'w') as f:
+                f.write('%s %s' % (time.strftime('%m-%d %H:%M:%S'), alert))
+        elif os.path.exists(ap):
+            os.remove(ap)
     except OSError:
         pass
 
@@ -434,6 +455,7 @@ def main():
                 win_end = (int(_h) * 60 + int(_m)) * 60
             except (ValueError, IndexError):
                 log('窗口参数无法解析(%r) — 忽略' % args.hours)
+        _exhausted = set()   # P0(从零#4): 重启耗尽减员账(告警重播源)
         while actors or learners:
             time.sleep(10)
             if win_end is not None:
@@ -446,7 +468,15 @@ def main():
                     break
             _hb += 1
             if _hb % HEARTBEAT_EVERY == 0:
-                write_heartbeat()
+                # P0: 心跳携带减员告警(防无参调用清除alert文件)
+                write_heartbeat(
+                    alert=('restart_exhausted:%s'
+                           % ','.join(sorted(map(str, _exhausted)))
+                           ) if _exhausted else None)
+            # P0: 耗尽减员节流重播(每18循环≈3min) — 静默事故不再
+            if _exhausted and _hb % 18 == 0:
+                log('!!ALERT!! 车队减员在案: %s (需人工介入)'
+                    % sorted(map(str, _exhausted)))
                 _cpu = cpu_load_pct()
                 # R75: 策略在CpuWatchdog(纯逻辑), 进程管理在此。
                 # 降容=可恢复暂停(非移除) — 全灭事故修正。
@@ -504,7 +534,15 @@ def main():
                 ch, aid = key
                 rk = restarts.get(key, 0)
                 if rk >= MAX_RESTARTS:
-                    log('%s 重启耗尽 — 放弃' % str(key))
+                    # P0(从零#4, bug_restart_exhaust_silent): 耗尽=事故
+                    # 不是静默减员 — 原仅del无告警, marisa缺员1.6h无人
+                    # 察觉。ALERT级+心跳异常标记+主循环节流重播。
+                    log('!!ALERT!! %s 重启耗尽(%d次) — 车队永久减员, '
+                        '需人工介入(查该actor日志定位根因)' % (
+                            str(key), rk))
+                    _exhausted.add(key)
+                    write_heartbeat(
+                        alert='restart_exhausted:%s' % str(key))
                     del actors[key]
                     continue
                 log('%s 退出(code=%s) — %ds后重启' % (

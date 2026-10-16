@@ -41,6 +41,16 @@ FILES = [
          "reach_maps.py",
          "bc_build.py",
          "bc_align.py",
+         "bc_io.py",
+         "my_punish_tracker.py",
+         "style_embedding.py",
+         "style_lingo.py",
+         "opp_gru.py",
+         "frame_adv.py",
+         "jz1_features.py",
+         "forward_head.py",    # CE-4前向头(纯设计件)     # JZ-1预制件(test_jz1_prep消费者)
+         "macros_branch.py",     # R4分支宏升级 — 落地时漏注册致沙箱基线假红
+         "macros/wave_ext.py",   # CH-3/JZ-4扩展波组合器(与macros_branch同教训当日注册)
          "oracle_batch2.py",
          "macros/sakuya.py",
          "macros/patchouli.py",
@@ -84,6 +94,8 @@ FILES = [
          "distill.py",
          # 审计2026-10-13 P1-3二次漂移: test_research_w_wave依赖
          "value_curve.py",
+         # BH-1(R142): 行为健康计数器(test_behavior_health_bh1依赖)
+         "behavior_health.py",
          "kit_config.py"]   # 可迁移化: soku_client2/train_tm等import
 
 # (文件, 原文, 变异文, 防的回归)
@@ -110,8 +122,8 @@ MUTATIONS = [
      "P0-3 TTI量纲混用 → 擦弹可达性必须红"),
     ("threat.py", "and t_end > 0", "and True",
      "P0-4 过界弹计入来袭 → 威胁负例必须红"),
-    ("threat.py", "t0 = max(0.0, t0)", "",
-     "P0-4b 负TTI钳位回归 → 威胁负例必须红"),
+    ("threat.py", "t0 = max(0.0, t0)", "t0 = t0",
+     "P0-4b 负TTI钳位回归(删钳位致负值入威胁) → 威胁负例必须红"),
     ("threat.py", "GAME_FPS = 62", "GAME_FPS = 60",
      "62教义回退 → C1必须红"),
     ("macros/__init__.py", "return f / 62.0", "return f / 60.0",
@@ -130,7 +142,11 @@ MUTATIONS = [
      "死奖励常量回归(墙罚在R35势函数外复活) → AST活性必须红"),
     # 从零#2迁移(R61t F5); 审计#3 P1-1: 316锚已漂移为死变异(B段
     # 扩维→330) — C2维度防线假绿, 迁锚现值
-    ("feat_builder.py", "CORE_DIMS = 330", "CORE_DIMS = 329",
+    # P1根治(2026-10-14晚): 该锚已改由_rederive_dim_anchors()从
+    # FeatureBuilder.CORE_DIMS运行时派生(此处占位串仅为可读性);
+    # R138: 330→358(JZ-1扩维后锚漂移, 干跑校验抓出 — 模式不命中
+    # =死变异, 自检会报"变异定义失效"而非静默)
+    ("feat_builder.py", "CORE_DIMS = 358", "CORE_DIMS = 357",
      "特征布局漂移 → C2必须红"),
     ("feat_builder.py", "for i in range(5) if rh[i * 2] != 0xFF", "for i in range(5) if False",
      "P1-4e opp_cards_n回退恒0 → C7必须红"),
@@ -318,7 +334,7 @@ MUTATIONS = [
      "R56单写者回退: actor写池快照(多写者竞争) → 单写者断言必须红"),
     ("ppo_gpu.py", "for i, L in enumerate(ep_lens):", "for i, L in enumerate(ep_lens[:1]):",
      "R56回退: _gae只算首局(多局批GAE截断丢) → 按局索引断言必须红"),
-    ("learner_hub.py", "temp=gpu_tr._temp, stored_logp=logps)", "temp=gpu_tr._temp)",
+    ("learner_hub.py", "stored_logp=logps, gru_reprs=gru_reprs)", "stored_logp=None, gru_reprs=gru_reprs)",
      "R56①回退: learner不传stored_logp(update忽略行为logp) → 传递断言必须红"),
     ("episode_core.py", "fname + \".tmp.npz\"", "fname + \".tmp\"",
      "R56契约回退: tmp名无.npz后缀(np.savez自动补→replace找不到) → 原子写断言必须红"),
@@ -332,8 +348,8 @@ MUTATIONS = [
      "R57-2.3回退: 局因子消失(同版本内逐局rng复位) → 每局重播种断言必须红"),
     ("actor_worker.py", "tr.macro_counts = _c", "tr.macro_counts = _KEEP_STALE",
      "R57-2.4回退: actor不载下行计数(配额基于陈旧值) → counts下行断言必须红(原变异'pass # ...'注释保留子串=自我逃逸, 第十九轮自检抓出)"),
-    ("feat_builder.py", "s[o + 1] = 1.0 if right[\"action\"] in LOW_ATTACK_IDS else 0.0", "s[o + 1] = 0.0",
-     "R57-2.5回退: 下段位恒0(段位又全盲) → test_guard_height行为测试必须红"),
+    ("feat_builder.py", "s[o + 1] = 1.0 if right[\"action\"] in self._low_ids() else 0.0", "s[o + 1] = 0.0",
+     "R57-2.5回退: 下段位恒0(段位又全盲) → test_guard_height行为测试必须红 [R141迁锚: BH-3.2改self._low_ids(), 原LOW_ATTACK_IDS直引锚漂移]"),
     ("episode_core.py", "data[\"schema\"] = np.array(EP_SCHEMA)", "data[\"schema\"] = np.array(99)",
      "R57-2.6回退: schema标错版本(消费端拒收) → schema断言必须红"),
     # ---- R63(2026-10-07架构审查: 镜像轴 + episode代际契约) ----
@@ -388,8 +404,8 @@ MUTATIONS = [
      "R60-F4回退: collect吞在途tmp件(活actor数据丢失) → tmp排除断言必须红(原'True or ...'变异残留子串=自我逃逸, 自检抓出)"),
     ("ppo_gpu.py", "ret = adv + V_np", "ret = adv * 0.0 + V_np",
      "R60-F6回退: critic目标脱离回报(学z分数+V) → ret序断言必须红"),
-    ("ppo_gpu.py", "logp_e = F.log_softmax", "logp_e = torch.zeros(len(Ye_t)).numpy() + F.log_softmax",
-     "R60-F7回退: 专家行logp虚高(KL钉LR下限) → 专家行logp断言必须红"),
+    ("ppo_gpu.py", "logp_e = F.log_softmax", "logp_e = F.softmax",
+     "R60-F7回退: 专家行logp虚高(丢log=概率冒充对数, KL钉LR下限) → 专家行logp断言必须红(原zeros+log_softmax变异=加零空操作, 2026-10-14自检抓出重写)"),
     ("train_tm.py", "mask = mask & ~self.near_idx", "mask = mask & ~self.melee_idx",
      "R60-F9回退: 330门禁全攻击(远程立回不可学) → 近战子集断言必须红"),
     ("train_tm.py", "self._last_ret = float(np.sum(rews))", "self._last_ret = 0.0",
@@ -468,7 +484,141 @@ MUTATIONS = [
     ("train_tm.py", "ts = 'exploit_' + ts",
      "ts = ts",
      "D4回归: 剥削者快照失去前缀(仪表/保留分流双盲) → D4测试必须红"),
+    # ==== R138(2026-10-15晚): CE新组件变异 ====
+    # CE-3.4位置路由门(tag: CE-3.4)
+    ("macro_executor.py", "if _dist - _hint < _thr:",
+     "if _dist + _hint < _thr:",
+     "CE-3.4外推方向反(推板量加而非减=永不入角) → pos_gate测试必须红"),
+    ("macro_executor.py", "        if \"corner\" in payload:\n            return payload.get(\"corner\")\n        return payload.get(\"mid\")",
+     "        return payload.get(\"mid\")\n        if \"corner\" in payload:\n            return payload.get(\"corner\")",
+     "CE-3.4回落语义反(corner缺省截断已确认连段) → pos_gate测试必须红"),
+    ("macro_executor.py", "POS_GATE_THRESHOLD = 120.0",
+     "POS_GATE_THRESHOLD = 1200.0",
+     "CE-3.4阈值漂移(全场判贴角=版中收尾不可达) → pos_gate测试必须红"),
+    # CE-7推板进度势(tag: CE-7)
+    ("train_tm.py", "'corner_progress': 0.0144,",
+     "'corner_progress': 0.008,",
+     "CE-7标定回退(1.39倍<方案2-3倍下界) → ce7量级测试必须红"),
+    ("train_tm.py", "if os.environ.get('TH123_CE7_POT', '0') == '1':",
+     "if True:",
+     "CE-7门控失效(默认开=污染A1-2观察窗, 时点红线) → ce7门控测试必须红"),
+    ("train_tm.py", "        p -= POT_W['corner_progress'] * (1.0 - _own_to_corner)",
+     "        p += POT_W['corner_progress'] * (1.0 - _own_to_corner)",
+     "CE-7 own侧符号反(被关角变好事) → ce7 own对称测试必须红"),
+    # R137漏改调用点(tag: CE-4调用面)
+    ("series_meter.py", "_logits, _v, q, _fwd = net(x, s, temp, m)",
+     "_logits, _v, q = net(x, s, temp, m)",
+     "CE-4四元组调用面回退(第7处再漏=ValueError) → S0系列仪表测试必须红"),
+    # R138b: CE-4目标提取索引(tag: CE-4目标)
+    ("forward_head.py", "        float(s_next_core[150]) / 1.5,",
+     "        float(s_next_core[34]) / 1.5,",
+     "CE-4目标索引回退fictional([34]位置带≠own贴角, 目标成常数) → CE-4测试必须红"),
+    ("forward_head.py", "        float(s_next_core[4]),",
+     "        float(s_next_core[5]),",
+     "CE-4 adx索引错([5]=own_x/620非adx/600) → CE-4测试必须红"),
+    # R139: CE-5反事实手术(tag: CE-5手术)
+    ("tools/counterfactual_probe.py",
+     "    dx2 = float(np.clip(dx + sign * push_opp - sign * move_self,\n                        -600.0, 600.0))",
+     "    dx2 = float(np.clip(dx - sign * push_opp - sign * move_self,\n                        -600.0, 600.0))",
+     "CE-5推板方向反(拉向自己) → cf_probe手术测试必须红"),
+    ("tools/counterfactual_probe.py",
+     "    s[c + C_OPPCORNER] = 1.5 if (opp_x2 < 120 or opp_x2 > 1120) else 0.0",
+     "    s[c + C_OPPCORNER] = 0.0",
+     "CE-5贴角标志不重算(距离位手术残缺) → cf_probe手术测试必须红"),
+    # BH-4.2(R140): untech语义门(tag: BH-4.2)
+    ("feat_builder.py",
+     "    return ((side.get(\"untech\", 0) or 0)\n            if side.get(\"action\", 0) in HIT_ACT_IDS else 0)",
+     "    return side.get(\"untech\", 0) or 0",
+     "BH-4.2语义门拆除(残留读数污染复活, 51.7%帧假锁定) → untech门测试必须红"),
+    ("train_tm.py",
+     "    return ((300 <= left.get(\"action\", 0) < 600)\n            or eff_untech(left) > 0)",
+     "    return ((300 <= left.get(\"action\", 0) < 600)\n            or (left.get(\"untech\", 0) or 0) > 0)",
+     "BH-4.2空中被动豁免回退(飞翔逃逸被错误豁免) → untech门测试必须红"),
+    ("macro_executor.py",
+     "                opp_untech = eff_untech(right)",
+     "                opp_untech = right.get(\"untech\", 0) or 0",
+     "BH-4.2 link门回退(残留读数空等目押) → link门测试必须红"),
+    # BH-3.2(R141): 守备段位逐角色表(tag: BH-3.2)
+    ("feat_builder.py",
+     "        _tab = LOW_ATTACK_IDS_BY_CHAR.get(_ch) if _ch else None\n        return LOW_ATTACK_IDS if _tab is None else _tab",
+     "        return LOW_ATTACK_IDS",
+     "BH-3.2逐角色段位表旁路(回退全局假设表, 2B/2C虚报复活) → guard_bh32测试必须红"),
+    ("feat_builder.py", "LOW_ATTACK_IDS = frozenset((303, 311, 402, 412))", "LOW_ATTACK_IDS = frozenset((303, 311))",
+     "BH-3.2回落表残缺(未注入角色2A下段信号丢失) → guard_bh32测试必须红"),
+    # BH-1(R142): 行为健康计数器(tag: BH-1)
+    ("behavior_health.py",
+     "            elif prev_dmg > 0:\n                fate = 'hit'",
+     "            elif True:\n                fate = 'hit'",
+     "BH-1连段fate判定废(全记hit, 完成率虚高) → behavior_health测试必须红"),
+    ("behavior_health.py",
+     "            if _hit:\n                self.follow['hit_atk' if _atk else 'hit_n'] += 1",
+     "            if _hit:\n                self.follow['hit_n' if _atk else 'hit_atk'] += 1",
+     "BH-1续打率键反(hit_atk/hit_n互换=指标反转) → behavior_health测试必须红"),
+    # BH-4.3(R143): 对位先验表(tag: BH-4.3)
+    ("data/guide_tables/matchup_combo_prior.json",
+     '"chars": ["cirno", "sanae", "youmu", "yuyuko"]',
+     '"chars": ["cirno", "sanae", "youmu", "yuyuko", "bogus_char"]',
+     "BH-4.3先验表混入非法角色名(污染对位掩码集) → matchup_prior测试必须红"),
 ]
+
+
+def _rederive_dim_anchors():
+    """P1根治(2026-10-14晚审计, 维度锚漂移第三次复发): CORE_DIMS变异锚
+    从FeatureBuilder活常量**运行时派生** — 静态字面量跟不了每次特征迁移
+    (R80两轮修沙箱清单漂移后, 本轮证明锚串漂移是独立复发面; 变异执行器
+    的n<1活性检查只能事后报警, 派生让锚永不漂移)。
+    泛化: 凡目标串匹配 r'^CORE_DIMS = \\d+$' 的锚一律重写为现值,
+    未来同类维度常量锚在MUTATIONS用同格式书写即自动纳入。"""
+    import re as _re
+    import sys as _sys
+    if ROOT not in _sys.path:
+        _sys.path.insert(0, ROOT)
+    from feat_builder import FeatureBuilder as _FB
+    live = _FB.CORE_DIMS
+    hits = 0
+    for i, (f, old, new, why) in enumerate(MUTATIONS):
+        if _re.match(r'^CORE_DIMS = \d+$', old):
+            MUTATIONS[i] = (f, 'CORE_DIMS = %d' % live,
+                            'CORE_DIMS = %d' % (live - 1),
+                            why + '(锚活派生@%d)' % live)
+            hits += 1
+    return hits
+
+
+_DERIVED = _rederive_dim_anchors()
+
+
+def check_anchor_liveness():
+    """防复发(bug_2026-10-14_dim_mutation_anchor_drift3.md):
+
+    派生只覆盖CORE_DIMS族; 本断言是**通用保险** — 凡变异锚串含
+    `NAME = 数字`且目标文件存在同名模块级常量赋值但值不同 →
+    响亮失败(锚串与活常量漂移, 变异永不生效)。与FILES完备性
+    根治断言并列。返回错误清单(空=通过)。"""
+    import re as _re
+    errs = []
+    for f, old, _new, why in MUTATIONS:
+        src_path = os.path.join(ROOT, f)
+        if not os.path.exists(src_path):
+            continue
+        src = open(src_path, encoding='utf8', errors='replace').read()
+        for m in _re.finditer(r'([A-Z_][A-Z0-9_]*) = (\d+)', old):
+            name, lit = m.group(1), m.group(2)
+            # \s*: 常量可能是类内缩进属性(如FeatureBuilder.CORE_DIMS)
+            fm = _re.search(r'^\s*%s = (\d+)' % _re.escape(name), src, _re.M)
+            if fm and fm.group(1) != lit:
+                errs.append(
+                    '锚串漂移: %s 锚钉%s 而文件实际%s = %s — 变异永不生效'
+                    ' [%s]' % (f, lit, name, fm.group(1), why[:40]))
+    return errs
+
+
+_ANCHOR_LIVENESS = check_anchor_liveness()
+if _ANCHOR_LIVENESS:        # 导入期即响亮(与FILES完备性同拍), 不等跑完
+    print('[gate_selftest] !! 维度锚活性自检失败:')
+    for _e in _ANCHOR_LIVENESS:
+        print('   ', _e)
+    raise SystemExit(2)
 
 
 def _free_gb(path):
@@ -493,9 +643,15 @@ def _clean_stale_sandboxes(root, max_age_h=2.0):
         entries = os.listdir(root)
     except OSError:
         return 0
+    # P2(2026-10-15): 清理前缀扩展到全部测试残留(gate_selftest_/
+    # fleet_proto_/w3_/d4_/gpu_*/_r63_等) — 原只扫gate_selftest_,
+    # 其他测试的mkdtemp残留(如st/旧目录10天5.7GB)永不被回收
+    _PREFIXES = ("gate_selftest_", "fleet_proto_", "w3_", "d4_",
+                 "gpu_equiv_", "gpu_upd_", "b_test_", "hs_b2_",
+                 "hd_i_", "_r63_")   # 不含宽泛'tmp'(防误伤)
     n = 0
     for e in entries:
-        if not e.startswith("gate_selftest_"):
+        if not any(e.startswith(x) for x in _PREFIXES):
             continue
         p = os.path.join(root, e)
         try:
@@ -520,6 +676,10 @@ def _sandbox_tmpdir():
     d = os.environ.get("SELFTEST_TMPDIR") or r"D:\temp\gate_sandbox"
     os.makedirs(d, exist_ok=True)
     n = _clean_stale_sandboxes(d)
+    # P2: 父目录(D:	emp)历史残留也扫(旧默认位置留下的沙箱)
+    _parent = os.path.dirname(d)
+    if _parent and os.path.isdir(_parent):
+        n += _clean_stale_sandboxes(_parent)
     import tempfile as _tf
     _sys = _tf.gettempdir()
     if os.path.realpath(_sys) != os.path.realpath(d):
@@ -550,6 +710,27 @@ def build_sandbox(sb):
         if tf.endswith(".py") or tf.endswith(".json"):
             shutil.copy2(os.path.join(ROOT, "tools", tf),
                          os.path.join(sb, "tools", tf))
+    # JZ-2(2026-10-14): 数据表副本 — frame_adv等表驱动模块在模块级
+    # 严格加载guide_tables, 沙箱缺数据=基线假红(与style_pca同批同步)
+    _gt_src = os.path.join(ROOT, "data", "guide_tables")
+    if os.path.isdir(_gt_src):
+        _gt_dst = os.path.join(sb, "data", "guide_tables")
+        os.makedirs(_gt_dst, exist_ok=True)
+        for tf in sorted(os.listdir(_gt_src)):
+            if tf.endswith(".json"):
+                shutil.copy2(os.path.join(_gt_src, tf),
+                             os.path.join(_gt_dst, tf))
+    # macros数据件(wave_ext模块级加载charge_table.json — 沙箱缺件=
+    # import即FileNotFoundError, guide_tables同类第二例)
+    _ct = os.path.join(ROOT, "macros", "charge_table.json")
+    if os.path.exists(_ct):
+        os.makedirs(os.path.join(sb, "macros"), exist_ok=True)
+        shutil.copy2(_ct, os.path.join(sb, "macros",
+                                       "charge_table.json"))
+    _pca = os.path.join(ROOT, "data", "style_pca.npz")
+    if os.path.exists(_pca):
+        os.makedirs(os.path.join(sb, "data"), exist_ok=True)
+        shutil.copy2(_pca, os.path.join(sb, "data", "style_pca.npz"))
     # 行为测试随沙箱(沙箱门禁从自身目录运行它们)
     _tdir = os.path.join(sb, "tests")
     os.makedirs(_tdir, exist_ok=True)

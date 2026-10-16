@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """路径集中化(可迁移化Phase1) — 全部路径的单一事实源。
 
-三层回落: config.json > 环境变量 > 本机默认(向后兼容, 不影响现有使用)。
+三层回落: config.json > 环境变量 > 本机默认(仅开发机)。
 
-收件人: 把 config.json 放在本文件同目录, 填入自己的游戏路径即可。
+收件人: 运行kit根目录setup.bat生成config.json即可, kit模式下
+未配置直接明确报错(绝不回落开发机路径 — 那会在收件机上变幽灵路径)。
 本机: 不需要 config.json — 默认值即本机路径, 一切照旧。
 """
 from __future__ import annotations
@@ -13,48 +14,77 @@ import os
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
+# kit判定: kit_config同级存在带npz的models/ → 采集包内(收件机)
+# 开发机kit_config在仓库根(无models同级)
+_kit_models = os.path.join(_HERE, 'models')
+IS_KIT = os.path.isdir(_kit_models) and \
+    any(f.endswith('.npz') for f in os.listdir(_kit_models))
+
 
 def _load():
-    """config.json > 环境变量 > 默认值."""
-    p = os.environ.get(
-        'TH123RL_CONFIG',
-        os.path.join(_HERE, 'config.json'))
-    if os.path.exists(p):
-        try:
-            return json.load(open(p, encoding='utf8'))
-        except (OSError, ValueError):
-            pass
+    """config.json(两个候选位置) > 无。
+
+    解析失败必须炸出来 — 静默吞掉会回落到开发机默认路径,
+    在收件机上产生难以理解的幽灵路径报错(2026-10-13事故)。
+    """
+    cands = [
+        os.environ.get('TH123RL_CONFIG'),
+        os.path.join(_HERE, 'config.json'),                   # 开发机: 仓库根
+        os.path.join(os.path.dirname(_HERE), 'config.json'),  # kit: 包根(setup_helper写这里)
+    ]
+    for p in cands:
+        if p and os.path.exists(p):
+            try:
+                d = json.load(open(p, encoding='utf8'))
+            except (OSError, ValueError) as e:
+                raise RuntimeError(
+                    '[kit_config] %s 解析失败: %s — 请重新运行setup.bat' % (p, e))
+            if isinstance(d, dict):
+                return d
     return {}
 
 
 _cfg = _load()
 
-# 原版整合包(人测用, 用户日常机)
-GAME_DIR = (_cfg.get('game_dir')
-            or os.environ.get('TH123_GAME_DIR')
-            or r'D:\touhou\hisoutensoku2026-06-15\th123')
 
-# 训练游戏副本(舰队训练用)
-TRAIN_GAME_DIR = (_cfg.get('train_game_dir')
-                  or os.environ.get('TH123_TRAIN_GAME_DIR')
-                  or r'D:\touhou\hisoutensoku2026-06-15\th123_train')
+def _resolve(name, cfg_key, env_key, dev_default, required_in_kit):
+    v = _cfg.get(cfg_key) or os.environ.get(env_key)
+    if v:
+        return v
+    if IS_KIT and required_in_kit:
+        raise RuntimeError(
+            '[kit_config] %s未配置 — 请先运行kit根目录的setup.bat'
+            '(填写你的游戏路径, 生成config.json)' % name)
+    return dev_default
+
+
+# 原版整合包(人测用, 用户日常机)
+GAME_DIR = _resolve('game_dir', 'game_dir', 'TH123_GAME_DIR',
+                    r'D:\touhou\hisoutensoku2026-06-15\th123',
+                    required_in_kit=True)
+
+# 训练游戏副本(舰队训练用; kit采集用不到, 回落到GAME_DIR即可)
+TRAIN_GAME_DIR = _resolve('train_game_dir', 'train_game_dir',
+                          'TH123_TRAIN_GAME_DIR',
+                          r'D:\touhou\hisoutensoku2026-06-15\th123_train',
+                          required_in_kit=False)
+if IS_KIT and TRAIN_GAME_DIR == \
+        r'D:\touhou\hisoutensoku2026-06-15\th123_train':
+    TRAIN_GAME_DIR = GAME_DIR   # kit内不残留开发机路径
 
 # 模型存储 — 四层回落(K2便携化):
 # config.json store_dir > TH123_STORE环境变量 > 包内models/
 # (kit_config同级, 存在即用) > 本机默认D:\temp\th123_models
-# 注意: 开发机kit_config在仓库根(无models同级), 采集包在th123rl/内(有models同级)
-_kit_models = os.path.join(_HERE, 'models')
 if _cfg.get('store_dir'):
     STORE_DIR = _cfg['store_dir']
 elif os.environ.get('TH123_STORE'):
     STORE_DIR = os.environ.get('TH123_STORE')
-elif os.path.isdir(_kit_models) and \
-        any(f.endswith('.npz') for f in os.listdir(_kit_models)):
-    STORE_DIR = _kit_models   # 采集包内模型(收件机路径)
+elif IS_KIT:
+    STORE_DIR = _kit_models     # 采集包内模型(收件机路径)
 else:
     STORE_DIR = r'D:\temp\th123_models'   # 开发机默认
 
-# 原版exe MD5(版本兼容性守卫)
+# 原版exe MD5(版本兼容性守卫; setup时写入收件机自己的exe哈希)
 EXE_MD5 = (_cfg.get('exe_md5')
            or 'DF35D1FBC7B583317ADABE8CD9F53B2E')
 
@@ -62,6 +92,6 @@ EXE_MD5 = (_cfg.get('exe_md5')
 SESSION_DIR = (_cfg.get('session_dir')
                or os.path.join(_HERE, 'tools', 'human_match_sessions'))
 
-# rep归档目录
+# rep归档目录(收件机=包内models/human_reps, 开发机=D盘默认)
 REP_DIR = (_cfg.get('rep_dir')
            or os.path.join(STORE_DIR, 'human_reps'))

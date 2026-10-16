@@ -89,7 +89,8 @@ def aux_predict(net, feats, sides, masks, temp, device=None, chunk=512):
             m = (torch.from_numpy(
                 np.asarray(masks[i0:i0 + chunk]).astype(bool)).to(device)
                 if masks is not None else None)
-            _logits, _v, q = net(x, s, temp, m)
+            # CE-4后forward返回4元组(logits,v,aux,fwd_pred) — R137补
+            _logits, _v, q, _fwd = net(x, s, temp, m)
             preds.append(q.argmax(1).cpu().numpy())
     return (np.concatenate(preds) if preds
             else np.zeros(0, dtype=np.int64))

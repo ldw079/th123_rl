@@ -311,7 +311,20 @@ def save_distill_rows(store_dir, char, suffix, rows):
     if os.path.exists(path):
         try:
             d = np.load(path)
-            X = np.concatenate([d["X"], X_new])
+            X_old = d["X"]
+            # S-7B(2026-10-14): 列宽演进(11→13加风格pc1/pc2) — 旧行
+            # 零填充到新宽(旧行风格未知=0, 语义一致), 不再误判损坏
+            if X_old.shape[1] != X_new.shape[1]:
+                if X_old.shape[1] < X_new.shape[1]:
+                    X_old = np.concatenate(
+                        [X_old, np.zeros((len(X_old),
+                                          X_new.shape[1] - X_old.shape[1]),
+                                         dtype=X_old.dtype)], axis=1)
+                else:
+                    raise ValueError(
+                        "distill档宽%d>新行宽%d — 未来档混入?"
+                        % (X_old.shape[1], X_new.shape[1]))
+            X = np.concatenate([X_old, X_new])
             Y = np.concatenate([d["Y"], Y_new])
             d.close()
         except Exception as e:

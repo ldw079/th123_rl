@@ -81,7 +81,34 @@ def pre_flight():
                        capture_output=True, cwd=ROOT)
     ok = r.returncode == 0
     print('[前置] fleet协议测试 %s' % ('21+ PASS' if ok else '!!FAIL — 先修'))
-    return ok and gb > 2
+    # P0(从零#4, bug_bc_width_asymmetry): BC库宽度硬门禁 — 代际迁移期
+    # "BC未重建+fleet已点火"=actor连环崩→重启耗尽→静默减员(16:12事故
+    # 根因链)。部署序列(迁移→重建→换装→点火)从此是硬顺序。
+    try:
+        import numpy as _np
+        from feat_builder import FeatureBuilder as _FB
+        from train_tm import CHAR_LIBS as _CL
+        _store = os.environ.get('TH123_STORE', r'D:\temp\th123_models')
+        _bc_ok = True
+        for _ch in ('reimu', 'marisa', 'suika'):
+            _sp = os.path.join(_store, 'bc_%s_S.npy' % _ch)
+            _xp = os.path.join(_store, 'bc_%s_X.npy' % _ch)
+            if not (os.path.exists(_sp) and os.path.exists(_xp)):
+                print('[前置] !!FAIL BC库缺失 %s — 先重建/换装再点火' % _ch)
+                _bc_ok = False
+                continue
+            _w = _np.load(_sp, mmap_mode='r').shape[1]
+            _exp = 5 * len(_CL[_ch]['macros']) + _FB.CORE_DIMS
+            if _w != _exp:
+                print('[前置] !!FAIL BC库宽度 %s S=%d≠派生%d — '
+                      '代际未换装, 拒点火(防连环崩减员)' % (_ch, _w, _exp))
+                _bc_ok = False
+        if _bc_ok:
+            print('[前置] BC库宽度×3 OK(=5N+CORE_DIMS)')
+    except Exception as _e:
+        print('[前置] !!FAIL BC宽度预检异常: %r — 拒点火' % _e)
+        _bc_ok = False
+    return ok and gb > 2 and _bc_ok
 
 
 def start(mode, actors, exploiter, tps=480, hours=None,

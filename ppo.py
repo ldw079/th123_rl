@@ -142,10 +142,14 @@ class PPOTrainer:
     SIDE_H = 64         # 侧通路非线性头宽度: 连续特征(距离/高度/TTI/速度)的
                         # 平滑响应能力 — 线性W_side只表达单调, 带间跳变靠它消除
     N_OUT = N_MACROS    # 类别输出 = 宏数
-    N_SIDE = 5 * N_MACROS + 308  # R35: [宏N][上宏N][core][gap_x][gap_y][untech]
+    # P2修(从零#4): 308残留改CORE_DIMS派生(330→343→…每次扩维这里都
+    # 落后一代 — 与"维度锚静态字面量跟不了活常量"同类, 注释自称
+    # "须与实际布局一致"却硬编码)。feat_builder无反向依赖, 导入安全。
+    from feat_builder import FeatureBuilder as _FBForNSide  # noqa: E402
+    N_SIDE = 5 * N_MACROS + _FBForNSide.CORE_DIMS  # R35布局:
+    #                            [宏N][上宏N][core][gap_x][gap_y][untech]
     #                            (train_tm/side_driver显式传n_side覆盖;
-    #                             类默认值须与实际布局一致 — _v_forward的
-    #                             S is None兜底路径用此值建零向量)
+    #                             类默认值供_v_forward的S is None兜底)
     N_SIDE_TM = 2 * N_MACROS + 64  # TM通道v1: 双宏one-hot + 包侧核心64维
     # ---- R17对手建模四件套③④: 对手子网络 + 动作预测辅助损失 ----
     # 侧布局[宏N][上宏N][core], 对手建模段(feat_builder段10)在core内
@@ -170,6 +174,11 @@ class PPOTrainer:
         self.Ws1 = self.bs1 = self.Ws2 = self.bs2 = None   # 侧通路非线性头(连续化)
         self.Wo1 = self.bo1 = self.Wo2 = self.bo2 = None   # R17③对手子网络
         self.W_opp = None                                  # 子网络→策略logits
+        # S-4阶段1(2026-10-15): GRU序列记忆 — 推理侧集成, W_gru零初始化
+        # →行为与无GRU逐位一致(旧档兼容); 阶段2(更新重放+解冻)另批
+        from opp_gru import OppGRU as _OG
+        self.opp_gru = _OG(seed=7)
+        self.W_gru = None   # (N_OUT,16) — init_fresh建零, 旧档load后补零
         self.Wq1 = self.bq1 = self.Wq2 = self.bq2 = None   # R17④动作预测头
         self.W1v = self.b1v = self.W2v = self.b2v = None
         self._pi_adam = None
@@ -200,6 +209,8 @@ class PPOTrainer:
         self.bs1 = np.zeros(self.SIDE_H, dtype=np.float32)
         self.Ws2 = (rng2.standard_normal((self.SIDE_H, self.N_OUT)) * 0.01).astype(np.float32)
         self.bs2 = np.zeros(self.N_OUT, dtype=np.float32)
+        # S-4: GRU表征→logits投影(零初始化=R17③W_opp同纪律)
+        self.W_gru = np.zeros((16, self.N_OUT), dtype=np.float32)
         # R17③对手子网络: 侧向量对手建模切片75→32→16(ReLU);
         # W_opp零初始化 → 初始策略分布与无子网络时逐位一致
         rng4 = np.random.default_rng(5)
@@ -384,6 +395,18 @@ class PPOTrainer:
             self.Wq2 = (rng4.standard_normal((self.AUX_H, self.N_OPP_CLS)) * 0.01).astype(np.float32)
             self.bq2 = np.zeros(self.N_OPP_CLS, dtype=np.float32)
             print("[迁移] 对手子网络+预测头初始化(R17新架构, 从零学起)")
+        # S-4阶段1(2026-10-15): GRU序列记忆 — 旧档无GRU键 → 容器保持
+        # __init__随机初始化+W_gru零(行为位等价); 新档全量恢复
+        if 'gruW_ih' in d:
+            g = self.opp_gru
+            g.W_ih, g.W_hh = d['gruW_ih'], d['gruW_hh']
+            g.b_ih, g.b_hh = d['grub_ih'], d['grub_hh']
+            g.W_proj = d['gruW_proj']
+            self.W_gru = d['W_gru']
+        else:
+            if self.W_gru is None:
+                self.W_gru = np.zeros((16, self.N_OUT), dtype=np.float32)
+            print('[迁移] GRU序列记忆: 旧档 — 容器随机+W_gru零(位等价)')
         if self.W_opp.shape[1] != self.N_OUT:   # 宏库扩展同步扩列
             dm = self.N_OUT - self.W_opp.shape[1]
             self.W_opp = np.concatenate(
@@ -449,6 +472,9 @@ class PPOTrainer:
                  Wq2=self.Wq2, bq2=self.bq2,
                  Wc1=self.Wc1, bc1=self.bc1, Wc2=self.Wc2, bc2=self.bc2,
                  Wc3=self.Wc3, bc3=self.bc3,
+                 gruW_ih=self.opp_gru.W_ih, gruW_hh=self.opp_gru.W_hh,
+                 grub_ih=self.opp_gru.b_ih, grub_hh=self.opp_gru.b_hh,
+                 gruW_proj=self.opp_gru.W_proj, W_gru=self.W_gru,
                  meta=np.array([self._temp, self._beta, self._bcw,
                                 float(self._updates), self._rstd,
                                 getattr(self, '_adaptive_lr_scale', 1.0)], dtype=np.float32))
@@ -520,7 +546,8 @@ class PPOTrainer:
         h1 = np.maximum(0, So @ self.Wo1 + self.bo1)
         return h1, np.maximum(0, h1 @ self.Wo2 + self.bo2)
 
-    def _pi_forward(self, X, S=None, temp=1.0, mask=None, bias=None):
+    def _pi_forward(self, X, S=None, temp=1.0, mask=None, bias=None,
+                    gru_repr=None):
         """bias: 采样侧乐观先验(新宏探索加成, 不进更新 — 行为层机制, 同强制探针先例)"""
         """返回 (主干特征, 隐层, 概率)。logit封顶: 防长期更新后权重膨胀→softmax饱和→熵死。
         N>256时用分块前向(峰值内存限流 — 异步更新三进程并发OOM修复)。"""
@@ -536,6 +563,9 @@ class PPOTrainer:
                 Z = Z + np.maximum(0, S @ self.Ws1 + self.bs1) @ self.Ws2 + self.bs2
             if self.W_opp is not None:
                 Z = Z + self._opp_fwd(S)[1] @ self.W_opp
+        if gru_repr is not None and self.W_gru is not None:
+            # S-4: GRU序列表征(16,)→logits(零初始化=初始无影响)
+            Z = Z + np.asarray(gru_repr, dtype=np.float32).reshape(1, -1)                 @ self.W_gru
         # 封顶最大logit差≤8(温度1.5下仍保分布响应); 保序只压幅度, 采样/更新同路径一致
         zmax = np.abs(Z).max(axis=1, keepdims=True)
         Z = Z / np.maximum(1.0, zmax / 8.0)
@@ -600,12 +630,21 @@ class PPOTrainer:
             Ps.append(P_b)
         return np.concatenate(Xns), np.concatenate(Ps)
 
-    def sample(self, feat, side=None, temp=None, mask=None, bias=None):
+    def sample(self, feat, side=None, temp=None, mask=None, bias=None,
+               return_pred=False, gru_repr=None):
+        """采样动作。return_pred=True(S-3预测回流): 附带
+        (top1宏idx, top1概率) — 策略可读"我要出什么(置信多少)",
+        写入特征维5-6供反预期/变招接口。"""
         t = self._temp if temp is None else temp
         s = side.reshape(1, -1) if side is not None else None
         m = mask.reshape(1, -1) if mask is not None else None
-        _, _, P = self._pi_forward(feat.reshape(1, -1), s, temp=t, mask=m, bias=bias)
-        return int(self.rng.choice(self.N_OUT, p=P[0]))
+        _, _, P = self._pi_forward(feat.reshape(1, -1), s, temp=t, mask=m,
+                                   bias=bias, gru_repr=gru_repr)
+        a = int(self.rng.choice(self.N_OUT, p=P[0]))
+        if return_pred:
+            top1 = int(np.argmax(P[0]))
+            return a, (top1, float(P[0][top1]))
+        return a
 
     # ---- 更新 ----
     def update(self, feats, acts, rewards, sides, ep_lens, ep_terms=None,

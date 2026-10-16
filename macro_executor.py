@@ -17,6 +17,7 @@
   ("sc:ID", 0)                — 符卡步(既有, 状态机)
   ("branch", {cond: steps})   — **分支门(C1)**: 按游戏状态路由
   ("link", (max_wait, steps)) — **目押门(C3)**: 等untech→0最速出招
+  ("pos_gate", {...})         — **位置门(CE-3.4)**: confirm后续段按坐标路由
 
 目押(C3, combo改进方案§2.4):
   连段步进器读对手untech(每帧可见), 下一击条件改为"对手hitstun
@@ -31,6 +32,13 @@
   "whiff"      — 空挥(默认None=截断, 同confirm超时)
   "delay_then" — 放帧: (N, steps) = 门通过后延迟N帧再续(拍子择)
   "opp_jump"   — 对手空中(airBorne) → 该分支
+
+位置门(CE-3.4, capability_extension_plan v3):
+  评估时机=confirm门通过后的续段首帧 — 路由参考量 =
+  对手距近角距离 − dx_opp_hit外推(CE-3位移表; 仅作路由参考
+  不入特征, 保守). 外推后 < threshold(默认120px, R23贴角口径)
+  → corner分支(版边收尾), 否则 → mid分支(弹墙推板收尾).
+  corner未定义时回落mid(不因缺分支而截断已确认的连段).
 
 目押(C3):
   ("link", (max_wait, steps)) — 等对手untech→0后最速出;
@@ -50,6 +58,8 @@ import numpy as np
 # opp_model各一份), 漂移风险; 158=空防(非硬直边沿)不入集的语义见
 # frame_events._GUARD_STUN_IDS注释(R61d A3裁决)。
 from frame_events import _GUARD_STUN_IDS as GUARD_STUN_IDS  # noqa: E402
+# BH-4.2(bug档): untech动作门 — link门等待期=真受击硬直(残留读数不空等)
+from feat_builder import eff_untech  # noqa: E402
 # 受击态族(从零#2执行器细部): 50-98受击/倒地 + 100被投 + 143/145压溃
 # — hit判定的状态证据(持续~20帧, 天然结算窗)
 HITSTUN_IDS = frozenset(range(50, 99)) | {100, 143, 145}
@@ -76,6 +86,27 @@ def evaluate_branch(branch_dict, left, right, d_deal, d_take):
         return branch_dict.get("opp_jump")
     # 默认: whiff (None=截断)
     return branch_dict.get("whiff")
+
+
+def evaluate_position_gate(payload, left, right):
+    """CE-3.4: 位置路由门 — confirm通过后的续段按对手坐标路由.
+
+    payload: {"corner": steps|None, "mid": steps|None,
+              "dx_opp_hint": float, "threshold": float}
+    路由参考量 = 距近角距离 − dx_opp_hint(命中桶推板外推, CE-3
+    位移表; 保守: 仅作路由参考不入特征). 外推后<threshold → corner,
+    否则 → mid. corner键缺省时回落mid(已确认的连段不因缺分支截断);
+    corner显式None=截断(与branch whiff语义一致).
+    """
+    rx = right.get("position.x", 640.0)
+    _dist = min(rx, 1280.0 - rx)
+    _hint = float(payload.get("dx_opp_hint", 0.0))
+    _thr = float(payload.get("threshold", 120.0))
+    if _dist - _hint < _thr:
+        if "corner" in payload:
+            return payload.get("corner")
+        return payload.get("mid")
+    return payload.get("mid")
 
 
 def advance_queue(macro_queue, gate_frames, left, right, d_deal, d_take,
@@ -122,11 +153,13 @@ def advance_queue(macro_queue, gate_frames, left, right, d_deal, d_take,
             sc_reset_fn()
             return macro_queue, gate_frames, dec_name, None
 
-        # 灵力门
+        # 灵力门 — 裁定四A(2026-10-14用户裁定): 触发键从A/B/C收窄为
+        # B/C — 近战A不耗灵力, 低灵时连带禁近战=残血没收最后手段
+        # (人测被动性放大器, 审计从零#3推迟项); 清队语义保留(交还决策权)
         if macro_queue:
             _nk = macro_queue[0][0]
             if (not isinstance(_nk, str)
-                    and any(b in _nk for b in ("A", "B", "C"))
+                    and any(b in _nk for b in ("B", "C"))
                     and spirit < 100):
                 macro_queue = []
                 gate_frames = 0
@@ -156,9 +189,12 @@ def advance_queue(macro_queue, gate_frames, left, right, d_deal, d_take,
                     branch_dict, left, right, d_deal, d_take)
                 if result is None:
                     # 截断(whiff默认)
+                    # P1-4(从零#4): **保留dec_name** — 交还决策权的正常
+                    # 截断仍要结算空挥(12个branch宏+confirm族的落空路径
+                    # 原被清名豁免, W_WHIFF经济学对门宏失效)。受击中止/
+                    # R34中断/SC中止才是豁免语义(那些路径继续清名)。
                     macro_queue = []
                     gate_frames = 0
-                    dec_name = None
                     sc_reset_fn()
                     return macro_queue, gate_frames, dec_name, None
                 # delay_then: 门通过后延迟N帧
@@ -175,9 +211,11 @@ def advance_queue(macro_queue, gate_frames, left, right, d_deal, d_take,
             elif isinstance(keys, str) and keys == "link":
                 # R61v(C3): 目押门 — 等对手untech→0最速出招
                 # fl = (max_wait, steps); gate_frames作为观察窗
+                # BH-4.2: untech过动作门 — 自由行动的残留读数不再
+                # 让link空等(等待期=真受击硬直)
                 max_wait, steps = fl
                 gate_frames += 1
-                opp_untech = right.get("untech", 0) or 0
+                opp_untech = eff_untech(right)
                 if opp_untech <= 0:
                     # 对手恢复完毕 → 最速出招
                     macro_queue.pop(0)
@@ -189,6 +227,20 @@ def advance_queue(macro_queue, gate_frames, left, right, d_deal, d_take,
                     gate_frames = 0
                     dec_name = None
                     sc_reset_fn()
+                return macro_queue, gate_frames, dec_name, None
+
+            elif isinstance(keys, str) and keys == "pos_gate":
+                # CE-3.4: 位置路由门 — 评估时机=confirm通过后的
+                # 续段首帧(本步即续段首步). 截断保留dec_name
+                # (P1-4语义: 正常截断仍结算; 受击/R34/SC才是豁免)
+                macro_queue.pop(0)
+                result = evaluate_position_gate(fl, left, right)
+                if result is None:
+                    macro_queue = []
+                    gate_frames = 0
+                    sc_reset_fn()
+                    return macro_queue, gate_frames, dec_name, None
+                macro_queue = list(result) + macro_queue
                 return macro_queue, gate_frames, dec_name, None
 
             elif isinstance(keys, str) and keys == "ender":
@@ -215,8 +267,9 @@ def advance_queue(macro_queue, gate_frames, left, right, d_deal, d_take,
                     if keys.startswith("cconfirm") and near:
                         macro_queue.pop(0)
                     else:
+                        # P1-4(从零#4): confirm超时截断保留dec_name供
+                        # 空挥结算(原清名=confirm族落空免费)
                         macro_queue = []
-                        dec_name = None
                     gate_frames = 0
                 return macro_queue, gate_frames, dec_name, None
 
@@ -388,3 +441,43 @@ def build_ender_menu(char_lib, starter_macros, ender_names):
         if s is not None:
             out.append(s)
     return out
+
+
+# ===== CE-3.4: 位置路由门 =====
+
+# R23贴角口径(train_tm二值角项/宏门共用; 1280=场地宽)
+POS_GATE_THRESHOLD = 120.0
+
+
+def make_pos_gate_step(corner_steps, mid_steps, dx_opp_hint=0.0,
+                       threshold=POS_GATE_THRESHOLD):
+    """构造位置路由门步骤(CE-3.4).
+
+    corner_steps/mid_steps: 续段步骤列表(None=该路截断)
+    dx_opp_hint: 命中桶推板外推(CE-3位移表dx_opp_hit; 0=不外推)
+    threshold: 贴角判定px(默认120, R23口径)
+    """
+    return ("pos_gate", {
+        "corner": (list(corner_steps)
+                   if corner_steps is not None else None),
+        "mid": (list(mid_steps) if mid_steps is not None else None),
+        "dx_opp_hint": float(dx_opp_hint),
+        "threshold": float(threshold),
+    })
+
+
+def adaptive_combo(starter_steps, corner_ender, mid_ender,
+                   dx_opp_hint=0.0, threshold=POS_GATE_THRESHOLD):
+    """位置自适应连段宏模板(CE-3.4).
+
+    版中起手→confirm→贴角走版边收尾/否则走弹墙推板收尾 —
+    攻略C5"同一命中确认因屏幕坐标不同有三套后续"在宏内表达.
+    **宏库升版时经R23契约尾部追加**(与CH-3/JZ-4同批; 现库
+    连段A/B/C与版边连A不动 — 合并式改造会移位既有索引).
+    dx_opp_hint从CE-3位移表宏末攻击步取命中桶值(低置信记0).
+    """
+    return list(starter_steps) + [
+        ("confirm", 0),
+        make_pos_gate_step(corner_ender, mid_ender,
+                           dx_opp_hint, threshold),
+    ]

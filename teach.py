@@ -157,6 +157,22 @@ def explain_with_value(char, dx, spirit, opp_air, opp_corner,
     parts.append('【局面】距离%.0f 对手%s%s 灵力%.0f'
                  % (dx, '空中' if opp_air else '地面',
                     ' 版边' if opp_corner else '', spirit))
+    # S-7C(2026-10-14): 风格个性化 — ppo带feat_builder时附对手
+    # 风格描述与应对提示(投影≠定义, 提示非硬规则)
+    _fb = getattr(ppo, 'feat_builder', None)
+    if _fb is not None and hasattr(_fb, 'opp'):
+        try:
+            from style_lingo import describe_style, style_advice
+            _of = _fb.opp.features() if hasattr(_fb.opp, 'features') \
+                else None
+            _desc = describe_style(_of)
+            if _desc != '风格未知':
+                parts.append('【对手风格】%s' % _desc)
+                _adv = style_advice(_of)
+                if _adv:
+                    parts.append('【风格提示】%s' % _adv)
+        except Exception:
+            pass
     parts.append('【价值排名】')
     for rank, (name, v, _) in enumerate(ranked, 1):
         marker = ' ←模型选' if name == model_choice else (

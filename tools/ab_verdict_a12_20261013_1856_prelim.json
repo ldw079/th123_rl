@@ -1,0 +1,21 @@
+{
+ "final": false,
+ "accumulated_h": 16.364287837611304,
+ "timeout_loss_pct": 66.7,
+ "passivity": {
+  "timeout_rate": 1.0,
+  "timeout_loss_share": 0.6666666666666666,
+  "timeout_hp_mean_avg": 2751.0
+ },
+ "far_share": {
+  "reimu": 2.8,
+  "marisa": 0.7,
+  "suika": 38.1
+ },
+ "winrate_new": 33.333333333333336,
+ "winrate_base": 25.0,
+ "winrate_delta": 8.3,
+ "verdict": "保留A1-2, 验收未达成(顶时判负率未达标) — 继续观察/A1-4备选",
+ "eval_json": "%USERPROFILE%\\Desktop\\workplace\\th123_rl\\tools\\eval_matrix_quick_20261013.json",
+ "ts": "2026-10-13 18:56:45"
+}

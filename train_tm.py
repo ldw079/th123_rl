@@ -19,6 +19,7 @@ import struct
 """
 import argparse
 import os
+import glob
 import sys
 import time
 
@@ -29,7 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config  # noqa: E402
 # R17(§3.5): 删除死导入 from perception import frame_features —
 # 视觉早已改为_render_frame虚拟渲染, 全文件无使用(v3迁移残留)
-from feat_builder import FeatureBuilder
+from feat_builder import FeatureBuilder, eff_untech
 from opp_model import GUARD_ALL_IDS   # R20: hitlab实测防御ID集(5/8/151/158)
 from reach_maps import resolve_reach, resolve_startup, REACH_MARGIN
 from tm_env import TMEnv
@@ -85,6 +86,8 @@ def _load_char_libs():
         "attack": _attack_set(m_reimu.MELEE_MACROS, m_reimu.BULLET_MACROS,
                               m_reimu.SKILL_MACROS, m_reimu.COMBO_MACROS,
                               m_reimu.STRING_MACROS, m_reimu.AIR_MACROS),
+        # JZ-3.2: 投技宏集(无敌窗内掩蔽; 灵梦无指令投)
+        "throw": {"择·投"},
     }
     CHAR_LIBS["marisa"] = {
         "id": 1, "macros": m_marisa.MACROS_MARISA,
@@ -97,6 +100,7 @@ def _load_char_libs():
         "attack": _attack_set(m_marisa.MELEE_MACROS_MARISA, m_marisa.BULLET_MACROS_MARISA,
                               m_marisa.SKILL_MACROS_MARISA, m_marisa.COMBO_MACROS_MARISA,
                               m_marisa.STRING_MACROS_MARISA, m_marisa.AIR_MACROS_MARISA),
+        "throw": {"择·投"},        # JZ-3.2(黑白无指令投)
     }
     CHAR_LIBS["suika"] = {
         "id": 9, "macros": m_suika.MACROS_SUIKA,
@@ -109,6 +113,7 @@ def _load_char_libs():
         "attack": _attack_set(m_suika.MELEE_MACROS_SUIKA, m_suika.BULLET_MACROS_SUIKA,
                               m_suika.SKILL_MACROS_SUIKA, m_suika.COMBO_MACROS_SUIKA,
                               m_suika.STRING_MACROS_SUIKA, m_suika.AIR_MACROS_SUIKA),
+        "throw": {"择·投", "623B"},   # JZ-3.2(萃鬼=指令投, suika.py:57)
     }
     # R44(2026-10-04): 六新角色 — tools/gen_newchar_libs.py生成的同构骨架库
     # (66宏: 通用体术+指令技+确认连段+原子宏+系统/角色符卡)。
@@ -142,6 +147,8 @@ def _load_char_libs():
                 getattr(_m, '%s_COMBO_MACROS' % _U),
                 getattr(_m, '%s_STRING_MACROS' % _U),
                 getattr(_m, '%s_AIR_MACROS' % _U)),
+            # JZ-3.2: 骨架库统一含择·投; 指令投(如有)待hitlab标定后补
+            "throw": {"择·投"},
         }
 
 
@@ -246,6 +253,25 @@ R_EVADE = 0.20        # 规避让弹道(R17: 0.08→0.20; 归因干净: 需80px
                       # 真实位移脱弹, 攻击宏蹭不到)
 W_WHIFF = 0.06        # 空挥基罚(×_whiff_cost倍率; P2-1清理: 死常量
                       # R_PARRY/WHIFF_B/C/SKILL从未接线, 已删)
+
+
+def mixed_behavior_p(p_pi, mid, probe_legal=None, vg_on=False,
+                     vg_best=None):
+    """P1-5(从零#4): 行为策略的混合边际概率 — stored_logp用真分布。
+
+    行为构成: 12%均匀探针(legal非空时) + 88%π(·|mask,bias)采样,
+    之后30%价值引导重选(argmaxV确定覆盖, 探针选择亦可被覆盖):
+      P(a) = 0.7·(0.12·U(a) + 0.88·π(a)) + 0.3·1{a=vg_best}
+    (VG未触发/W1v缺席时无0.3项; legal空时无0.12项)。
+    p_pi: π(mid)标量(调用方经_pi_forward(mask,bias)取得)。
+    """
+    p = float(p_pi)
+    if probe_legal:
+        p = 0.88 * p + (0.12 / len(probe_legal)
+                        if mid in probe_legal else 0.0)
+    if vg_on:
+        p = 0.7 * p + (0.3 if mid == vg_best else 0.0)
+    return max(p, 1e-10)
 LOW_SPIRIT_PEN = 300.0  # 灵力不足阈值(满1000): 低于此值起手攻击宏且空挥
                       # → 罚×2(用户2026-09-29: "明知没灵还出招"与"打空了"
                       # 是两种过错; 直打suika灵力枯竭22B×23%红线)
@@ -279,6 +305,10 @@ POT_W = {
     'own_spirit': 0.0004, # 灵力高=好(映射SPIRIT_KEEP方向)
     'opp_corner': 0.003,  # 对手被角=好(映射R_CORNER_ADV)
     'own_corner': -0.003, # 我方被角=坏(映射R_WALL)
+    # CE-7(2026-10-15用户批准立项, 部署排A1-2验收后):
+    # 推板进度势 — 角项二值→距角连续(k_c使版中→贴角全程势差
+    # ≈二值跳变的2-3倍); 势函数差分→推板每步有梯度(telescoping保持)
+    'corner_progress': 0.0144,  # 对手距近角距离归一(0=贴角 1=版中)
     'card_gauge': 0.001,  # 卡牌充能=好(长期资源)
     # R61z(用户裁定"加进攻积极性奖励"): 距离势差 — 越近势越高,
     # 后退/跳跃逃跑→势降→负奖励; 前进→势升→正奖励.
@@ -292,6 +322,14 @@ GAMMA_POT = 0.999   # R61c(B5): 势函数γ(Ng式r'=γΦ(s')−Φ(s); 原γ=1)
 # (跳跃逃逸的"零惩罚盲区"修复; 攻击中/受击中空中不罚)
 R_AIR_PASSIVE = 0.003
 AIR_PASSIVE_GRACE = 30   # 宽限帧数(跳跃弧线的合法滞空)
+
+
+def air_passive_exempt(left):
+    """BH-4.2(bug档): 空中被动豁免 = 攻击中(300-599)或**真受击**
+    (eff_untech>0)。原内联条件用原始untech — 自由飞翔(214)带残留
+    读数被错误豁免, 反逃逸惩罚被削弱(R61z盲区); 抽出成可测函数。"""
+    return ((300 <= left.get("action", 0) < 600)
+            or eff_untech(left) > 0)
 
 
 def state_potential(left, right, card_gauge_val=None):
@@ -311,6 +349,16 @@ def state_potential(left, right, card_gauge_val=None):
         p += POT_W['opp_corner']
     if _mx < 120 or _mx > 1120:
         p += POT_W['own_corner']
+    # CE-7 推板进度势(连续角项) — **默认关**(部署排A1-2 A/B验收后);
+    # 开启: 环境变量 TH123_CE7_POT=1; 立项已批(2026-10-15)但时点纪律是红线
+    if os.environ.get('TH123_CE7_POT', '0') == '1':
+        # 对手距近角越近→势越高(推板每步有梯度); own侧对称
+        # 版中(0.64)→贴角(0.12)全程势差 = k_c×0.52 ≈ 0.0075
+        # ≈ 二值跳变0.003的2.5倍(方案标定2-3倍; 测试钉住)
+        _opp_to_corner = min(_ox, 1280.0 - _ox) / 1000.0   # 0=贴角 1=版中
+        _own_to_corner = min(_mx, 1280.0 - _mx) / 1000.0
+        p += POT_W['corner_progress'] * (1.0 - _opp_to_corner)   # 推对手向角
+        p -= POT_W['corner_progress'] * (1.0 - _own_to_corner)   # 自己别被关角
     _cg = (left.get("cardGauge", 0) if card_gauge_val is None
            else card_gauge_val)
     p += POT_W['card_gauge'] * min(_cg, 2000)
@@ -457,6 +505,12 @@ class TMTrainer:
         _near = (lib.get("melee", set()) | lib.get("combo", set())
                  | lib.get("string", set()))
         self.near_idx = np.array([n in _near for n in names], dtype=bool)
+        # JZ-3.2(2026-10-14): 投技宏索引+对手投技无敌窗跟踪
+        # (掩码层实现: 无敌窗内禁采样投技, 零奖励改动)
+        self.throw_idx = np.array(
+            [n in lib.get("throw", set()) for n in names], dtype=bool)
+        from frame_events import ThrowInvulnTracker
+        self._throw_invuln_trk = ThrowInvulnTracker()
         # R23(2026-10-02): 位置特化连段情境门控 — 架构文档§2.1声称
         # "版边连A敌在角才可用/空连A敌空中才可用", 实际从未实现(中场可采
         # 样版边连=confirm门只能止损, 决策已浪费)
@@ -555,9 +609,22 @@ class TMTrainer:
                 self._wire_opp_ids(_c0)
                 if _m0 is None:
                     _m0 = self._resolve_pool(_c0)
+                # 池守卫拒载兜底(2026-10-15晨事故): 宏数换代期池快照全被
+                # _pool_snapshot_ok滤光 → _m0=None → 原版对手驱动**未加载
+                # 就上场**(空权重Wc1=None, 每局AttributeError崩溃循环,
+                # 18:04池快照70宏 vs 88/93/91代码宏数)。未加载的驱动
+                # 永不入局: 回退生产模型(恒为现行代际)。
+                if _m0 is None:
+                    _m0 = os.path.join(STORE_DIR, 'model_ppo_%s.npz' % _c0)
+                    if os.path.exists(_m0):
+                        print('[对手池] %s池快照全被维度守卫拒载 — '
+                              '回退生产模型(换代期正常, 池将随对局刷新)'
+                              % _c0)
+                    else:
+                        raise RuntimeError(
+                            '%s无可用对手模型(池拒载+生产档缺失)' % _c0)
                 self._cur_opp_model = _m0
-                if _m0 is not None:
-                    self.opp.load(_m0)
+                self.opp.load(_m0)
         else:
             self.opp = None
             self._cur_opp_model = None
@@ -576,6 +643,16 @@ class TMTrainer:
         self.last_macro2 = 0
         self._last_dir = 0       # 当前朝向(±1) — 逐帧镜像用
         self._dir_frames = 0     # 距上次转向的帧数(转向延迟感知)
+
+    def near_gate(self, mask, dx_abs):
+        """R60(F-9)距离门: 330外只禁近战子集(弹幕/技能放行),
+        150内禁弹幕。抽出为方法供行为测试钉住
+        (变异面: near→melee=全攻击集 → 远程立回不可学)。"""
+        if dx_abs > 330:
+            mask = mask & ~self.near_idx
+        elif dx_abs < 150:
+            mask = mask & ~self.bullet_idx
+        return mask
 
     def _setup_capture(self):
         """虚拟视觉(2026-09-22重审): 屏幕捕获废弃 — TM包含全部弹幕对象
@@ -751,41 +828,36 @@ class TMTrainer:
         # R30: untech差值块 — (opp_untech - startup_i)/50, 正=来得及
         # (对手还在硬直), 负=来不及(目押窗口外)。模型借连段中优势梯度
         # 学读此特征=目押/放帧的感知基础。
-        _opp_ut = right.get("untech", 0) or 0
+        # BH-4.2: untech过动作门(残留读数污染目押判据)
+        _opp_ut = eff_untech(right)
         s[_b0 + 2 * self.n_macros:] = \
             np.clip((_opp_ut - self.macro_startup) / 50.0, -1, 1) \
             * self.startup_mask_idx
         return s
 
     def _load_bc_bank(self):
-        """神谕专家BC库(2026-09-26): data/bc/bc_{char}{suffix}.npz"""
-        import glob as _g
-        pats = [os.path.join(STORE_DIR, 'bc_%s%s.npz' % (self.char, self.suffix)),
-                os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             'data', 'bc', 'bc_%s%s.npz' % (self.char,
-                                                            self.suffix))]
-        for p in pats:
-            if os.path.exists(p):
-                d = np.load(p, allow_pickle=False)
-                self._bc_X = d['X']
-                self._bc_S = d['S']
-                self._bc_Y = d['Y']
-                # R37(审查2026-10-02): 宽度守卫 — BC库停留旧布局时
-                # 静默载入会导致update时广播爆炸(已烧一次前向)。
-                # 此断言能立刻暴露宏数/侧维与当前代码的不一致。
-                assert d['S'].shape[1] == self.n_side, \
-                    ("BC库宽度%d≠n_side%d — BC库与当前宏库/CORE_DIMS"
-                     "不一致, 需重跑repad脚本" % (d['S'].shape[1], self.n_side))
-                # R39(第十轮P3-10): X宽校验 — 旧视觉布局(≠14400)的BC文件
-                # 会"健康"载入后在每次update里_trunk reshape崩、被worker
-                # except吞掉 → 零学习且无可见错误
-                from ppo import CONV_H, CONV_W
-                assert d['X'].shape[1] == 3 * CONV_H * CONV_W, \
-                    ("BC库X宽%d≠视觉栈%d — 旧视觉布局, 需重建BC库"
-                     % (d['X'].shape[1], 3 * CONV_H * CONV_W))
-                print("[BC] 专家库 %s: %d行 (S宽%d✓)" % (
-                    os.path.basename(p), len(d['Y']), d['S'].shape[1]))
-                return
+        """神谕专家BC库: bc_io单源(trio mmap优先/npz回退, 2026-10-14
+        用户裁定mmap方案 — 全量驻磁盘零采样损失)。"""
+        from bc_io import find_bank, load_bank
+        kind, base = find_bank(self.char, self.suffix, store=STORE_DIR)
+        if kind is not None:
+            X, S, Y = load_bank(self.char, self.suffix, store=STORE_DIR)
+            self._bc_X, self._bc_S, self._bc_Y = X, S, Y
+            # R37(审查2026-10-02): 宽度守卫 — BC库停留旧布局时
+            # 静默载入会导致update时广播爆炸(已烧一次前向)。
+            assert S.shape[1] == self.n_side, \
+                ("BC库宽度%d≠n_side%d — BC库与当前宏库/CORE_DIMS"
+                 "不一致, 需重跑repad脚本" % (S.shape[1], self.n_side))
+            # R39(第十轮P3-10): X宽校验 — 旧视觉布局(≠14400)的BC文件
+            # 会"健康"载入后在每次update里_trunk reshape崩、被worker
+            # except吞掉 → 零学习且无可见错误
+            from ppo import CONV_H, CONV_W
+            assert X.shape[1] == 3 * CONV_H * CONV_W, \
+                ("BC库X宽%d≠视觉栈%d — 旧视觉布局, 需重建BC库"
+                 % (X.shape[1], 3 * CONV_H * CONV_W))
+            print("[BC] 专家库 %s(%s): %d行 (S宽%d✓)" % (
+                os.path.basename(base), kind, len(Y), S.shape[1]))
+            return
         self._bc_X = None
         print("[BC] 无专家库(神谕数据未提取或角色无对局) — 纯PPO模式")
 
@@ -885,9 +957,15 @@ class TMTrainer:
         R21: feat_builder._opp_char接角色名(opp_model查表用)。"""
         self._opp_char_id = self._CHAR_POOL_IDX.get(opp_char)
         self.feat_builder._opp_char = opp_char
+        # K5(裁定五并入S-2): 池外位 — R61t扩展one-hot虽全覆盖20角色,
+        # 但池外槽位训练中从未激活(权重冷); 紧凑位聚合"陌生对手"信号
+        self.feat_builder.opp_outside_pool = (
+            0.0 if opp_char in ('reimu', 'marisa', 'suika') else 1.0)
         if self.opp is not None:
             self.opp.opp_char_id = self._CHAR_POOL_IDX.get(self.char)
             self.opp.feat_builder._opp_char = self.char
+            self.opp.feat_builder.opp_outside_pool = (
+                0.0 if self.char in ('reimu', 'marisa', 'suika') else 1.0)
 
     def _resolve_pool(self, ch):
         """R43方案A: 角色对手的池路径动态解析。
@@ -1202,6 +1280,13 @@ class TMTrainer:
                 # 局数且exit 0 → 监督器记"正常完成"不重启(R19盲区的回归)
                 _consec_fail += 1
             except Exception as e:
+                # 诊断升级(2026-10-15晨): 首次异常打完整栈(原仅一行消息
+                # — AttributeError None.T排查数轮无栈可看); 后续静默防刷屏
+                _consec_fail2 = getattr(self, '_ep_exc_logged', False)
+                if not _consec_fail2:
+                    import traceback
+                    traceback.print_exc()
+                    self._ep_exc_logged = True
                 print("[ep] 异常: %s: %s — 重建环境" % (type(e).__name__, e))
                 try:
                     self.env.close()
@@ -1254,6 +1339,8 @@ class TMTrainer:
         # legacy(无series_mgr)逐位不变
         if self._series_mgr is None or self._series_mgr.should_reset_profiles():
             self.feat_builder.reset_match()   # 对手模型/弹速缓存/擦弹计数重置
+            # S-4阶段1(2026-10-15): GRU隐状态随局reset(系列内跨场=阶段2)
+            self._gru_h = None
         self._guard_frames_ep = 0         # R33: 防御递减计数(每局重置)
         self._cur_bullets = []
         distill_rows = []      # [dx, spirit, close, macro_id, game_frame,
@@ -1276,6 +1363,18 @@ class TMTrainer:
         # P2-1修复: 空挥判定状态(决策→决策窗口内的伤害/对手防御)
         dec_name, dec_dmg, dec_guarded = None, 0.0, False
         dec_spirit = None   # R17: 起手时灵力(空挥加重判据)
+        # BH-1(行为健康方案v4): 行为计数器(每局新建; actor的submit钩子
+        # 在episode落盘后flush旁车json — 不动episode npz契约)
+        from behavior_health import BehaviorCounter as _BHC
+        self.bh = _BHC(self.char)
+        # CE-0.1: 帧日志抽样(TH123_FRAME_LOG=1开启, 默认关; EVERY抽样
+        # — BH-1表6-8数据源, ~250-400KB/抽样局)
+        from behavior_health import (frame_log_enabled as _fle,
+                                     frame_log_every as _flev, FL_FIELDS)
+        self._bh_ep_n = getattr(self, '_bh_ep_n', 0) + 1
+        _fl_on = _fle() and (self._bh_ep_n % _flev() == 0)
+        self._fl_frames = [] if _fl_on else None
+        self._fl_decisions = [] if _fl_on else None
         # P1-4b修复(真): 对手水平速度=包位置逐帧差分EMA(包无vx字段,
         # archive版的R["vx"]来自抓屏管线, 本通道须自差分)
         opp_x_prev, opp_vx_ema = None, 0.0
@@ -1337,6 +1436,14 @@ class TMTrainer:
             left, right, weather, objs = r
             frames += 1
 
+            # CE-0.1(BH-1): 抽样局逐帧记录(12字段/侧+objs前20个原始元组)
+            if self._fl_frames is not None:
+                self._fl_frames.append((
+                    tuple(left.get(_fk, 0) for _fk in FL_FIELDS),
+                    tuple(right.get(_fk, 0) for _fk in FL_FIELDS),
+                    tuple(tuple(o[:17]) for o in objs[:20]),
+                    int(left.get('frameCount', 0) or 0)))
+
 
             # ---- 对手侧驱动(P2快照模型; VS_COM模式下_opp_inp恒空不干扰COM) ----
             if self.opp is not None:
@@ -1359,6 +1466,8 @@ class TMTrainer:
             # UnboundLocalError炸局)
             frozen = (left["hitStop"] > 0) or (left["timeStop"] > 0)
             _fev, _fwin = self._frame_detector.detect(left, right, frozen)
+            # JZ-3.2: 投技无敌窗逐帧跟踪(与事件检测器同拍)
+            self._throw_invuln_trk.feed(right, frozen)
             if _fev != _FE_NONE and macro_queue:
                 # R61l(B2): 事件→策略条件化 — 原pick_reaction固定权重
                 # 随机选择, 改为清空队列+设置反应掩码, 让策略在下一
@@ -1433,13 +1542,20 @@ class TMTrainer:
             self._prev_pot = _pot
             d_deal = max(0, hp_r_prev - right["hp"])
             d_take = max(0, hp_l_prev - left["hp"])
+            # S-1接线(2026-10-14): 宏执行中的punish证据逐帧入账
+            # (对手攻击态=300-598; blocked=我方入GUARD_STUN族)
+            self.feat_builder.punish.frame(
+                d_take, 300 <= right.get("action", 0) <= 598,
+                d_deal, 150 <= left.get("action", 0) <= 166
+                and left.get("action", 0) != 158)
             hp_l_prev, hp_r_prev = left["hp"], right["hp"]
             dx_guard = right["position.x"] - left["position.x"]
             # P2-1修复: 空挥窗口累计(伤害入账 + 对手是否在防)
             dec_dmg += d_deal
             # R17③修正: 传对手untech(超长连段判定—收招帧不断链)
+            # BH-4.2: 过动作门(对手自由行动时残留untech不再维持链)
             self.feat_builder.update_combo_chain(d_deal,
-                                                 right.get("untech", 0))
+                                                 eff_untech(right))
             # R20: 对手在防=实测ID集(原110-115恒不命中 → 被防的压制
             # 被误判空挥扣分)
             if right["action"] in GUARD_ALL_IDS:
@@ -1509,9 +1625,10 @@ class TMTrainer:
 
             # R61z: 空中被动惩罚 — 空中>宽限帧且非攻击/非受击态
             # (跳跃逃逸的"零惩罚盲区"修复: 空中挂机不再免费)
+            # BH-4.2: 豁免抽为air_passive_exempt(过动作门 — 飞翔逃逸
+            # 的残留untech不再错误豁免反逃逸惩罚)
             if (left.get("airBorne", False)
-                    and not (300 <= left.get("action", 0) < 600)
-                    and not (left.get("untech", 0) or 0)):
+                    and not air_passive_exempt(left)):
                 self._air_passive_f += 1
                 if self._air_passive_f > AIR_PASSIVE_GRACE:
                     seg_rew -= R_AIR_PASSIVE
@@ -1565,6 +1682,14 @@ class TMTrainer:
                         self._ender_mask = _m if _m.any() else None
                         _cur_inp = None
                     else:
+                        # 审计从零#3推迟项(sc步首帧镜像泄漏): 执行器按键步
+                        # 输出不镜像, 存入_sc_next_input后sc步首帧原样泄出
+                        # — 背向时方向反一帧。存入时按当前朝向镜像
+                        # (sc本体SW/SC无方向位, 不受影响)。
+                        if isinstance(_cur_inp, dict) and _cur_inp.get("H"):
+                            _cur_inp = dict(_cur_inp)
+                            if self._last_dir < 0:
+                                _cur_inp["H"] = -_cur_inp["H"]
                         self._sc_next_input = _cur_inp
 
             # ---- 决策点(队列空) ----
@@ -1597,12 +1722,9 @@ class TMTrainer:
                     dx_abs = abs(right["position.x"] - left["position.x"])
                     if back_turned:
                         mask = mask & ~self.dir_attack
-                    if dx_abs > 330:
-                        # R60(F-9): 只禁近战子集(原禁melee_idx=全攻击集
-                        # → 330外弹幕/技能全禁, 远程立回不可学)
-                        mask = mask & ~self.near_idx
-                    elif dx_abs < 150:
-                        mask = mask & ~self.bullet_idx
+                    # R60(F-9): 距离门抽出为near_gate(行为测试钉住
+                    # "330外弹幕放行" — 变异面: 换melee_idx=全攻击集)
+                    mask = self.near_gate(mask, dx_abs)
                     # R23: 位置特化连段门控 — 版边连须对手贴角,
                     # 空连须对手浮空(口径同段9贴角: x<120 或 >1120)
                     _ox = right["position.x"]
@@ -1625,6 +1747,10 @@ class TMTrainer:
                             _ady > self.macro_reach_v + REACH_MARGIN)
                         if _outv.any():
                             mask = mask & ~_outv
+                    # JZ-3.2: 对手投技无敌窗(起身10F/防硬直+10F/起跳1F/
+                    # 受身)内禁采样投技宏 — 掩码层, 窗外策略自由
+                    if self.throw_idx.any() and self._throw_invuln_trk.invuln > 0:
+                        mask = mask & ~self.throw_idx
                     if not mask.any():
                         # 兜底: 全禁时优先保约束语义(ender菜单/事件反应
                         # 比回退基础掩码更忠实于触发源), 都无约束才回退
@@ -1642,8 +1768,13 @@ class TMTrainer:
                                         1000 if self.macros[i][0].startswith('原子')
                                         else 150)]
                     nbias = None
+                    _pred = None   # S-3: 策略意图top-1(探针/引导路径无)
+                    _probe_fired = False
+                    _vg_on = False
+                    _vg_best = None
                     if newbie_legal and self._ppo_act.rng.random() < 0.12:
                         mid = int(self._ppo_act.rng.choice(newbie_legal))
+                        _probe_fired = True
                     else:
                         if newbie_legal:
                             nbias = np.zeros(self.n_macros, dtype=np.float32)
@@ -1660,8 +1791,16 @@ class TMTrainer:
                                 if self.macros[i][0] in CHAR_LIBS[self.char].get("combo", set()) | \
                                         CHAR_LIBS[self.char].get("melee", set()):
                                     nbias[i] += _combo_bias
-                        mid = self._ppo_act.sample(feat, side, mask=mask,
-                                                   bias=nbias)
+                        # S-4阶段1: GRU逐步(输入=当前side切片87维),
+                        # repr16入采样(W_gru零=位等价, 阶段2解冻起效)
+                        from opp_gru import gru_slice as _gru_slice
+                        self._gru_h = self._ppo_act.opp_gru.step(
+                            _gru_slice(side, self.n_macros),
+                            getattr(self, '_gru_h', None))
+                        _gru_repr = self._ppo_act.opp_gru.repr16(self._gru_h)
+                        mid, _pred = self._ppo_act.sample(
+                            feat, side, mask=mask, bias=nbias,
+                            return_pred=True, gru_repr=_gru_repr)
                     # R35(差距#3-L1): 价值引导宏选择 — critic评估Top-5
                     # 相当于一步前瞻搜索(depth=1), 零新参数
                     # (第九轮审计P0-3: 原`_V,=...[1:]`解包3元组的[1:]=2元组
@@ -1697,6 +1836,9 @@ class TMTrainer:
                                     if _vc > _best_v:
                                         _best, _best_v = _c, _vc
                                 mid = int(_best)
+                                # P1-5: VG成分入混合边际(30%确定重选)
+                                _vg_on = True
+                                _vg_best = _best
                         except Exception:
                             pass    # 价值引导失败不阻塞采样
                     self.macro_counts[mid] += 1
@@ -1707,15 +1849,27 @@ class TMTrainer:
                     # R61w(C5): ender菜单单次有效 — 决策完成即消费
                     if _end_mask is not None:
                         self._ender_mask = None
-                    # R56(fleet): actor模式logP记录(在mid最终确定后 —
-                    # newbie探针/采样/价值引导重选三条路径统一于此记
-                    # log π_snapshot(a_final|mask,bias))
-                    # R60(F-11): 本地路径同样记录 — 原logp_old按π(mask,
-                    # temp)在更新时重算, 探针(12%均匀)/bias(≤2.0)/价值
-                    # 引导重选(30%)产生的实际行为不入ratio(~40%决策失真,
-                    # clip兜底但有偏)。stored_logp入update=真重要性比。
+                    # R56(fleet): actor模式logP记录(在mid最终确定后)
+                    # R60(F-11): stored_logp入update=真重要性比。
+                    # P1-5(从零#4): 探针(12%均匀)/VG重选(30%)路径的行为
+                    # 概率=混合边际(mixed_behavior_p) — 原记纯π系有偏
+                    # (~40%决策), 红线①"actor记真实logP"债清偿。
+                    _mix_p = None
+                    if newbie_legal or _vg_on:
+                        P_rec = self._ppo_act._pi_forward(
+                            feat.reshape(1, -1), side.reshape(1, -1),
+                            temp=self._ppo_act._temp,
+                            mask=mask.reshape(1, -1) if mask is not None
+                            else None, bias=nbias)[2][0]
+                        _mix_p = mixed_behavior_p(
+                            P_rec[mid], mid,
+                            probe_legal=newbie_legal if newbie_legal else None,
+                            vg_on=_vg_on, vg_best=_vg_best)
                     if self._fleet_logp_rec is not None:
-                        self._fleet_logp_rec(mid, feat, side, mask, nbias)
+                        self._fleet_logp_rec(mid, feat, side, mask, nbias,
+                                             mix_p=_mix_p)
+                    elif _mix_p is not None:
+                        ep_logps.append(float(np.log(_mix_p)))
                     else:
                         P_rec = self._ppo_act._pi_forward(
                             feat.reshape(1, -1), side.reshape(1, -1),
@@ -1750,13 +1904,39 @@ class TMTrainer:
                     #  P0-J修复时误删append → rews恒空 → 每次更新触发
                     #  "ep_lens≠R长度"断言, 全部更新丢失)
                     seg_rew = 0.0
+                    # BH-1: 决策点记账(在dec_name被替换前 — prev结算口径)
+                    from my_punish_tracker import classify as _bh_clsfy
+                    _bh_cur_name = self.macros[mid][0]
+                    self.bh.note_decision(
+                        dec_name,
+                        (_bh_clsfy(dec_name, CHAR_LIBS[self.char])
+                         if dec_name else None),
+                        dec_dmg, dec_guarded, _bh_cur_name,
+                        _bh_clsfy(_bh_cur_name, CHAR_LIBS[self.char]),
+                        getattr(self, '_opp_char', None))
+                    if self._fl_decisions is not None:
+                        self._fl_decisions.append((frames, int(mid)))
                     dec_name = self.macros[mid][0]
                     dec_dmg, dec_guarded = 0.0, False
                     dec_spirit = left["spirit"]   # R17: 起手灵力(空挥加重判据)
+                    # S-2接线(2026-10-14): 决策落子 — 上宏结算/新宏开始/
+                    # 类别序列/预测回写(S-1/S-3/S-5源, 维330-339)
+                    from my_punish_tracker import classify as _clsfy
+                    _dcls = _clsfy(dec_name, CHAR_LIBS[self.char])
+                    if getattr(self, '_punish_active', False):
+                        self.feat_builder.punish.end()
+                    self._punish_active = True
+                    self.feat_builder.punish.begin(_dcls)
+                    self.feat_builder.note_decision(
+                        ('JUMP', 'MELEE', 'BULLET', 'SKILL',
+                         'GUARD_PREP', 'OTHER').index(_dcls))
+                    if _pred is not None:
+                        self.feat_builder.set_last_pred(*_pred)
                     # R47: _expert_rec已删(可行性天花板3: 永久人类风格
                     # 拉力与超人冲突) — BC目标=自身动作(纯自模仿, 无外部锚)
                     bc_targets.append(mid)
-                    # 基准树诊断数据(与standard_tree 11列同构)
+                    # 基准树诊断数据(标准树11列+S-7B风格2列: pc1/pc2 —
+                    # 消费方按下标取0-10, 尾部追加向后兼容)
                     dx = abs(right["position.x"] - left["position.x"])
                     distill_rows.append([
                         dx, left["spirit"] / 1000.0, 1.0 if dx < 130 else 0.0,
@@ -1768,6 +1948,8 @@ class TMTrainer:
                         tti,
                         1.0 if (right["position.x"] < 120
                                 or right["position.x"] > 1120) else 0.0,
+                        float(side[2 * self.n_macros + 340]),
+                        float(side[2 * self.n_macros + 341]),
                     ])
                     self.last_macro2 = self.last_macro
                     self.last_macro = mid
@@ -1780,6 +1962,33 @@ class TMTrainer:
                     # — 原内联(ks,0)丢字符串步载荷(branch/link/ender)
                     macro_executor.enqueue_script(macro_queue, script)
 
+        # CE-0.1: 抽样局帧日志落盘(原子; 滚动保留最近500局 ~200MB上限)
+        if self._fl_frames is not None and self._fl_frames:
+            try:
+                import pickle as _pkl
+                _fld = os.path.join(STORE_DIR, 'frame_logs')
+                os.makedirs(_fld, exist_ok=True)
+                _fnp = os.path.join(
+                    _fld, 'fl_%s_%s_%05d.pkl' % (
+                        self.char, time.strftime('%Y%m%d_%H%M%S'),
+                        self._bh_ep_n))
+                with open(_fnp + '.tmp', 'wb') as _fh:
+                    _pkl.dump({'char': self.char,
+                               'opp_char': getattr(self, '_opp_char', None),
+                               'fields': FL_FIELDS,
+                               'frames': self._fl_frames,
+                               'decisions': self._fl_decisions or []},
+                              _fh, protocol=4)
+                os.replace(_fnp + '.tmp', _fnp)
+                _old = sorted(glob.glob(os.path.join(_fld, 'fl_*.pkl')),
+                              key=os.path.getmtime)
+                for _p in _old[:-500]:
+                    try:
+                        os.remove(_p)
+                    except OSError:
+                        pass
+            except Exception as _fle_err:
+                print('[BH-1] 帧日志落盘异常(%r) — 不影响训练' % _fle_err)
         # ---- episode结束 → 异步PPO更新(与下一局采集重叠) ----
         if feats:
             # 修(2026-09-21): 终局段奖励入账 — 原尾段seg_rew从未append,

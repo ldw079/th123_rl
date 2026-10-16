@@ -1,0 +1,49 @@
+{
+ "ts": "2026-10-15 16:54:47",
+ "char": "reimu",
+ "headless": false,
+ "frames": 15636,
+ "matches": [
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ]
+ ],
+ "human_wins": 6,
+ "model_wins": 0,
+ "hp0": [
+  10000,
+  10000
+ ],
+ "new_reps": [
+  "D:\\temp\\th123_models\\human_reps\\20261015_165446_26-10-15_16-48-49>_player_anon2(爱丽丝)_RL-AI(灵梦)_(2︰0_负).rep",
+  "D:\\temp\\th123_models\\human_reps\\20261015_165446_26-10-15_16-50-05>_player_anon2(爱丽丝)_RL-AI(灵梦)_(2︰0_负).rep",
+  "D:\\temp\\th123_models\\human_reps\\20261015_165446_26-10-15_16-51-00>_player_anon2(爱丽丝)_RL-AI(灵梦)_(2︰0_负).rep",
+  "D:\\temp\\th123_models\\human_reps\\20261015_165446_26-10-15_16-52-00>_player_anon2(爱丽丝)_RL-AI(灵梦)_(2︰0_负).rep",
+  "D:\\temp\\th123_models\\human_reps\\20261015_165446_26-10-15_16-53-19>_player_anon2(爱丽丝)_RL-AI(灵梦)_(2︰0_负).rep",
+  "D:\\temp\\th123_models\\human_reps\\20261015_165446_26-10-15_16-54-40>_player_anon2(爱丽丝)_RL-AI(灵梦)_(2︰0_负).rep"
+ ],
+ "exe_md5": "DF35D1FBC7B583317ADABE8CD9F53B2E",
+ "delay_frames": 5,
+ "protocol": "RPM观察+内存写inKeys(v2)"
+}

@@ -39,13 +39,13 @@ MACROS_SUIKA = [
                (("right",), 3), (("down",), 3),
                (("down", "right", "B"), 10)]),   # 5A→确认→623B萃鬼投
     # 2026-09-22 hitlab修复(灵梦实测标定外推): 方向预置6帧, 同帧按=吞键
-    ("2A",   [(("down",), 6), (("down", "A"), 10)]),       # 发生10F 全体29F 下段
+    ("2A",   [(("down",), 6), (("down", "A"), 10)]),       # 发生9F 全体28F 下段(JZ-2b: 站9f修正, 旧注释10F)
     ("6A",   [(("right",), 6), (("right", "A"), 14)]),     # hitlab修复: 6系同帧同理
-    ("3A",   [(("down",), 6), (("down", "right"), 2), (("down", "right", "A"), 14)]),  # 发生25F 全体62F 对空
-    ("5B",   [(("B",), 10)]),                     # 发生17F 全体44F 射击
+    ("3A",   [(("down",), 6), (("down", "right"), 2), (("down", "right", "A"), 14)]),  # 发生19F 全体54F 对空(JZ-2b: 站19f修正, 旧注释25F=CHM错值)
+    ("5B",   [(("B",), 10)]),                     # 发生15F 全体42F 射击(JZ-2b: 站15f修正, 旧注释17F)
     ("6B",   [(("right",), 6), (("right", "B"), 10)]),     # hitlab修复: 发生18F SMASH弹
     ("2B",   [(("down",), 6), (("down", "B"), 10)]),
-    ("5C",   [(("C",), 12)]),                     # 发生22F+30F后爆炸 烟弹
+    ("5C",   [(("C",), 12)]),                     # 弹体22F放出/主判定52F爆炸(JZ-2b: 站startup=52f记爆炸, 语义双值)
     ("6C",   [(("right",), 6), (("right", "C"), 12)]),     # hitlab修复: DC系列(核心技)
     ("2C",   [(("down",), 6), (("down", "C"), 12)]),
     ("jB",   [(("up",), 6), (("up",), 2), (("B",), 14)]),               # 空中JB 发生14F
@@ -213,7 +213,9 @@ SC_MACROS_SUIKA = {"卡·投掷", "卡·鬼缚", "卡·力量", "卡·紫力", "
                    "卡·药水", "卡·灵击", "卡·当前"}
 
 SC_COST_SUIKA = {0: 1, 1: 1, 200: 2, 201: 2, 202: 2, 203: 5, 204: 4, 205: 4,
-                 206: 1, 207: 4, 208: 5, 212: 3}
+                 206: 1, 207: 4, 208: 5, 212: 3,
+           # JZ-4系统卡(2026-10-14晚)
+           2: 1, 3: 1, 4: 1, 12: 1, 14: 1}
 
 # ==== R61n(C4): 表里择+压起身套件 ====
 MACROS_SUIKA.append(('择·中段', [(('right', 'D'), 6), ((), 2), (('right',), 6), (('right', 'A'), 12)]))
@@ -228,5 +230,17 @@ COMBO_MACROS_SUIKA |= {'择·中段', '择·下段', '择·投', '压起身·即
 MACRO_NAMES_SUIKA = [m[0] for m in MACROS_SUIKA]
 # R61n: 追加宏的规范化(预置帧≥5 — hitlab标定阈值)
 MACROS_SUIKA[-7:] = [(n, _norm_presteps(sc)) for n, sc in MACROS_SUIKA[-7:]]
+MACRO_NAMES_SUIKA = [m[0] for m in MACROS_SUIKA]
+N_MACROS_SUIKA = len(MACROS_SUIKA)
+# CH-3/JZ-4扩展波(2026-10-14晚): 蓄力/系统卡/DD变体/HJC取消 —
+# 尾部追加+基础宏派生(wave_ext), 索引稳定=ppo零初始化迁移适用
+from macros.wave_ext import wave_extensions, wave_registrations
+_WAVE = wave_extensions(MACROS_SUIKA, 'suika')
+MACROS_SUIKA.extend(_WAVE)
+_B, _S, _D = wave_registrations(_WAVE)
+BULLET_MACROS_SUIKA |= _B
+SC_MACROS_SUIKA |= _S
+DASH_MACROS_SUIKA |= _D
+MACROS_SUIKA[-len(_WAVE):] = [(n, _norm_presteps(sc)) for n, sc in MACROS_SUIKA[-len(_WAVE):]]
 MACRO_NAMES_SUIKA = [m[0] for m in MACROS_SUIKA]
 N_MACROS_SUIKA = len(MACROS_SUIKA)
