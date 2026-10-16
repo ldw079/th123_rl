@@ -13,7 +13,10 @@ from soku_arch.trainer_client import TrainerClient
 from soku_arch.rep_file import parse_rep_file
 from soku_arch.rep_meta import parse_rep_name
 
-GAME = r'D:\temp\rl_game'
+GAME = os.environ.get('SOKUAI_GAME_DIR', r'D:\temp\rl_game')
+# ↑BH-4.2并行采集(2026-10-16): 游戏目录可按worker覆写 — 同目录多实例
+# 的回放装载竞态(握手OK+零帧+秒退循环, mod中转文件互踩)用每worker
+# 独立目录根治; 缺省单worker路径不变
 EXE = os.path.join(GAME, 'th123.exe')
 ML = os.path.join(GAME, 'ModLoaderSettings.json')
 ROOT = r'D:\temp\expert_reps'
