@@ -9,11 +9,16 @@ S-4 GRU序列记忆全链就绪(阶段2a); BH方案v4执行中: **BH-3.1/3.2/3.3
 tools/behavior_report.py八表) / **BH-4.1 matcher连段语境✅**(按钮帧
 评分+中性抑制; 真受击帧攻击标签 reimu 24.6→43.1%/marisa 27.8→
 46.4%/suika 20.4→32.7%[萃香HJC机构归因待全量复核]; 度量环
-tools/bh41_measure.py) / **BH-4.2 对位语料采集进行中**(206/765,
-tr*分片+manifest pair字段, 断点续采) / **BH-4.3 先验表✅**
+tools/bh41_measure.py) / **BH-4.2 对位语料采集✅完成**(51/51对×14-15片=762,
+[多rep并行采集落地: 每worker独立游戏目录rl_game_w1-3+SOKUAI_GAME_DIR
++ML事故教训: --no-mod-switch下ML是外部契约, 启动崩溃的finally还原
+会静默破坏它→握手OK零帧秒退循环]) / **BH-4.3 先验表✅**("19"=衣玖
+已确认, 唯余高个子名单unverified)
 (matchup_combo_prior.json; "19"与高个子名单unverified待用户确认)。
-**BH-4.4 合批重建待四子项齐**(untech门+段位表+matcher语境+扩位
-语料四合一, 与S-6同批, 需低载窗口)。
+**BH-4.4 合批重建执行中**(训练暂停窗口, bc_build三角色并行吸收
+四子项+S-6[untech门+段位表+matcher语境+762对位分片+I列]; 重建实弹
+抓出bc_build两处对位兼容bug[LIBS键/池位]已修76cc402; 完成→bc_swap_v3
+→fleet重启)。
 CE离线件全谱就绪(R131-139); 观察期继续。门禁634/0; 帧日志需
 TH123_FRAME_LOG=1。关键数据: cleista/(API全量+守备段位134档)+
 guard_height.json+matchup_combo_prior.json+move_displacement_*.json。
