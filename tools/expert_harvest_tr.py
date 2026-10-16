@@ -151,6 +151,16 @@ def main():
     ap.add_argument('--per-pair', type=int, default=0,
                     help='>0=Bh-4.2对位扩采: 每主力×17对手各采N个'
                          '(kind强制ours, 对间交错, 断点续采)')
+    # ---- 并行采集(用户指令2026-10-16: 多rep并行加速) ----
+    ap.add_argument('--slice', default=None,
+                    help='i/k 形如 0/4 — 去重选片后取第i片共k片'
+                         '(片间不相交; md5后缀防文件名撞)')
+    ap.add_argument('--no-mod-switch', action='store_true',
+                    help='不动ModLoaderSettings(并行模式: ML由外部统一'
+                         '预置/还原 — 多worker的写/还原竞态规避)')
+    ap.add_argument('--worker-tag', default=None,
+                    help='worker标记: 分manifest(manifest_w{tag}.jsonl)'
+                         '/staged名(trH_w{tag}.rep)/保留端口命名')
     args = ap.parse_args()
 
     from soku_arch.rep_file import parse_rep_file
@@ -192,15 +202,35 @@ def main():
         todo = [(k, p, r, ids, h) for k, p, r, ids, h in todo]
         print('[TR] 去重后待采 %d 个%s' % (
             len(todo), '(limit=%d)' % args.limit if args.limit else ''))
+    if args.slice:
+        _i, _k = (int(x) for x in args.slice.split('/'))
+        assert 0 <= _i < _k, 'slice越界: %s' % args.slice
+        _n = len(todo)
+        todo = todo[_i::_k]      # 等距切片(片间不相交, 覆盖全集)
+        print('[并行] slice %d/%d: %d→%d个' % (_i, _k, _n, len(todo)))
 
     # mod切换(oracle观测集) + 用后逐字节恢复
+    # 并行模式(--no-mod-switch): ML由外部统一预置/还原(多worker的
+    # 写/还原竞态规避 — 先退出的worker还原会让后来者的游戏启动
+    # 缺oracle mod=坏分片)
     orig = None
-    if os.path.exists(ML):
-        with open(ML, 'rb') as f:
-            orig = f.read()
-    with open(ML, 'w', encoding='utf8', newline='') as f:
-        json.dump({'modules': {'modules/%s/%s.dll' % (m, m):
-                               {'enabled': True} for m in ORACLE_SET}}, f, indent=4)
+    if not args.no_mod_switch:
+        if os.path.exists(ML):
+            with open(ML, 'rb') as f:
+                orig = f.read()
+        with open(ML, 'w', encoding='utf8', newline='') as f:
+            json.dump({'modules': {'modules/%s/%s.dll' % (m, m):
+                                   {'enabled': True} for m in ORACLE_SET}}, f, indent=4)
+
+    # 并行worker的独立资源: manifest/staged名/保留端口
+    _wtag = args.worker_tag or (args.slice.split('/')[0]
+                                if args.slice else None)
+    if _wtag is not None:
+        man = os.path.join(OUT, 'manifest_w%s.jsonl' % _wtag)
+        PORT = reserved_port('expert_harvest_w%s' % _wtag)
+        _staged = 'trH_w%s.rep' % _wtag
+    else:
+        _staged = 'trH.rep'
 
     t0 = time.time()
     ok_n = bad_n = 0
@@ -210,7 +240,7 @@ def main():
             ilog_tmp = os.path.join(shards_dir, shard + '.ilog.tmp')
             try:
                 rep, pkts, offsets, rounds, scores, err, dur = run_one(
-                    path, PORT, TPS, 'trH.rep', ilog_path=ilog_tmp)
+                    path, PORT, TPS, _staged, ilog_path=ilog_tmp)
             except Exception as e:
                 # 审计2026-10-13采集链#2: 兜底parse是死代码 — err置位+
                 # offsets恒空 → 闸必拒 → 放弃, parse结果从不被消费

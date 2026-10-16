@@ -71,6 +71,11 @@ RESERVED = {
     "human_match":       ("probe", 20975),
     "human_solo_oracle": ("probe", 20970),
     "expert_harvest":    ("probe", 20971),
+    # BH-4.2并行采集worker(2026-10-16用户指令多rep并行): 4路切片
+    "expert_harvest_w0": ("probe", 20981),
+    "expert_harvest_w1": ("probe", 20982),
+    "expert_harvest_w2": ("probe", 20983),
+    "expert_harvest_w3": ("probe", 20984),
     # P1-9(从零#4): danger_reveal真实模式启动即KeyError — 新工具注册
     # 端口时只改调用方未改表(单源表的两半不同步)
     "danger_reveal":     ("probe", 20976),
