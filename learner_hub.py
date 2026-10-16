@@ -132,17 +132,18 @@ def load_bc_bank(char, n_side):
     update_from_episodes按updates序号派生rng重采样(可复现)。
     2026-10-14 mmap方案(用户裁定): bc_io单源 — trio三件套mmap优先
     (全量驻磁盘, 内存近零, 零采样损失), npz回退兼容。
-    返回(X,S,Y)全量或None。"""
-    from bc_io import load_bank
-    bank = load_bank(char, store=STORE)
-    if bank is None:
+    S-6: I列(shard组id)一并返回 → 重采样走连续窗口。
+    返回(X,S,Y,I)全量(I可None=旧库回落iid)或None。"""
+    from bc_io import load_bank_seq
+    bank = load_bank_seq(char, store=STORE)
+    if bank is None or bank[0] is None:
         return None
-    X, S, Y = bank
+    X, S, Y, I = bank
     if S.shape[1] != n_side:
         print('[learner] BC库宽度不符(%d≠%d) — 跳过' % (
             S.shape[1], n_side))
         return None
-    return (X, S, Y)
+    return (X, S, Y, I)
 
 
 def publish_snapshot(snap_dir, trainer):
@@ -329,13 +330,22 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
         n_bc = len(bc_bank[2])
         m = min(64, n_bc)
         if m < n_bc:
-            _bidx = np.random.default_rng(
-                10_000 + int(gpu_tr._updates)).choice(
-                n_bc, m, replace=False)
+            # S-6: I列在库 → 同shard连续窗口(与单实例_sample_bc同语义;
+            # 旧库无I → iid重采样不变)
+            _bidx = None
+            if len(bc_bank) > 3 and bc_bank[3] is not None:
+                from bc_io import sample_seq_window
+                _bidx = sample_seq_window(
+                    bc_bank[3], m,
+                    np.random.default_rng(10_000 + int(gpu_tr._updates)))
+            if _bidx is None:
+                _bidx = np.random.default_rng(
+                    10_000 + int(gpu_tr._updates)).choice(
+                    n_bc, m, replace=False)
             bc_use = (bc_bank[0][_bidx], bc_bank[1][_bidx],
                       bc_bank[2][_bidx])
         else:
-            bc_use = bc_bank
+            bc_use = bc_bank[:3]
     stats = gpu_tr.update(
         feats, acts, rews, sides, ep_lens,
         ep_terms=ep_terms, masks=masks, bc_targets=bc_t,

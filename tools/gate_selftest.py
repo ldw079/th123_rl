@@ -566,6 +566,11 @@ MUTATIONS = [
      "            next_free = f + L\n            if idx in fam:",
      "            if (combo_ctx is not None and f < len(combo_ctx)\n                    and combo_ctx[f] and self.macros[idx][0]\n                    in ('待机', '前进', '后退')):\n                continue\n            next_free = f + L\n            if idx in fam:",
      "BH-4.1抑制机制复活(违反用户裁定: 连段等待/位移一等教学不删) → matcher_ctx保留测试必须红"),
+    # S-6(R147): BC序列感知采样(tag: S-6)
+    ("bc_io.py",
+     "    st = int(starts[gi]) + (int(rng.integers(0, max(1, L - k + 1)))\n                            if L > k else 0)\n    return np.arange(st, st + min(k, L))",
+     "    st = int(starts[gi])\n    return np.arange(st, st + min(k, L))",
+     "S-6窗口起点恒组首(样本偏置+假跨组风险) → bc_seq测试必须红"),
 ]
 
 

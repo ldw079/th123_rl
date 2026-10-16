@@ -2015,6 +2015,9 @@ _BEHAVIOR_TESTS = [
     # BH-4.1(R144): matcher连段语境
     ("test_matcher_ctx_bh41.py",
      "BH-4.1: 连段语境matcher(按钮帧评分/攻击优先/中性抑制/无语境逐位兼容)"),
+    # S-6(R147): BC序列感知采样
+    ("test_bc_seq_s6.py",
+     "S-6: shard组id/连续窗口(宁短勿跨)/保序/trio往返/旧库回落iid"),
     # 系列预测方案阶段0(R67): 系列位置分桶测量仪表
     ("test_series_meter_s0.py",
      "S0: 胜负解码(回合结算块)/系列位置/分桶/aux评分真前向50%构造/曲线行四桶"),

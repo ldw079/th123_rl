@@ -84,6 +84,14 @@ def verify_trio(base):
             raise RuntimeError(
                 '[bc_io] trio代际不一致: %s哈希%s≠meta %s — 混代际锚\n'
                 '  (%s) 修复: 重跑换装或回滚' % (k, got, hs[k], mp))
+    # S-6: I列哈希(meta登记seq_aware时必验)
+    if hs.get('I'):
+        ipath = base + '_I.npy'
+        if not os.path.exists(ipath):
+            raise RuntimeError(
+                '[bc_io] meta含I哈希但缺_I.npy — %s*' % base)
+        if _arr_sha256(np.load(ipath, mmap_mode='r')) != hs['I']:
+            raise RuntimeError('[bc_io] I列代际不一致 — %s' % mp)
     return meta
 
 
@@ -123,6 +131,48 @@ def load_bank(char, suffix='', store=None, dirs=None, verify=True):
     return None
 
 
+def load_bank_seq(char, suffix='', store=None, dirs=None):
+    """S-6: 序列感知加载 → (X, S, Y, I); I=shard组id(无I列的旧库
+    返回None → 调用方回落iid采样)。trio读_I.npy(meta标记seq_aware);
+    npz读'I'键。哈希校验沿load_bank(同base)。"""
+    X, S, Y = load_bank(char, suffix, store, dirs)
+    if X is None:
+        return None, None, None, None
+    kind, base = find_bank(char, suffix, store, dirs)
+    try:
+        if kind == 'trio':
+            ipath = base + '_I.npy'
+            if os.path.exists(ipath):
+                return X, S, Y, np.load(ipath, mmap_mode='r')
+        else:
+            d = np.load(base)
+            if 'I' in d.files:
+                return X, S, Y, d['I']
+    except Exception as e:
+        print('[bc_io] I列读取失败(%r) — 回落iid采样' % e)
+    return X, S, Y, None
+
+
+def sample_seq_window(I, k, rng):
+    """S-6: 同shard连续窗口采样 → 行索引数组。
+
+    I为按行排布的shard组id(同id行相邻 — bc_build保序保证)。
+    随机选一个组, 组内随机起点取min(k, 组长)连续行; 组不足k时取整组
+    (短组语义: 宁短勿跨 — 跨shard的"连续"是假序列)。
+    I为None → 返回None(调用方回落iid)。"""
+    if I is None or len(I) == 0:
+        return None
+    uniq, starts = np.unique(I, return_index=True)
+    # 组长: 相邻组起点差(末组到行尾)
+    bounds = np.append(starts, len(I))
+    lens = np.diff(bounds)
+    gi = rng.integers(0, len(uniq))
+    L = int(lens[gi])
+    st = int(starts[gi]) + (int(rng.integers(0, max(1, L - k + 1)))
+                            if L > k else 0)
+    return np.arange(st, st + min(k, L))
+
+
 def npz_to_trio(npz_path, out_dir=None, max_rows=0, seed=4321,
                 out_stem=None):
     """npz→trio三件套+meta.json(可选行数封顶 — mmap下默认0=全量).
@@ -139,30 +189,38 @@ def npz_to_trio(npz_path, out_dir=None, max_rows=0, seed=4321,
     d = np.load(npz_path, allow_pickle=True)
     X, S, Y = d['X'], d['S'], d['Y']
     C = d['C'] if 'C' in d.files else None
+    I = d['I'] if 'I' in d.files else None    # S-6: shard组id(可缺)
     meta = json.loads(str(d['meta'])) if 'meta' in d.files else {}
     d.close()
     if max_rows and len(Y) > max_rows:
         rng = np.random.default_rng(seed)
+        n_from = int(len(Y))
         sel = np.zeros(len(Y), dtype=bool)
         for lab in np.unique(Y):
             li = np.where(Y == lab)[0]
             k = max(1, int(round(len(li) * max_rows / len(Y))))
             sel[rng.choice(li, size=min(k, len(li)), replace=False)] = True
+        sel = np.sort(np.where(sel)[0])       # S-6: 保序(同shard相邻)
         X, S, Y = X[sel], S[sel], Y[sel]
         if C is not None:
             C = C[sel]
-        meta['capped_from'] = int(len(sel))
-        meta['capped_to'] = int(sel.sum())
+        if I is not None:
+            I = I[sel]
+        meta['capped_from'] = n_from
+        meta['capped_to'] = int(len(sel))
     for suf, arr in (('_X.npy', X), ('_S.npy', S), ('_Y.npy', Y),
-                     ('_C.npy', C)):
+                     ('_C.npy', C), ('_I.npy', I)):
         if arr is None:
             continue
         tmp = base + suf + '.tmp.npy'
         np.save(tmp, arr)
         os.replace(tmp, base + suf)
     meta['rows'] = int(len(Y))
-    meta['hashes'] = {'X': _arr_sha256(X), 'S': _arr_sha256(S),
-                      'Y': _arr_sha256(Y)}
+    meta['seq_aware'] = I is not None
+    hs = {'X': _arr_sha256(X), 'S': _arr_sha256(S), 'Y': _arr_sha256(Y)}
+    if I is not None:
+        hs['I'] = _arr_sha256(I)
+    meta['hashes'] = hs
     tmp = base + '_meta.json.tmp'
     with open(tmp, 'w', encoding='utf8') as f:
         json.dump(meta, f, ensure_ascii=False)

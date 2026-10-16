@@ -837,12 +837,14 @@ class TMTrainer:
 
     def _load_bc_bank(self):
         """神谕专家BC库: bc_io单源(trio mmap优先/npz回退, 2026-10-14
-        用户裁定mmap方案 — 全量驻磁盘零采样损失)。"""
-        from bc_io import find_bank, load_bank
+        用户裁定mmap方案 — 全量驻磁盘零采样损失)。
+        S-6: I列(shard组id)并行加载 — 有则采样走连续窗口。"""
+        from bc_io import find_bank, load_bank_seq
         kind, base = find_bank(self.char, self.suffix, store=STORE_DIR)
         if kind is not None:
-            X, S, Y = load_bank(self.char, self.suffix, store=STORE_DIR)
-            self._bc_X, self._bc_S, self._bc_Y = X, S, Y
+            X, S, Y, I = load_bank_seq(self.char, self.suffix,
+                                       store=STORE_DIR)
+            self._bc_X, self._bc_S, self._bc_Y, self._bc_I = X, S, Y, I
             # R37(审查2026-10-02): 宽度守卫 — BC库停留旧布局时
             # 静默载入会导致update时广播爆炸(已烧一次前向)。
             assert S.shape[1] == self.n_side, \
@@ -859,6 +861,7 @@ class TMTrainer:
                 os.path.basename(base), kind, len(Y), S.shape[1]))
             return
         self._bc_X = None
+        self._bc_I = None
         print("[BC] 无专家库(神谕数据未提取或角色无对局) — 纯PPO模式")
 
     def _sample_bc(self, k=64):
@@ -866,10 +869,23 @@ class TMTrainer:
         if self.char == 'marisa':
             k = min(k * 2, 128)
         """每次更新混入k行专家数据(BC-extra: adv=0纯模仿梯度)。
-        v2数据(2026-09-26): 决策点扫描+前缀匹配, 22372行, 技术动作39-50%。"""
+        v2数据(2026-09-26): 决策点扫描+前缀匹配, 22372行, 技术动作39-50%。
+        S-6: 有I列 → 同shard连续窗口(宁短勿跨 — 跨shard的连续是假
+        序列; GRU锚与决策序列的时序结构从此进BC-extra)。"""
         X = getattr(self, '_bc_X', None)
         if X is None or len(X) == 0:
             return None
+        I = getattr(self, '_bc_I', None)
+        if I is not None:
+            from bc_io import sample_seq_window
+            rng = getattr(self, '_bc_rng', None)
+            if rng is None:
+                import numpy as _np
+                rng = _np.random.default_rng(4321)
+                self._bc_rng = rng
+            widx = sample_seq_window(I, min(k, len(X)), rng)
+            if widx is not None:
+                return (X[widx], self._bc_S[widx], self._bc_Y[widx])
         idx = np.random.randint(0, len(X), size=min(k, len(X)))
         return (X[idx], self._bc_S[idx], self._bc_Y[idx])
 

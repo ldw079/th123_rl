@@ -231,7 +231,8 @@ def build_rows(char_id, shards, log=print):
     reach_v_mask = reach_v_arr > 0
     startup_arr = resolve_startup(lib, name)
     startup_mask = startup_arr > 0
-    X, S, Y, C = [], [], [], []
+    X, S, Y, C, I = [], [], [], [], []
+    sid = 0          # S-6: shard序id(每shard×侧一个; 同id行连续)
     n_sh = 0
     n_drop_win = 0
     n_exact = 0
@@ -277,6 +278,7 @@ def build_rows(char_id, shards, log=print):
                 fr = mirror_frames(frames)
                 u16 = mirror_input(u16R)
                 opp_cid = meta['char_x']
+            sid += 1        # S-6: 本shard×侧行的连续组id
             # 匹配(真实朝向)
             facings = [1 if f[0]['direction'] > 0 else -1 for f in fr]
             # BH-4.1: 连段语境数组(对手真受击∧近距) — 帧元组[1]恒为
@@ -412,6 +414,7 @@ def build_rows(char_id, shards, log=print):
                         S.append(s)
                         Y.append(hit_at[i][0])
                         C.append(hit_at[i][1])
+                        I.append(sid)   # S-6: shard序id(同shard同侧连续)
                         last_m2, last_m = last_m, hit_at[i][0]
         n_sh += 1
     if not X:
@@ -421,17 +424,20 @@ def build_rows(char_id, shards, log=print):
     S = np.stack(S)
     Y = np.array(Y, dtype=np.int64)
     C = np.array(C, dtype=np.float32)
+    I = np.array(I, dtype=np.int64)   # S-6: 每行shard组id
     # 低决策含量宏降采样(第九轮§3: 待机/前进/后退/立防/蹲防一起)
+    # S-6: sel排序保序 — 同shard行保持相邻(连续窗口采样的前提;
+    #   比例不变, 仅恢复原始决策顺序)
     low_mask = np.array([lib[int(y)][0] in LOW_INFO for y in Y])
     keep = ~low_mask
     n_low = int(low_mask.sum() * IDLE_KEEP)
     if n_low:
         low_pos = np.where(low_mask)[0][:n_low]
-        sel = np.concatenate([np.where(keep)[0], low_pos])
-        X, S, Y, C = X[sel], S[sel], Y[sel], C[sel]
-    return name, (X, S, Y, C), {'shards_used': n_sh,
-                                'windows_dropped': n_drop_win,
-                                'shards_exact': n_exact}
+        sel = np.sort(np.concatenate([np.where(keep)[0], low_pos]))
+        X, S, Y, C, I = X[sel], S[sel], Y[sel], C[sel], I[sel]
+    return name, (X, S, Y, C, I), {'shards_used': n_sh,
+                                   'windows_dropped': n_drop_win,
+                                   'shards_exact': n_exact}
 
 
 def _shard_meta_probe(sp):
@@ -478,11 +484,12 @@ def main(suffix=''):
         if rows is None:
             print('%s: 无数据 (%s)' % (name, st))
             continue
-        X, S, Y, C = rows
+        X, S, Y, C, I = rows
         # 行数上限(2026-10-14): mmap方案裁定后默认0=全量(trio驻磁盘);
         # BC_MAX_ROWS仅作内存受限机器的回退(分层比例采样, 分布不变)
         # 修复(2026-10-14晚): 原漏'max_rows and'守卫 — 默认0时
         # 'len(Y)>0'恒真 → 每标签k=max(1,·)=1 → 60行假库事故
+        # S-6: 封顶选择排序保序(同shard行相邻, 连续窗口采样前提)
         max_rows = int(os.environ.get('BC_MAX_ROWS', '0'))
         if max_rows and len(Y) > max_rows:
             rng = np.random.default_rng(1234 + cid)
@@ -492,16 +499,19 @@ def main(suffix=''):
                 li = np.where(Y == lab)[0]
                 k = max(1, int(round(len(li) * keep_n / len(Y))))
                 sel[rng.choice(li, size=min(k, len(li)), replace=False)] = True
-            X, S, Y, C = X[sel], S[sel], Y[sel], C[sel]
-            print('  行数封顶: %d→%d(分层比例采样)' % (len(sel), int(sel.sum())))
+            sel = np.sort(np.where(sel)[0])
+            X, S, Y, C, I = X[sel], S[sel], Y[sel], C[sel], I[sel]
+            print('  行数封顶: %d→%d(分层比例采样, 保序)' % (
+                len(Y), len(sel)))
         dist = np.bincount(Y, minlength=len(LIBS[cid][1]))
         p = os.path.join(out_dir, 'bc_%s%s.npz' % (name, suffix))
         # P2(审计#3, 宪法§5.2): 原直写savez非原子 — 中断=半档损坏
         _tmp = p + '.tmp.npz'
-        np.savez(_tmp, X=X.astype(np.uint8), S=S, Y=Y, C=C,
+        np.savez(_tmp, X=X.astype(np.uint8), S=S, Y=Y, C=C, I=I,
                  meta=np.array(json.dumps({
                      'char': name, 'n_macros': len(LIBS[cid][1]),
-                     'layout': LAYOUT, 'aligned': True, **st})))
+                     'layout': LAYOUT, 'aligned': True,
+                     'seq_aware': True, **st})))
         os.replace(_tmp, p)
         print('%s: %d行 X%s S%s → %s (分片%d, 弃窗%d)' % (
             name, len(Y), X.shape, S.shape, p, st['shards_used'],
