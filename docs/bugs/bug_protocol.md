@@ -60,3 +60,5 @@
 - `bug_2026-10-14_s2_offline_leakage.md` — S-2离线注入未来信息泄漏+顺序分歧(P1)
 - `bug_2026-10-14_value_curve_dead_on_arrival.md` — W4价值曲线自上线即死(P1)
 - `bug_2026-10-14_danger_reveal_port_key.md` — danger_reveal真实模式KeyError(P1)
+- 2026-10-16双方案波审计: `bug_2026-10-16_ce1_macro_layer_doa.md` — CE-1宏层画像begin不传名自上线即死(P1)
+- `bug_2026-10-16_methodology_header_stale.md` — 宪法版本头携带已废除机制验收数字(P1, 文档)
