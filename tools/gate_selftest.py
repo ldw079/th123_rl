@@ -559,6 +559,15 @@ MUTATIONS = [
      '"chars": ["cirno", "sanae", "youmu", "yuyuko"]',
      '"chars": ["cirno", "sanae", "youmu", "yuyuko", "bogus_char"]',
      "BH-4.3先验表混入非法角色名(污染对位掩码集) → matchup_prior测试必须红"),
+    # BH-4.1(R144): matcher连段语境(tag: BH-4.1)
+    ("bc_match.py",
+     "            if (_cfull is not None and f < len(_cfull) and _cfull[f]\n                    and self.macros[idx][0]\n                    in self.NEUTRAL_MOVE_NAMES):\n                continue",
+     "            if False:\n                continue",
+     "BH-4.1中性抑制拆除(连段语境重教待机/走位=H1病灶复活) → matcher_ctx测试必须红"),
+    ("bc_match.py",
+     "    NEUTRAL_MOVE_NAMES = frozenset(('待机', '前进', '后退'))",
+     "    NEUTRAL_MOVE_NAMES = frozenset()",
+     "BH-4.1中性集清空(抑制失效) → matcher_ctx测试必须红"),
 ]
 
 

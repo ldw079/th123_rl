@@ -29,7 +29,7 @@ sys.path.insert(0, r'%USERPROFILE%\Desktop\workplace\th123_rl')
 from soku_arch.packet_schema import CS_SIZE, unpack_player
 from bc_align import estimate_lag_map, realign, post_validate
 from bc_match import StreamMatcher, LOW_INFO
-from feat_builder import FeatureBuilder, eff_untech
+from feat_builder import FeatureBuilder, eff_untech, HIT_ACT_IDS
 from macros import MACROS, NORMALIZED_AFFECTED  # noqa: F401 (导入触发规范化)
 from macros import MACROS as M_REIMU
 from macros.marisa import MACROS_MARISA
@@ -207,7 +207,12 @@ def refine_guard_labels(hits, fr, opp_cid, lib):
 def build_rows(char_id, shards, log=print):
     """一个角色的全部BC行。"""
     name, lib = LIBS[char_id]
-    matcher = StreamMatcher(lib, threshold=0.88)
+    # BH-4.1: 攻击/连段类宏名集(连段语境按钮帧评分的受益词汇) —
+    # lib的attack集=近战/弹幕/必杀/连段/压制/空中体术全攻击族
+    from train_tm import CHAR_LIBS as _CL
+    _atk_names = _CL[name]['attack'] if name in _CL else None
+    matcher = StreamMatcher(lib, threshold=0.88,
+                            attack_names=_atk_names)
     n_macros = len(lib)
     # R61g(B1): SC具体卡解析表(宏名→目标卡ID / 宏名→idx)
     from train_tm import _parse_sc_targets
@@ -274,7 +279,13 @@ def build_rows(char_id, shards, log=print):
                 opp_cid = meta['char_x']
             # 匹配(真实朝向)
             facings = [1 if f[0]['direction'] > 0 else -1 for f in fr]
-            hits = matcher.walk(u16, facings)
+            # BH-4.1: 连段语境数组(对手真受击∧近距) — 帧元组[1]恒为
+            # 对手侧(side0=右原始, side1=镜像后右=原左翻转, 均为index 1)
+            _combo_ctx = [
+                (f[1].get('action', 0) in HIT_ACT_IDS
+                 and abs(f[1]['position.x'] - f[0]['position.x']) < 250)
+                for f in fr]
+            hits = matcher.walk(u16, facings, combo_ctx=_combo_ctx)
             hits = [h for h in hits if h[2] >= CONF_MIN and h[0] >= 2
                     and h[0] < len(fr)]
             # R61g(B1): SC通用标签→具体卡宏(按当帧手牌选中位解析;

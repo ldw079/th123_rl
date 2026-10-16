@@ -128,12 +128,20 @@ class StreamMatcher:
     mode='v2'保留旧路径(前后对比探针/回滚开关)。
     """
 
-    def __init__(self, macros, threshold=0.85, mode='v3'):
+    # BH-4.1连段保持: 连段语境内抑制的中性移动标签(松键/微走位节奏)
+    NEUTRAL_MOVE_NAMES = frozenset(('待机', '前进', '后退'))
+
+    def __init__(self, macros, threshold=0.85, mode='v3',
+                 attack_names=None):
         self.tl_facing = {}
         self.cons_facing = {}
         self.threshold = threshold
         self.macros = macros
         self.mode = mode
+        # BH-4.1: 攻击/连段类宏索引集(连段语境重排用; None=语境功能关)
+        self.attack_idx = (frozenset(i for i, (nm, _s) in enumerate(macros)
+                                     if nm in attack_names)
+                           if attack_names is not None else None)
         self._fams = {}     # 裁定一(类甲): 同前缀族(门后窥视用; 按朝向分套 P1-6)
 
     # ---- 裁定一(2026-10-14用户裁定): confirm门族门后窥视 ----
@@ -413,8 +421,12 @@ class StreamMatcher:
                 pts.append(i)
         return pts
 
-    def walk(self, expert_u16, facings, intro_frames=60):
-        """产出 (帧号, 宏idx, 置信度)。mode='v2'走旧逐帧精确路径."""
+    def walk(self, expert_u16, facings, intro_frames=60, combo_ctx=None):
+        """产出 (帧号, 宏idx, 置信度)。mode='v2'走旧逐帧精确路径.
+
+        BH-4.1: combo_ctx=逐帧bool(对手真受击∧近距, 调用方从游戏状态
+        计算) — 连段语境下攻击/连段类宏(attack_idx)启用按钮帧评分
+        (见_match_all_dp), 压碎片被标成移动/待机的份额(H1病灶)。"""
         if self.mode == 'v2':
             return self._walk_v2(expert_u16, facings, intro_frames)
         import numpy as np
@@ -433,7 +445,13 @@ class StreamMatcher:
                              else False) == mirror]]
             if not len(dp):
                 continue
-            idxs, scores, lens = self._match_all_dp(frames, dp, mirror)
+            ctx = None
+            if combo_ctx is not None and self.attack_idx is not None:
+                _c = np.asarray(combo_ctx, dtype=bool)
+                ctx = _c[dp] if len(_c) >= (int(dp.max()) + 1
+                                            if len(dp) else 1) else None
+            idxs, scores, lens = self._match_all_dp(frames, dp, mirror,
+                                                    combo_dp=ctx)
             for f, idx, s, L in zip(dp.tolist(), idxs.tolist(),
                                     scores.tolist(), lens.tolist()):
                 if idx >= 0 and s >= self.threshold and L >= 3:
@@ -442,13 +460,25 @@ class StreamMatcher:
         out.sort(key=lambda h: h[0])
         consumed = []
         next_free = 0
+        # BH-4.1连段保持: 语境帧级数组(消费段用)
+        _cfull = (np.asarray(combo_ctx, dtype=bool)
+                  if combo_ctx is not None and self.attack_idx is not None
+                  else None)
         # P1-6续修: 族表按**每个命中的朝向**取套 — 原:families(循环尾
         # 残留mirror)对纯右朝向输入错取True套(旧单套缓存时代此泄漏
-        # 不可见, 分套后暴露 — 首版P1-6修法自身引入, 本行为定版)
+        # 不可见, 分套后暴露, 首版P1-6修法自身引入, 本行为定版)
         _fams = {False: self.families(False), True: self.families(True)}
         for f, idx, s, L, m in out:
             fam = _fams[m]
             if f < next_free:
+                continue
+            # BH-4.1连段保持: 连段语境内的中性移动标签抑制 — 对手真
+            # 受击近距时, 松键/微走位是连段节奏不是决策, 不教锚"等待/
+            # 走位"(待机×622/前进×329/后退×104为H1实测大头); 不消费,
+            # 让后续攻击按压的标签接管
+            if (_cfull is not None and f < len(_cfull) and _cfull[f]
+                    and self.macros[idx][0]
+                    in self.NEUTRAL_MOVE_NAMES):
                 continue
             next_free = f + L
             if idx in fam:
@@ -516,14 +546,21 @@ class StreamMatcher:
             ls.append(L_full)
         return ls
 
-    def _match_all_dp(self, frames, dp, mirror):
+    def _match_all_dp(self, frames, dp, mirror, combo_dp=None):
         """全部决策点向量化: 每点最优(宏idx, 得分, 长度).
 
         平局裁决(P1修复, 审计2026-10-14): 得分 → 长度 → 约束密度。
         长度优先(完整更长的时间线=更多确认帧, 如空防@18应胜后跳@12);
         密度仅破剩余平局。另: 含特色步的宏禁用通用头部段claim
         (generic_head), 否则中性/方向前缀宏系统性夺标。
+
+        BH-4.1(连段语境): combo_dp为真的决策点上, 攻击/连段类宏
+        (attack_idx)额外计**按钮帧评分** s_btn = 宏要求按钮按下的帧
+        上6按钮列全对的比例(微走位帧不计 — 连段中走位是噪声, 按钮
+        序列才是意图, H1碎片化标注的病灶修法)。s_eff=max(s, s_btn)
+        参与排序与walk的阈值裁决; 非攻击宏与语境外决策点逐位不变。
         """
+
         import numpy as np
         n = len(frames)
         res_idx = np.full(len(dp), -1, dtype=np.int64)
@@ -532,9 +569,11 @@ class StreamMatcher:
         res_L = np.zeros(len(dp), dtype=np.int64)
         res_vr = np.zeros(len(dp), dtype=np.int64)
         ar = np.arange
+        has_ctx = combo_dp is not None and self.attack_idx is not None
         for idx, variants in enumerate(self.constraints(mirror)):
             if variants is None:
                 continue
+            _atk = has_ctx and idx in self.attack_idx
             for vr, (req_val, req_mask, head, mixed, dist) \
                     in enumerate(variants):
                 for L in self._cand_lens(len(req_val)):
@@ -550,6 +589,21 @@ class StreamMatcher:
                     sat = ((win == req_val[:L])
                            | ~req_mask[:L]).all(axis=2)
                     s = sat.mean(axis=1)
+                    if _atk and combo_dp[ok].any():
+                        # BH-4.1: 按钮帧评分(仅语境位为真的决策点取max)
+                        btn_req = (req_val[:L, 2:8] == 1).any(axis=1)
+                        nb = int(btn_req.sum())
+                        if nb >= 2:
+                            satb = ((win[:, :, 2:8] == req_val[:L, 2:8])
+                                    | ~req_mask[:L, 2:8]).all(axis=2)
+                            s_btn = ((satb & btn_req).sum(axis=1)
+                                     / float(nb))
+                            s = np.where(combo_dp[ok], np.maximum(s, s_btn),
+                                         s)
+                        # 近平局翻转: 语境内攻击类+0.04(战胜0.9x的
+                        # 移动模板 — 走位碎片在连段中是噪声不是意图)
+                        s = np.where(combo_dp[ok],
+                                     np.minimum(s + 0.04, 1.0), s)
                     spec = float(req_mask[:L].sum()) / L    # 约束密度
                     cur = res_s[ok]
                     cur_L = res_L[ok]
