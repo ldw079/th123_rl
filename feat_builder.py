@@ -17,14 +17,11 @@ HITBOX_Y = 90.0
 # 语义源=docs/soku_action_ids.md(SokuLib Action.hpp权威枚举):
 # 地面2系=蹲防必: 2A(303)/f2A(311)/2B(402)/2C(412)。
 # 空中j2系(308/406/416)段位角色相关不纳入(保守); 3系(304/403)按中段。
-LOW_ATTACK_IDS = frozenset((303, 311, 402, 412))
-# ↑遗留假设表(地面2系+2B/2C=蹲防必) — 仅作表缺/角色未注入时的回落。
-# BH-3.2(行为健康方案v4): cleista权威实测推翻两条——2B/2C蹲防必
-# (实测两主力均无blockLow, 全20角色仅此假设无出处); 3A中段(实测
-# 15/20角色3A=blockLow, 灵梦/小町/咲夜/宇佐见/天子=blockHigh)。
-# 逐角色真值: data/guide_tables/guard_height.json(api detail
-# properties.blockLow, 2026-10-16采集, 生成器tools/gen_guard_table.py;
-# 沙箱随guide_tables/*.json规则复制)。
+# 遗留回落表(仅_opp_char未注入路径: COM等) — BH-3.2数据修正(P2清偿,
+# 审计2026-10-16): cleista实测20/20角色2B/2C无一blockLow → 从回落表
+# 移除(旧(303,311,402,412)含虚报); 303/311实测19/20角色为下段(蕾米
+# 莉例外在逐角色表内)。真值=data/guide_tables/guard_height.json。
+LOW_ATTACK_IDS = frozenset((303, 311))
 try:
     import json as _json
     import os as _os

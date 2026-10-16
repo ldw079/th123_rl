@@ -1232,9 +1232,9 @@ chk('s[o] = min(left.get("pose"' in src("feat_builder.py"),
     "pose/poseFrame入14j段(R57: 显式入账, 原尾写静默覆盖14i后4维)")
 # R57(第十八轮2.5): 原"action细分//64下段可分"子串断言已删 — 特性是伪的
 # (门控128-256从未命中攻击区; 2A/5A同//64桶), 改行为测试test_guard_height
-chk("LOW_ATTACK_IDS = frozenset((303, 311, 402, 412))" in src("feat_builder.py"),
-    "下段位=显式查表(R57 2.5: 段位是招式语义; BH-3.2后此表仅作回落 — "
-    "真值=guard_height.json逐角色表)")
+chk("LOW_ATTACK_IDS = frozenset((303, 311))" in src("feat_builder.py"),
+    "下段位=显式查表(R57 2.5; BH-3.2后回落表=303/311 — 2B/2C虚报按 "
+    "cleista 20/20实测移除[P2清偿, 审计2026-10-16]; 真值=guard_height逐角色表)")
 chk('right["action"] in self._low_ids()' in src("feat_builder.py"),
     "下段位接线: 对手当前招式查表(BH-3.2: 逐角色LOW表经_low_ids, "
     "原LOW_ATTACK_IDS直引锚已随R141迁self._low_ids)")

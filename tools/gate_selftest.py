@@ -543,8 +543,8 @@ MUTATIONS = [
      "        _tab = LOW_ATTACK_IDS_BY_CHAR.get(_ch) if _ch else None\n        return LOW_ATTACK_IDS if _tab is None else _tab",
      "        return LOW_ATTACK_IDS",
      "BH-3.2逐角色段位表旁路(回退全局假设表, 2B/2C虚报复活) → guard_bh32测试必须红"),
-    ("feat_builder.py", "LOW_ATTACK_IDS = frozenset((303, 311, 402, 412))", "LOW_ATTACK_IDS = frozenset((303, 311))",
-     "BH-3.2回落表残缺(未注入角色2A下段信号丢失) → guard_bh32测试必须红"),
+    ("feat_builder.py", "LOW_ATTACK_IDS = frozenset((303, 311))", "LOW_ATTACK_IDS = frozenset((303,))",
+     "BH-3.2回落表残缺(未注入角色f2A下段信号丢失) → guard_bh32测试必须红"),
     # BH-1(R142): 行为健康计数器(tag: BH-1)
     ("behavior_health.py",
      "            elif prev_dmg > 0:\n                fate = 'hit'",

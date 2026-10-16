@@ -83,13 +83,13 @@ def main():
     check('suwako实测空集(2A不触发)', low_bit('suwako', 303) == 0.0)
     check('suwako 402不触发(空集非回落)', low_bit('suwako', 402) == 0.0)
 
-    # ===== 未注入对手名 → 回落全局假设表(向后兼容) =====
-    check('未注入回落: 402触发(遗留假设表)',
-          low_bit(None, 402) == 1.0)
+    # ===== 未注入对手名 → 回落表(P2修正后=303/311, 2B/2C虚报已移除) =====
     check('未注入回落: 303触发', low_bit(None, 303) == 1.0)
+    check('未注入回落: 311触发', low_bit(None, 311) == 1.0)
+    check('未注入回落: 402不触发(P2修正)', low_bit(None, 402) == 0.0)
 
     # ===== 表外角色名 → 回落 =====
-    check('表外角色回落全局', low_bit('nonexistent_char', 402) == 1.0)
+    check('表外角色回落全局', low_bit('nonexistent_char', 303) == 1.0)
 
     # ===== 5A(300)任何角色都不触发(中段) =====
     check('5A(300)不触发', low_bit('suika', 300) == 0.0)

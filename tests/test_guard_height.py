@@ -68,7 +68,8 @@ def main():
     check("布局常量", lo_off == 303 and C == FeatureBuilder.CORE_DIMS,
           "CORE=%d 下段位@%d pose@[%d..%d] 扩展@[%d..%d]"
           % (C, lo_off, POSE_OFF, POSE_OFF + 3, C - 8, C - 1))
-    check("下段表语义", LOW_ATTACK_IDS == frozenset((303, 311, 402, 412)),
+    check("下段表语义(P2修正: 2B/2C回落虚报移除)",
+          LOW_ATTACK_IDS == frozenset((303, 311)),
           str(sorted(LOW_ATTACK_IDS)))
 
     # 1. 下段vs中段: 2A(303) vs 5A(300) — 下段位必须翻转
@@ -81,10 +82,13 @@ def main():
     check("2A/5A特征可分", _diff == 1 and f_low[lo_off] == 1.0,
           "差异维=%d(=下段位 — one-hot同桶属预期)" % _diff)
 
-    # 2. 全表触发
-    for aid in (303, 311, 402, 412):
+    # 2. 全表触发(回落表=303/311; 402/412已按cleista实测移除)
+    for aid in (303, 311):
         f = build(fb, mk_state(opp_act=aid))
         check("ID%d下段位=1" % aid, f[lo_off] == 1.0)
+    for aid in (402, 412):
+        f = build(fb, mk_state(opp_act=aid))
+        check("ID%d回落不虚报(P2修正)" % aid, f[lo_off] == 0.0)
 
     # 3. 负例: 相邻中段/空中/待机不得误触
     for aid in (300, 302, 304, 306, 308, 400, 401, 403, 410, 0, 50):
