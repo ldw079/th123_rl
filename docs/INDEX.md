@@ -28,6 +28,7 @@
 | `frame_adv.py` | 纯函数 | 攻击等级表驱动帧差(cleista真值) |
 | `rep_format_notes.md` | 数据参考 | rep 格式实测笔记 |
 | `multi_instance_input.md` | 数据参考 | TM 通道全档 |
+| `th123ai_community_ai_analysis_2026-10-16.md` | 数据参考 | 社区AI(th123ai)实现分析: RPM+键盘+Lua脚本/2011公平垫片先例/观察API=JZ-CE需求清单/第四评估口径建议 |
 | `mod_masking_runtime_dump.md` | 数据参考 | mod 遮蔽运行时验证 |
 | `architecture_gap_analysis.md` | 历史分析（活跃引用） | 架构差距（v2 时代, AGENTS 引用） |
 | `com_ladder_log.md` | 运行日志 | COM 阶梯爬升记录 |

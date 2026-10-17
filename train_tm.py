@@ -871,22 +871,48 @@ class TMTrainer:
         """每次更新混入k行专家数据(BC-extra: adv=0纯模仿梯度)。
         v2数据(2026-09-26): 决策点扫描+前缀匹配, 22372行, 技术动作39-50%。
         S-6: 有I列 → 同shard连续窗口(宁短勿跨 — 跨shard的连续是假
-        序列; GRU锚与决策序列的时序结构从此进BC-extra)。"""
+        序列; GRU锚与决策序列的时序结构从此进BC-extra)。
+        LE-1b: env TH123_LE1B_RATIO>0时, 注入行从情境库热度加权
+        选取(≤20%批占比上限, A/B专项; 默认0=关, 零行为影响)。"""
         X = getattr(self, '_bc_X', None)
         if X is None or len(X) == 0:
             return None
+        # LE-1b: 高价值情境注入行
+        _inj = None
+        if os.environ.get('TH123_LE1B_RATIO', '0') != '0':
+            try:
+                _le1b_dir = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)), 'tools')
+                if _le1b_dir not in sys.path:
+                    sys.path.insert(0, _le1b_dir)
+                from le1b_inject import inject_count, inject_indices
+                n_inj = inject_count(k)
+                if n_inj > 0:
+                    rng = getattr(self, '_bc_rng', None)
+                    if rng is None:
+                        rng = np.random.default_rng(4321)
+                        self._bc_rng = rng
+                    _inj = inject_indices(self.char, n_inj, rng)
+            except Exception as _le:
+                if not getattr(self, '_le1b_err_seen', False):
+                    self._le1b_err_seen = True
+                    print('[LE-1b] 注入异常(%r) — 回落纯窗口采样' % _le)
         I = getattr(self, '_bc_I', None)
         if I is not None:
             from bc_io import sample_seq_window
             rng = getattr(self, '_bc_rng', None)
             if rng is None:
-                import numpy as _np
-                rng = _np.random.default_rng(4321)
+                rng = np.random.default_rng(4321)
                 self._bc_rng = rng
-            widx = sample_seq_window(I, min(k, len(X)), rng)
+            _k_win = k - (len(_inj) if _inj is not None else 0)
+            widx = sample_seq_window(I, min(_k_win, len(X)), rng)
             if widx is not None:
+                if _inj is not None:
+                    widx = np.concatenate([widx, _inj])
                 return (X[widx], self._bc_S[widx], self._bc_Y[widx])
         idx = np.random.randint(0, len(X), size=min(k, len(X)))
+        if _inj is not None:
+            idx[:len(_inj)] = _inj
         return (X[idx], self._bc_S[idx], self._bc_Y[idx])
 
     def _make_env(self, port, lane=None):
