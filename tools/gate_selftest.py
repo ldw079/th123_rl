@@ -96,6 +96,8 @@ FILES = [
          "value_curve.py",
          # BH-1(R142): 行为健康计数器(test_behavior_health_bh1依赖)
          "behavior_health.py",
+         # LE-1a(R153): 情境库(test_situation_lib_le1a依赖)
+         "situation_library.py",
          "kit_config.py"]   # 可迁移化: soku_client2/train_tm等import
 
 # (文件, 原文, 变异文, 防的回归)
