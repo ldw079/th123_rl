@@ -36,6 +36,51 @@ D_PREFIXES = ('gate_selftest_', 'fleet_proto_', 'w3_', 'd4_',
               'gpu_equiv_', 'gpu_upd_', 'b_test_', 'hs_b2_',
               'hd_i_', '_r63_')
 
+# R160(2026-10-17, 用户令"做好管控"): 并行sweep沙箱+采集副本+BC中间体
+GST_ACTIVE_PREFIX = 'gst_par_'     # 活跃并行sweep worker(运行中勿删)
+RL_GAME_COPY = ('rl_game_w1', 'rl_game_w2', 'rl_game_w3')
+BC_V3_DIR = r'D:\temp\th123_bc_v3'
+
+
+def clean_d_extra(apply=False):
+    """R160: D盘大件治理 — gate_sandbox散件(非活跃worker)+采集副本
+    +BC库npz中间体(trio为主档+backup可回滚)."""
+    freed = 0
+    gs = os.path.join(DTEMP, 'gate_sandbox')
+    if os.path.isdir(gs):
+        for f in os.listdir(gs):
+            if f.startswith(GST_ACTIVE_PREFIX):
+                continue    # 活跃并行sweep
+            p = os.path.join(gs, f)
+            sz = dir_size(p) if os.path.isdir(p) else 0
+            print('  %s gate_sandbox/%s %.1fGB'
+                  % ('删' if apply else '可删', f, sz / 1e9))
+            if apply:
+                shutil.rmtree(p, ignore_errors=True) \
+                    if os.path.isdir(p) else os.remove(p)
+            freed += sz
+    for w in RL_GAME_COPY:
+        p = os.path.join(DTEMP, w)
+        if os.path.isdir(p):
+            sz = dir_size(p)
+            print('  %s %s %.1fGB' % ('删' if apply else '可删',
+                                      w, sz / 1e9))
+            if apply:
+                shutil.rmtree(p, ignore_errors=True)
+            freed += sz
+    for ch in ('reimu', 'marisa', 'suika'):
+        p = os.path.join(BC_V3_DIR, 'bc_%s_v3.npz' % ch)
+        if os.path.exists(p):
+            sz = os.path.getsize(p)
+            print('  %s %s %.1fGB' % ('删' if apply else '可删',
+                                      os.path.basename(p), sz / 1e9))
+            if apply:
+                os.remove(p)
+            freed += sz
+    print('  D盘大件: %s %.1fGB' % ('已释放' if apply else '可释放',
+                                    freed / 1e9))
+    return freed
+
 
 def clean_d_temp(apply=False, min_age_h=24.0):
     """D:	emp 测试残留清理(白名单式: 只删已知前缀, 不碰其它)。"""
@@ -103,6 +148,7 @@ def main():
     a = ap.parse_args()
     if a.d:
         clean_d_temp(apply=a.apply, min_age_h=max(24.0, a.min_age_h))
+        clean_d_extra(apply=a.apply)
         return 0
 
     now = time.time()
