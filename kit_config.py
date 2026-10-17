@@ -52,6 +52,39 @@ def live_model_path(char, store=None):
         d, 'model_ppo_%s.npz' % char)
 
 
+def model_meta(path):
+    """读模型档内嵌 meta(温度/宏数/更新数) — 报告披露口径用。
+
+    P1-2(从零#5): 20 角色矩阵里 17 个 league 种子是**同一份权重**且
+    temp=2.0, 三主模型 temp=0.5 → 温度/宏库差异会被读成"角色强度"。
+    披露口径: 报告带上每个模型的 temp, 跨模型比较前必须先看这列。
+    """
+    try:
+        with np_load(path) as _d:
+            if 'meta' not in getattr(_d, 'files', ()):
+                return {}
+            _m = _d['meta']
+            # ppo.save 的 meta 是**数值数组**(顺序见 ppo.py:478):
+            # [temp, beta, bcw, updates, rstd, adaptive_lr_scale]
+            if getattr(_m, 'ndim', 0) == 1 and len(_m) >= 4:
+                return {'temp': float(_m[0]), 'beta': float(_m[1]),
+                        'bcw': float(_m[2]), 'updates': int(_m[3]),
+                        'rstd': float(_m[4]) if len(_m) > 4 else None,
+                        'adaptive_lr_scale': (float(_m[5])
+                                              if len(_m) > 5 else None)}
+            import json as _j
+            return _j.loads(str(_m))     # 兼容 JSON 形态(gpu 档等)
+    except (OSError, ValueError, TypeError):
+        pass
+    return {}
+
+
+def np_load(path):
+    """延迟 import numpy(本模块被 kit/setup 等轻量路径复用)。"""
+    import numpy as _np
+    return _np.load(path, allow_pickle=True)
+
+
 def model_stamp(path):
     """报告用模型版本戳 — 度量纪律: 无版本戳的报告不可比/不可引用。"""
     base = os.path.basename(path)

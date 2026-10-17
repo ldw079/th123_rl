@@ -2234,6 +2234,11 @@ chk(src("episode_core.py").count("check_row_counts(") >= 3,
 # 原版在 vf_adam.step 之后用 self.W1v 反传价值路(旧dH1v×新W1v) — 与 torch
 # 单步计算图不等价(审计实测 conv1/2/3 梯度 cos=0.396/0.637/0.564)。
 # 权重范数差抓不到(Adam 首步 Δ 尺度过小), 故用源码锚 + 反串钉死。
+# P1-2(从零#5): 20 角色矩阵里 league 种子 temp=2.0、三主模型 temp=0.5 —
+# 温度/宏库差异会被读成"角色强度"。披露口径: 评估报告必须带 model_temp。
+chk("model_temp" in src("tools/eval_matrix.py")
+    and "def model_meta" in src("kit_config.py"),
+    "P1-2(从零#5): 评估报告披露模型温度(种子2.0/主模型0.5)")
 # P1-12(从零#5): fangyu 警戒表的**叙述句伪条目** — 审计实测 71/255(28%) 是句子
 # (含拉丁记号故绕过 has_latin 判定)。代码面: 虚词判据在; 数据面: 残留率 <15%。
 chk("虚词判据" in src("tools/fangyu_extract.py")

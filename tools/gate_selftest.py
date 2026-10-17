@@ -642,6 +642,10 @@ MUTATIONS = [
      "    if any(w in s for w in ('的', '会', '是', '在', '和', '被', '也', '都',",
      "    if any(w in s for w in ('zzz_none',):",
      "叙述句虚词判据拆除(句子重新冒充招名) → P1-12断言必须红"),
+    ("tools/eval_matrix.py",
+     "        report['model_temp'] = _temps",
+     "        pass",
+     "温度披露缺失(种子temp2.0与主模型0.5混比) → P1-2断言必须红"),
 ]
 
 

@@ -249,6 +249,24 @@ def analyze(matrix, chars):
         'timeout_loss_share': (tl / tn if tn else None),
         'timeout_hp_mean_avg': (sum(hps) / len(hps) if hps else None),
     }
+    # P1-2(从零#5): 披露每个模型的采样温度 — league 种子(temp=2.0)与三主
+    # 模型(temp=0.5)**不同温**, 跨模型比较前必须先看这列, 否则会把温度差异
+    # 读成角色强度(20 角色矩阵/superhuman_gauge 的 dominance 都建立其上)。
+    try:
+        from kit_config import live_model_path as _lmp, model_meta as _mm
+        _temps = {}
+        for _ch in chars:
+            _m = _mm(_lmp(_ch, STORE))
+            _temps[_ch] = _m.get('temp')
+        report['model_temp'] = _temps
+        _uniq = {v for v in _temps.values() if v is not None}
+        if len(_uniq) > 1:
+            report.setdefault('four_lenses', {}).setdefault(
+                'notes', []).append(
+                    '温度不同(%s) — 跨模型比较前须知: league种子temp=2.0, '
+                    '三主模型temp=0.5' % _uniq)
+    except Exception as _e:
+        report['model_temp'] = {'error': str(_e)}
     # P1-1(从零#5): 报告必须自带模型版本戳(否则无法判断读的是哪一代模型)
     try:
         from kit_config import live_model_path, model_stamp
