@@ -141,3 +141,4 @@ PR-2 路径替换而破坏（施工门禁把关）; 切换 public 是用户手�
 |---|---|---|
 | 2026-10-17 | v1 | 审计完成（历史零密钥/无 PII/无侵权资产）; PR-1..5 分层; 2 项用户决策; 切换 runbook; 默认路径=工作树脱敏+历史保留 |
 | 2026-10-17 | v2 | 用户裁定落档（MIT+CC-BY-4.0 / 全历史重写）; PR-1/3/4 内容批次执行（LICENSE/LICENSE-docs/DATA_POLICY/README 访客段）; PR-5 重写规则定稿（含 JSON 双反斜杠变体; 验收=重写后全历史 <name>=0） |
+| 2026-10-17 | v3 | **PR-5 执行完毕**: filter-repo 四变体替换+计划书自引用折叠, 重写后 1318 blob 账户名=0 ✅; main→a0a27e7 / planning→2dd82c5 已 force-push 并远端验证; 控制臂映射 46920e9→ef7f92f（本地 worktree 不动, 旧对象经 worktree HEAD+pre-rewrite-backup 保活）; 遗留=PR-2 余项（~10 py 工具默认路径现为 %USERPROFILE% 字面量, 需 expandvars 适配+2 测试核对, 见队列条目 6）; **切 public 前仅剩 §③ runbook** |

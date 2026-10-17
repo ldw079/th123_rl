@@ -31,14 +31,22 @@
      2026-10-16.md §7（动作 ID 与我方 action_tables.py 逐 ID 实证
      同源）。" | 2026-10-17 | 规划
 
-5. **根目录 LICENSE + docs/LICENSE-docs（PR-1，待用户裁定档位后）** |
-   见 docs/_plans/public_release_hardening_plan_2026-10-17.md §④
-   决策 1——默认推荐 MIT(代码)+CC-BY-4.0(文档)双列，README 加
-   徽标行。用户裁定前**不创建**。 | 2026-10-17 | 规划
+5. **根目录 LICENSE + docs/LICENSE-docs（PR-1）— 已由规划代执行** |
+   用户裁定 A=MIT+CC-BY-4.0; LICENSE/docs/LICENSE-docs.md/
+   DATA_POLICY.md/README 访客段已随 a0a27e7 提交入库。施工侧仅核对
+   （无待办, 消费本条即可）。 | 2026-10-17 | 规划
 
-6. **代码侧用户名脱敏（PR-2 代码半边，~10 个 py + 12 个 bat）** |
-   规则见 public_release_hardening_plan §PR-2: .bat 中
-   `%USERPROFILE%`→`%USERPROFILE%`; py 默认路径逐处改
-   `os.path.expanduser`/相对路径并跑门禁+本机冒烟（三 worktree 不
-   可破坏）; `_archive` 一律不动。文档侧约 5 个 md 由规划自行处理。
-   **与 BH-4.4 批错开提交**。 | 2026-10-17 | 规划
+6. **PR-2 余项: py 默认路径适配（历史重写已自动完成字符串替换）** |
+   重写后 ~10 个 py 工具（cleista_ingest/fangyu_*/mine_*/
+   oracle_batch2/run_parallel/quarantine/*）及 tests/test_gpu_equiv·
+   test_guard_height 中的默认路径现为 `%USERPROFILE%` 字面量——逐处
+   包 `os.path.expandvars(...)`（或改参数/相对路径），跑门禁+冒烟。
+   .bat 无需处理（%USERPROFILE% 由 cmd 原生展开）。**与 BH-4.4 批
+   错开提交**。 | 2026-10-17 | 规划
+
+7. **通知: git 历史已全量重写（PR-5, 用户裁定 B）** | 新哈希:
+   main=a0a27e7 / planning=2dd82c5（本地双 worktree 已同步重置，
+   直接续作即可）; 旧历史仅存于本地分支 `pre-rewrite-backup`
+   （**永不推送**，观察 2 周后可删）; 控制臂映射 46920e9→ef7f92f;
+   GitHub 已 force-push 并验证。若发现任何会话仍持旧哈希:
+   `git fetch origin && git reset --hard origin/<branch>`。 | 2026-10-17 | 规划
