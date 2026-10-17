@@ -38,15 +38,18 @@ def _check(char, Y, S_w, rows, where, out):
     ok_w = (S_w == want_w)
     nz = [n for n, c in cnt.items() if c]
     present = [n for n in tgt if cnt[n] is not None]
-    ok_sc = bool(nz) and len(nz) == len(present)   # 该角色存在的复合宏必须都有计数
+    # 该角色**存在的**复合宏必须都有计数; 本角色根本不存在这三个宏时
+    # 记 N/A(不算失败) — 原判据把"空集"当失败, 误判 reimu(其宏库无复合SC终结)。
+    ok_sc = (len(nz) == len(present)) if present else True
+    sc_tag = ('N/A' if not present else ('ok' if ok_sc else 'MISSING'))
     out.append({
         'char': char, 'where': where, 'rows': int(rows), 'S_width': int(S_w),
         'want_width': int(want_w), 'width_ok': ok_w,
         'composite_macros': present, 'Y_counts': cnt, 'sc_ok': ok_sc,
     })
     tag = '✓' if (ok_w and ok_sc) else '✗'
-    print('%s %-7s [%s] rows=%-7d S=%-4d(want %d) 复合宏=%s Y=%s'
-          % (tag, char, where, rows, S_w, want_w, present, cnt))
+    print('%s %-7s [%s] rows=%-7d S=%-4d(want %d) 复合宏=%s(%s) Y=%s'
+          % (tag, char, where, rows, S_w, want_w, present, sc_tag, cnt))
     return ok_w and ok_sc
 
 
