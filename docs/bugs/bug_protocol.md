@@ -62,3 +62,5 @@
 - `bug_2026-10-14_danger_reveal_port_key.md` — danger_reveal真实模式KeyError(P1)
 - 2026-10-16双方案波审计: `bug_2026-10-16_ce1_macro_layer_doa.md` — CE-1宏层画像begin不传名自上线即死(P1)
 - `bug_2026-10-16_methodology_header_stale.md` — 宪法版本头携带已废除机制验收数字(P1, 文档)
+- 2026-10-17波: `bug_2026-10-17_situation_heat_const1.md` — 情境库热度恒1.0, heat_weighted查询空集(R153半修复)(P0)
+- `bug_2026-10-17_fangyu_pseudo_entries.md` — LE-2警戒表伪条目残留(P1)
