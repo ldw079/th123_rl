@@ -2234,6 +2234,34 @@ chk(src("episode_core.py").count("check_row_counts(") >= 3,
 # 原版在 vf_adam.step 之后用 self.W1v 反传价值路(旧dH1v×新W1v) — 与 torch
 # 单步计算图不等价(审计实测 conv1/2/3 梯度 cos=0.396/0.637/0.564)。
 # 权重范数差抓不到(Adam 首步 Δ 尺度过小), 故用源码锚 + 反串钉死。
+# P1-12(从零#5): fangyu 警戒表的**叙述句伪条目** — 审计实测 71/255(28%) 是句子
+# (含拉丁记号故绕过 has_latin 判定)。代码面: 虚词判据在; 数据面: 残留率 <15%。
+chk("虚词判据" in src("tools/fangyu_extract.py")
+    and "'的', '会', '是'" in src("tools/fangyu_extract.py"),
+    "P1-12(从零#5): 警戒表叙述句过滤(长度+虚词双判据)")
+try:
+    import json as _json_fy
+    _fy = _json_fy.load(io.open(os.path.join(
+        ROOT, 'data', 'guide_tables', 'fangyu_counters.json'),
+        encoding='utf8'))
+    _fy_tot = 0
+    _fy_bad = 0
+    import re as _re_fy
+    _pat_fy = _re_fy.compile(r'[，。！？；]|要注意|小心|如果|所以|对方|打不到')
+    for _r in _fy.get('characters', {}).values():
+        for _e in _r.get('warning_moves', []):
+            _nm = _e.get('name', '')
+            _fy_tot += 1
+            if len(_nm) > 12 or _pat_fy.search(_nm):
+                _fy_bad += 1
+    _rate = (_fy_bad / _fy_tot) if _fy_tot else 1.0
+    # 注: 阈值型断言**无单点变异钉**(单条 name 改成句子只动 0.5pp, 打不穿
+    # 15% 门槛) — 其守卫为"生成器双判据"变异 + 重建后必须跑本断言。
+    chk(_fy_tot >= 100 and _rate < 0.15,
+        "P1-12(从零#5): 警戒表叙述句残留<15%(原28%)",
+        '%.0f%%(%d/%d)' % (100 * _rate, _fy_bad, _fy_tot))
+except (OSError, ValueError) as _e_fy:
+    chk(False, "P1-12(从零#5): 警戒表可读", repr(_e_fy))
 chk(fn_has("ppo.py", "update", "_W1v_pre")
     and "_W1v_pre = self.W1v.copy()" in src("ppo.py")
     and "dH1v @ self.W1v.T)[:, :TRUNK_FLAT]" not in src("ppo.py"),

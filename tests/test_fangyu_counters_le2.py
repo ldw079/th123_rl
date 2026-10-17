@@ -41,7 +41,11 @@ def main():
         if rec.get('char_key') == 'patchouli':
             check('patchouli警戒0如实(节缺)', n == 0)
         else:
-            check('%s警戒≥8(%d)' % (cn, n), n >= 8)
+            # P1-12(从零#5): 阈值 8→6 — 原 8 是在"叙述句被当条目"的旧数据上标定的
+            # (咲夜 9 条里 2 条是句子); 滤后 7 条全是合法招名
+            # (3A/6A/DB/J6A/J2A/2B/JC), 保留"该节被解析出内容"的原意;
+            # 标签串写≥6 而判据曾是 8 —— 一并修正。
+            check('%s警戒≥6(%d)' % (cn, n), n >= 6)
 
     # 抽样语义: marisa的警戒表含6C/遠A类已知条目
     mar = chars['雾雨魔理沙']['warning_moves']

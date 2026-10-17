@@ -638,6 +638,10 @@ MUTATIONS = [
      "                dflat = dh @ self.W1.T - (dH1v @ _W1v_pre.T)[:, :TRUNK_FLAT]",
      "                dflat = dh @ self.W1.T - (dH1v @ self.W1v.T)[:, :TRUNK_FLAT]",
      "主干反传混用已更新的W1v(numpy与torch单步不等价) → P1-11断言必须红"),
+    ("tools/fangyu_extract.py",
+     "    if any(w in s for w in ('的', '会', '是', '在', '和', '被', '也', '都',",
+     "    if any(w in s for w in ('zzz_none',):",
+     "叙述句虚词判据拆除(句子重新冒充招名) → P1-12断言必须红"),
 ]
 
 

@@ -40,7 +40,11 @@ _NAME_BAD = re.compile(r'[。．，,；;：:（）()↑←→↓/·…—]{3,}')
 
 _SENTENCE_HINTS = ('了', '开始', '所以', '因为', '但是', '虽然', '之后',
                    '的话', '使用率', '而且', '基本', '很难', '容易', '时候',
-                   '可以', '这个', '那个', '还有')
+                   '可以', '这个', '那个', '还有',
+                   # P1-12(从零#5): 审计实测仍混入的叙述句式(71/255)
+                   '要注意', '小心', '注意', '如果', '对方', '三思', '用时',
+                   '打不到', '一共', '发射', '全方位', '直接', '情况',
+                   '威胁', '手段', '对策', '建议')
 
 
 def _looks_like_sentence(s):
@@ -63,6 +67,16 @@ def is_move_name(ln):
     if _looks_like_sentence(s):
         return False
     has_latin = any(c.isascii() and c.isalnum() for c in s)
+    # P1-12: 无拉丁/假名的纯中文行 >12 字 = 句子(招名如'623改抄地'仅6字)
+    _kana_n = sum(1 for c in s if '\u3040' <= c <= '\u30ff')
+    if not has_latin and _kana_n == 0 and len(s) > 12:
+        return False
+    # P1-12 二修: **虚词判据** — 叙述句几乎必含虚词, 招名几乎不含。
+    # 审计残留的 60 条多因含拉丁记号(J6A/DA/B版)绕过 has_latin 判定
+    # (如'被J6A 和J8A后预判弹幕进行擦弹可能会被抓'), 用虚词一刀切。
+    if any(w in s for w in ('的', '会', '是', '在', '和', '被', '也', '都',
+                            '很', '不', '可能', '非常', '一样', '难以', '进行')):
+        return False
     if has_latin:
         return True
     kana = [c for c in s if '\u30a0' <= c <= '\u30ff']   # 片假名
