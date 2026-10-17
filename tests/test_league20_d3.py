@@ -92,8 +92,17 @@ def main():
         seeded2, skipped2, _r = seed_league_pool(tmp, FOCUS, verbose=False)
         ok(seeded2 == [] and skipped2 == ['alice'], "幂等: 二跑跳过")
         seed_league_pool(tmp, FOCUS, refresh=True, verbose=False)
-        ok(len(glob.glob(os.path.join(d, 'seed_*.npz'))) == 2,
-           "refresh重种(新时间戳档)")
+        # P0(从零#5尾): 原断言 len(glob(seed_*.npz))==2 —— 该数只在"同秒同名
+        # 覆盖"时成立(pi+v 各1), 即**把 bug 当预期**: 一旦跨秒就变 4 而假红
+        # (门禁 transient 真相)。正确语义=refresh 产生**新的时间戳档**,
+        # 与旧档并存 → 两个不同 pi 档 + 各自 v 档。
+        pi2 = [f for f in glob.glob(os.path.join(d, 'seed_*.npz'))
+               if not f.endswith('_v.npz')]
+        ok(len(pi2) == 2
+           and len({os.path.basename(f) for f in pi2}) == 2,
+           "refresh重种(新时间戳档): 新旧pi档并存不覆盖 (%d)" % len(pi2))
+        ok(len([f for f in glob.glob(os.path.join(d, 'seed_*_v.npz'))]) == 2,
+           "refresh重种: v档同样成对新增")
 
         # --- 4. build_opp_cycle fleet根注入 + 严格性 ---
         cyc = build_opp_cycle(['alice', 'aya', 'COM'],

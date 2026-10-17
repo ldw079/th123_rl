@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -36,6 +37,33 @@ def repo_path(*parts):
     免 import 耦合)。真正属于"用户家目录输入档"的件才用 expanduser。
     """
     return os.path.join(REPO_ROOT, *parts)
+
+
+def live_model_path(char, store=None):
+    """评估/部署用的**活档**路径: 优先 fleet 生产档(_fleet), 回落单机档。
+
+    P1-1(从零#5): 评估工具原一律读 model_ppo_<char>.npz — 该档 mtime 停在
+    10-15, 而活 fleet 写 model_ppo_<char>_fleet.npz → 报告静默过期
+    (eval_matrix_quick 于 10-17 被重写, 内容仍是旧档)。
+    """
+    d = store or STORE_DIR
+    p = os.path.join(d, 'model_ppo_%s_fleet.npz' % char)
+    return p if os.path.exists(p) else os.path.join(
+        d, 'model_ppo_%s.npz' % char)
+
+
+def model_stamp(path):
+    """报告用模型版本戳 — 度量纪律: 无版本戳的报告不可比/不可引用。"""
+    base = os.path.basename(path)
+    try:
+        st = os.stat(path)
+        return {'path': base,
+                'mtime': time.strftime('%Y-%m-%d %H:%M:%S',
+                                       time.localtime(st.st_mtime)),
+                'mtime_ts': int(st.st_mtime),
+                'bytes': st.st_size}
+    except OSError:
+        return {'path': base, 'missing': True}
 
 
 def _load():

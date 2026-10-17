@@ -32,13 +32,16 @@
   10000
  ],
  "new_reps": [
-  "D:\\temp\\th123_models\\human_reps\\20261015_170129_26-10-15_16-56-35>_player_anon2(爱丽丝)_RL-AI(萃香)_(2︰0_负).rep",
-  "D:\\temp\\th123_models\\human_reps\\20261015_170129_26-10-15_16-57-58>_player_anon2(爱丽丝)_RL-AI(萃香)_(2︰0_负).rep",
-  "D:\\temp\\th123_models\\human_reps\\20261015_170129_26-10-15_16-59-04>_player_anon2(爱丽丝)_RL-AI(萃香)_(2︰0_负).rep",
-  "D:\\temp\\th123_models\\human_reps\\20261015_170129_26-10-15_17-00-04>_player_anon2(爱丽丝)_RL-AI(萃香)_(2︰0_负).rep",
-  "D:\\temp\\th123_models\\human_reps\\20261015_170129_26-10-15_17-01-20>_player_anon2(爱丽丝)_RL-AI(萃香)_(2︰0_负).rep"
+  "rep_001.rep",
+  "rep_002.rep",
+  "rep_003.rep",
+  "rep_004.rep",
+  "rep_005.rep"
  ],
  "exe_md5": "DF35D1FBC7B583317ADABE8CD9F53B2E",
  "delay_frames": 5,
- "protocol": "RPM观察+内存写inKeys(v2)"
+ "protocol": "RPM观察+内存写inKeys(v2)",
+ "n_reps": 5,
+ "redacted": "2026-10-17",
+ "redaction_note": "原值含第三方玩家昵称/收件机绝对路径 — PR-6(D4=B)脱敏, rep本体不在库内"
 }

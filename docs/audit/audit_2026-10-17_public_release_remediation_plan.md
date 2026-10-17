@@ -15,8 +15,8 @@
 |---|---|---|
 | 当前树 Windows 用户名 `96120` | 0 处 | ✅ |
 | `main` / `origin/main` 历史含 `96120` | 0（仅本地 `pre-rewrite-backup` 有，未推送） | ✅ |
-| **另一台机器用户名** `><other-machine>\Users\...` | **6 行 / 1 文件**，且 `git log main -S` **命中** | ❌ 阻断 |
-| **第三方玩家昵称 + 10 位 ID**（`>_player_anon`、`中国人`） | **37 行 / 5 文件**，且 `git log main -S` **命中** | ❌ 阻断 |
+| **另一台机器用户名** `<other-machine>\Users\...` | **6 行 / 1 文件**，且 `git log main -S` **命中** | ❌ 阻断 |
+| **第三方玩家昵称 + 10 位 ID**（`_player_anon`、`_player_anon2`） | **37 行 / 5 文件**，且 `git log main -S` **命中** | ❌ 阻断 |
 | `%USERPROFILE%` 字面量（排除 `_archive/`、`tools/quarantine/`） | **25 文件 / 36 处**（含门禁 2 测试 + `bc_build.py`） | ❌ 阻断 |
 | 门禁 | **637 PASS / 5 WARN / 2 FAIL → 阻断** | ❌ 阻断 |
 | `soku_arch`（`bc_build/bc_match/oracle_batch2` 顶层硬依赖） | 入库 **0 文件**，仅存在于 `D:\temp\soku_arch` | ❌ 阻断 |
@@ -64,7 +64,7 @@
 
 | # | 文件 | 现状 | 改法 |
 |---|---|---|---|
-| 1 | `tools/human_match_sessions/sess_20261013_213252.json` | `new_reps` 6 条含 `><other-machine>\Users\...` + 玩家昵称 | 值改为 `"rep_001.rep"`…`"rep_006.rep"`；新增 `"redacted":"2026-10-17"`、`"n_reps":6`；**保留 key 与数组长度** |
+| 1 | `tools/human_match_sessions/sess_20261013_213252.json` | `new_reps` 6 条含 `<other-machine>\Users\...` + 玩家昵称 | 值改为 `"rep_001.rep"`…`"rep_006.rep"`；新增 `"redacted":"2026-10-17"`、`"n_reps":6`；**保留 key 与数组长度** |
 | 2 | `sess_20261015_{165447,170129,170909}.json` | 同型（5–6 条） | 同上 |
 | 3 | `tools/human_solo_report.json` | 15 处 `rep` 字段含玩家昵称 | `rep` → `"rep_%03d.rep"`；**保留 `md5`（唯一键）与 `valid`/`invalid_reason`** |
 | 4 | `config.py:44` | 注释引用第三方 `.pf` 文件名 | 改为「用户指认键位与某 AI profile 一致」 |
@@ -75,7 +75,7 @@
   先 `grep` 其字段名**（当前只用到 `rep` 作为标签则安全；若按文件名匹配需同步改）。
 - `tools/human_match_v2.py:530-560`（写者）：`_dst = os.path.join(REP_DIR, ts + _fn)` 后
   `new_reps.append(_dst)` → 记录的是**运行者本机的绝对路径**（收件机上就成了
-  `><other-machine>\Users\Downloads\...`），且 `_fn` 是**原 rep 文件名**（自带第三方玩家昵称）。
+  `<other-machine>\Users\Downloads\...`），且 `_fn` 是**原 rep 文件名**（自带第三方玩家昵称）。
   **同一批必须改两处**：①`_dst` 改 `%Y%m%d_%H%M%S_%03d.rep`（丢弃原名）；②`new_reps`
   记 `os.path.basename(_dst)`（或记 `sha1` 前 12 位）。否则下一场人测又会长回 PII。
   注：`REP_DIR = STORE_DIR/human_reps`（`D:\temp\th123_models\human_reps`，仓外），
@@ -84,7 +84,7 @@
 **验收**：
 ```bat
 git grep -n -I -E "Users[\\/][A-Za-z0-9._-]{2,}" -- .        :: 期望 0
-git grep -n -I -E ">_player_anon|中国人|today"   -- .        :: 期望 0
+git grep -n -I -E "_player_anon|_player_anon2|<other-machine>"   -- .        :: 期望 0
 python -c "import json,glob;[json.load(open(f,encoding='utf8')) for f in glob.glob('tools/human_match_sessions/*.json')]"
 ```
 并对比 `len(new_reps)` 改前后一致（写进提交信息）。
@@ -175,12 +175,12 @@ python -c "import bc_build,sys;sys.path.insert(0,'.');print(bc_build.__file__)" 
 
 ```bat
 :: 1) 规则文件（注意误伤）
-::   ><other-machine>\Users            → %USERPROFILE%   （单反斜杠）
-::   ><other-machine>\\Users          → %USERPROFILE%   （JSON 双反斜杠）
-::   ><other-machine>/Users            → %USERPROFILE%
-::   >/c/<other-machine>/Users            → %USERPROFILE%
-::   _>_player_anon(     → _player_anon(    （带前缀，避免误伤普通词）
-::   >_player_anon2(                  → _player_anon2(   （带前缀+括号，避免误伤正文里的“中国人”）
+::   <other-machine>\Users            → %USERPROFILE%   （单反斜杠）
+::   <other-machine>\Users          → %USERPROFILE%   （JSON 双反斜杠）
+::   <other-machine>/Users            → %USERPROFILE%
+::   /c/<other-machine>/Users            → %USERPROFILE%
+::   __player_anon(     → _player_anon(    （带前缀，避免误伤普通词）
+::   _player_anon2(                  → _player_anon2(   （带前缀+括号，避免误伤正文里的“_player_anon2”）
 git filter-repo --replace-text rules.txt --force
 ::   D3=A 时追加： --path _archive --invert-paths
 ```
@@ -194,7 +194,7 @@ git filter-repo --replace-text rules.txt --force
 **验收**（三重）：
 ```bat
 :: ① 全历史复扫（不是只看 HEAD）
-git rev-list --all | %% { git grep -I -E "Users[\\/]|>_player_anon|_中国人\(" $_ 2>nul }
+git rev-list --all | %% { git grep -I -E "Users[\\/]|_player_anon|_player_anon2\(" $_ 2>nul }
 :: ② 计数=0；③ 控制臂重钉后跑一次身份校验（比对树哈希）
 git log --all --format="%H" -- fleet_supervisor.py
 ```

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import hashlib
 import json
 import os
 import struct
@@ -530,16 +531,25 @@ def run(char, headless, seconds=90):
         new_reps = []
         from kit_config import REP_DIR as _hr
         os.makedirs(_hr, exist_ok=True)
+        _rep_n = 0
         for _dp, _dn, _fns in os.walk(rep_dir):
             for _fn in _fns:
                 _p = os.path.join(_dp, _fn)
                 if _fn.lower().endswith('.rep') and _p not in rep_base:
                     import shutil as _sh
-                    _dst = os.path.join(_hr,
-                                        time.strftime('%Y%m%d_%H%M%S_') + _fn)
+                    # PR-6(D4=B, 用户裁定 2026-10-17): 落盘名与记录名一律
+                    # **丢弃原文件名** —— 原名自带第三方玩家昵称/10位ID与
+                    # 收件机绝对路径, 会话 JSON 会被采集包回传并入库(历史
+                    # 事故: tracked 里 37 行第三方昵称 + 6 行另一台机路径)。
+                    _rep_n += 1
+                    _dst = os.path.join(_hr, '%s_%03d.rep' % (
+                        time.strftime('%Y%m%d_%H%M%S'), _rep_n))
                     try:
                         _sh.copy2(_p, _dst)
-                        new_reps.append(_dst)
+                        _hash = hashlib.sha1(
+                            open(_p, 'rb').read()).hexdigest()[:12]
+                        new_reps.append({'rep': os.path.basename(_dst),
+                                         'sha1_12': _hash})
                     except OSError:
                         pass
         # session JSON
@@ -548,6 +558,7 @@ def run(char, headless, seconds=90):
                 'frames': n, 'matches': matches,
                 'human_wins': human_w, 'model_wins': model_w,
                 'hp0': hp0, 'new_reps': new_reps,
+                'n_reps': len(new_reps),
                 'exe_md5': EXE_MD5,
                 'delay_frames': DELAY_FRAMES,
                 'protocol': 'RPM观察+内存写inKeys(v2)'}

@@ -60,12 +60,13 @@ def run_delayed_matchup(char_a, char_b, port, games=60, tps=None,
     env = EvalEnv(port, char_left=char_a, char_right=char_b,
                   vs_com=False, tps=tps, render=False)
     driver = SideDriver(char_a, 'L')
-    model_path = os.path.join(STORE_DIR, 'model_ppo_%s.npz' % char_a)
+    # P1-1(从零#5): 活档(_fleet 优先)
+    from kit_config import live_model_path
+    model_path = live_model_path(char_a, STORE_DIR)
     driver.load(model_path)
 
     opp = SideDriver(char_b, 'R')
-    opp_model = snap_b or os.path.join(STORE_DIR,
-                                       'model_ppo_%s.npz' % char_b)
+    opp_model = snap_b or live_model_path(char_b, STORE_DIR)
     opp.load(opp_model)
     opp.reset_match()
     driver.reset_match()

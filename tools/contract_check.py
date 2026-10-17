@@ -1812,6 +1812,9 @@ _BEHAVIOR_TESTS = [
     # P0-3(从零#5): 看门狗必须用训练族进程树口径(树外旁路/对照臂不计入)
     ("test_cpu_family_metric_p0.py",
      "P0-3: CPU族口径(树内计入/树外排除/失败哨兵/比率clamp/整机口径退役)"),
+    # P0-6(从零#5): SC标签不得覆盖复合连段终结宏(卡ID撞车实证)
+    ("test_sc_label_p0.py",
+     "P0-6: 裸SC宏按卡解析/复合终结宏保留身份/撞车前提实证"),
     ("test_threat.py", "P0-K: 全零速弹表→(None,0) + TTI语义"),
     ("test_opp_model.py", "P0-L: 9情境可达 + 6段占据无混叠"),
     ("test_feat_segments.py", "R16§3: 每特征段≥1非常数维"),
@@ -2156,12 +2159,59 @@ chk(fn_has("fleet_supervisor.py", "cpu_load_pct", "family_cpu_seconds")
 chk("write_watchdog_status" in src("fleet_supervisor.py")
     and "fleet_heartbeat.wd" in src("tools/status_dashboard.py"),
     "P0-3b(从零#5): 看门狗存活sidecar有写者(fleet)且有读者(仪表)")
+# PR-6(2026-10-17用户裁定 D4=B): PII 防复发 — 历史事故的**类别**不得回库。
+# needle 由片段拼接: 断言本体也不许含原文(否则门禁文件自己就是泄漏源)。
+_PII_NEEDLES = ['阿求' + '的食堂', '国人' + '(爱丽丝)', 'Users' + '\\today']
+_PII_HITS = []
+for _r3, _d3, _f3s in os.walk(ROOT):
+    _rel3 = os.path.relpath(_r3, ROOT).replace('\\', '/')
+    if any(s in _rel3 for s in ('.git', 'gate_sandbox', '__pycache__',
+                                '_archive')):
+        continue
+    for _f3 in _f3s:
+        if not _f3.endswith(('.py', '.json', '.md', '.txt', '.bat')):
+            continue
+        try:
+            _s3 = io.open(os.path.join(_r3, _f3), encoding='utf8',
+                          errors='replace').read()
+        except OSError:
+            continue
+        if any(n in _s3 for n in _PII_NEEDLES):
+            _PII_HITS.append(_f3 if _rel3 == '.' else '%s/%s' % (_rel3, _f3))
+chk(not _PII_HITS,
+    "PR-6(D4=B): 库内零第三方昵称/他人机用户名(脱敏后不许回潮)",
+    '残留%d: %s' % (len(_PII_HITS), sorted(_PII_HITS)[:5]))
+# P1-1(从零#5): 评估工具必须读**活档**(_fleet 优先)并给报告盖模型版本戳 —
+# 原一律读 model_ppo_<char>.npz(mtime 停在 10-15), 报告静默过期却无人察觉。
+# 负锚: 单机旧档拼接式不得回潮(计数锚会被无害重构破坏 — 试过, 见R171)。
+chk("model_ppo_%s.npz' % char" not in src("tools/eval_matrix.py")
+    and "live_model_path" in src("tools/eval_matrix.py")
+    and "model_stamp" in src("tools/eval_matrix.py")
+    and "live_model_path" in src("tools/deck_matchup.py")
+    and "live_model_path" in src("tools/attribution_probe.py"),
+    "P1-1(从零#5): 评估工具读活档(_fleet优先)+报告带模型版本戳")
+# P1-5(从零#5): 帧日志必须按角色子目录隔离 — 原共享目录 + glob('fl_*.pkl')
+# 只留500 → 三角色互删对方日志(23文件三色交错实测), 观测面互相破坏。
+chk(src("train_tm.py").count("'frame_logs', self.char") >= 2
+    and "'frame_logs')" not in src("train_tm.py"),
+    "P1-5(从零#5): 帧日志按角色子目录隔离(跨角色互删根治)")
+# P1-4(从零#5): episode 逐决策数组必须做**行数**对账(原只比宽度) —
+# 半截档(feats/sides 8行·acts/logps 4行)曾被接受、被消费、随后 os.remove。
+chk(src("episode_core.py").count("check_row_counts(") >= 3,
+    "P1-4(从零#5): episode行数对账(写者+读者双端, 半截档拒收)")
 # P0-5尾(从零#5): train_start 前置清理按**脚本名**匹配会误杀 LE-0a 对照臂
 # (它跑同样的 learner_hub/actor_worker, 只是 worktree 不同) — 10-17 16:45
 # 主臂重启把对照臂静默杀3h, 预注册A/B终点断流。修=按 worktree 路径判别。
 chk(fn_has("tools/train_start.py", "_cleanup_ps_cmd",
            "-notmatch 'th123_rl_control'"),
     "P0-5尾(从零#5): 前置清理豁免对照臂worktree(按路径判别, 非脚本名)")
+# P0-6(从零#5): SC二次解析只许作用于**裸SC宏**。复合连段终结宏
+# (TM·6a终结/TM·必杀SC连/TM·空连终结)的卡ID与裸卡宏撞车, 对它们也解析
+# = 正确标签被覆盖成同卡的另一个SC宏 → 三库中这三个宏 Y 恒 0(学不到)。
+chk(fn_has("bc_build.py", "build_rows", "bare_sc_names")
+    and "def bare_sc_names" in src("bc_build.py")
+    and "_mname in _bare_sc" in src("bc_build.py"),
+    "P0-6(从零#5): SC二次解析仅限裸SC宏(复合连段终结宏保留身份)")
 chk("活性宽限" in src("learner_hub.py")
     and "*.tmp.npz" in src("learner_hub.py"),
     "P2: 低盘清理活性宽限+陈旧tmp清理方")

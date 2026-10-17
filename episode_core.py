@@ -126,6 +126,32 @@ def check_model_generation(char, model_n_out):
     return None
 
 
+# P1-4(从零#5): 逐决策数组(N,)对账 — 写者与读者共用。
+# 事故形态: feats/sides 8 行、acts/logps 4 行的文件被 save_episode_npz 接受、
+# 被 learner_hub 消费、随后 os.remove —— 无隔离无告警(宽度校验只比列数)。
+_PER_DECISION = ("feats", "sides", "acts", "rews", "masks", "bc_targets",
+                 "opp_next", "logps")
+
+
+def check_row_counts(arrays):
+    """返回 [(key, rows)] — 与**多数行数**不一致的逐决策数组(空=一致)。
+
+    基准取多数而非"第一个可用数组": 单个数组被截断时它才是异常项
+    (若拿 acts 当基准, 截断的 acts 反而会把其余 7 个正常数组报成异常)。
+    """
+    rows = {}
+    for k in _PER_DECISION:
+        a = arrays.get(k)
+        if a is None or getattr(a, "ndim", 0) < 1:
+            continue
+        rows[k] = int(a.shape[0])
+    if not rows:
+        return []
+    vals = list(rows.values())
+    base = max(set(vals), key=vals.count)
+    return [(k, n) for k, n in rows.items() if n != base]
+
+
 def check_contract(contract, where=""):
     """校验契约块**自洽**(不依赖任何外部产物)。
 
@@ -216,6 +242,11 @@ def save_episode_npz(ep_dir, char, actor_id, ep_idx, arrays, meta_str):
         if _masks is not None and int(_c.get("n_macros", -1)) != int(_masks.shape[1]):
             _bad.append("n_macros(%s)≠masks.shape[1](%s)"
                         % (_c.get("n_macros"), _masks.shape[1]))
+        # P1-4(从零#5): 行数对账(原只比宽度 → 半截文件可落盘并被消费)
+        _rows = check_row_counts(data)
+        if _rows:
+            _bad.append("行数不一致: %s" % (
+                [(k, n) for k, n in _rows],))
         _cself = check_contract(_c, where="写者自检")
         if _bad or _cself:
             raise EpisodeContractError(
@@ -271,6 +302,9 @@ def load_episode_npz(path, expect_contract=None):
                    os.path.basename(path)))
         _bad = check_contract(_c, where=os.path.basename(path))
         # 声明 vs 实际形状
+        # P1-4(从零#5): 行数对账 — 半截 episode 必须**拒收**而不是被消费后删除
+        for _k, _n in check_row_counts(arrays):
+            _bad.append("%s行数%s≠主行数" % (_k, _n))
         if int(_c["n_side"]) != int(arrays["sides"].shape[1]):
             _bad.append("n_side声明%s≠sides实际%s"
                         % (_c["n_side"], arrays["sides"].shape[1]))

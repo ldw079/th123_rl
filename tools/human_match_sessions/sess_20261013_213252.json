@@ -32,14 +32,17 @@
   10000
  ],
  "new_reps": [
-  "><other-machine>\\Users\\Downloads\\th123rl_kit_v20261013 (1)\\th123rl_kit\\th123rl\\models\\human_reps\\20261013_213251_26-10-13_21-22-18_>_player_anon(帕秋莉)_profile2p(萃香)_(0︰0_无).rep",
-  "><other-machine>\\Users\\Downloads\\th123rl_kit_v20261013 (1)\\th123rl_kit\\th123rl\\models\\human_reps\\20261013_213251_26-10-13_21-23-32_>_player_anon(帕秋莉)_RL-AI(萃香)_(2︰0_负).rep",
-  "><other-machine>\\Users\\Downloads\\th123rl_kit_v20261013 (1)\\th123rl_kit\\th123rl\\models\\human_reps\\20261013_213251_26-10-13_21-24-48_>_player_anon(帕秋莉)_RL-AI(萃香)_(2︰0_负).rep",
-  "><other-machine>\\Users\\Downloads\\th123rl_kit_v20261013 (1)\\th123rl_kit\\th123rl\\models\\human_reps\\20261013_213251_26-10-13_21-29-24_>_player_anon(帕秋莉)_RL-AI(萃香)_(2︰0_负).rep",
-  "><other-machine>\\Users\\Downloads\\th123rl_kit_v20261013 (1)\\th123rl_kit\\th123rl\\models\\human_reps\\20261013_213251_26-10-13_21-30-52_>_player_anon(帕秋莉)_RL-AI(萃香)_(2︰0_负).rep",
-  "><other-machine>\\Users\\Downloads\\th123rl_kit_v20261013 (1)\\th123rl_kit\\th123rl\\models\\human_reps\\20261013_213251_26-10-13_21-32-48_>_player_anon(萃香)_RL-AI(萃香)_(2︰0_负).rep"
+  "rep_001.rep",
+  "rep_002.rep",
+  "rep_003.rep",
+  "rep_004.rep",
+  "rep_005.rep",
+  "rep_006.rep"
  ],
  "exe_md5": "DF35D1FBC7B583317ADABE8CD9F53B2E",
  "delay_frames": 5,
- "protocol": "RPM观察+内存写inKeys(v2)"
+ "protocol": "RPM观察+内存写inKeys(v2)",
+ "n_reps": 6,
+ "redacted": "2026-10-17",
+ "redaction_note": "原值含第三方玩家昵称/收件机绝对路径 — PR-6(D4=B)脱敏, rep本体不在库内"
 }

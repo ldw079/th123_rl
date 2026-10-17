@@ -1428,7 +1428,10 @@ class TMTrainer:
         self._bh_ep_n = getattr(self, '_bh_ep_n', 0) + 1
         _fl_on = False
         if _fle():
-            _mark = os.path.join(STORE_DIR, 'frame_logs',
+            # P1-5(从零#5): 按**角色子目录**隔离 — 原落盘在共享 frame_logs/,
+            # 修剪用 glob('fl_*.pkl') 只留500 → 三角色互删对方日志(实测
+            # 目录 23 文件三色交错, .last_<char> 门闸也共用一把)
+            _mark = os.path.join(STORE_DIR, 'frame_logs', self.char,
                                  '.last_%s' % self.char)
             try:
                 _last = os.path.getmtime(_mark)
@@ -2037,7 +2040,7 @@ class TMTrainer:
         if self._fl_frames is not None and self._fl_frames:
             try:
                 import pickle as _pkl
-                _fld = os.path.join(STORE_DIR, 'frame_logs')
+                _fld = os.path.join(STORE_DIR, 'frame_logs', self.char)
                 os.makedirs(_fld, exist_ok=True)
                 _fnp = os.path.join(
                     _fld, 'fl_%s_%s_%05d.pkl' % (
@@ -2052,6 +2055,7 @@ class TMTrainer:
                                'decisions': self._fl_decisions or []},
                               _fh, protocol=4)
                 os.replace(_fnp + '.tmp', _fnp)
+                # 修剪只作用于本角色子目录(跨角色互删已由目录隔离根治)
                 _old = sorted(glob.glob(os.path.join(_fld, 'fl_*.pkl')),
                               key=os.path.getmtime)
                 for _p in _old[:-500]:

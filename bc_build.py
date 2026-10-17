@@ -112,6 +112,32 @@ def _hand_ids(hand_bytes):
     return ids, sel
 
 
+def _is_bare_sc_macro(script):
+    """脚本内**没有任何按键步** → "裸SC宏"(本体=一次SC按压, 如 卡·当前/卡·星星)。"""
+    for st in script:
+        if not isinstance(st, tuple) or not st:
+            continue
+        keys = st[0]
+        if isinstance(keys, str):      # 'confirm'/'sc:NNN' 等标记步
+            continue
+        if keys:                        # 非空按键元组 = 有实际动作
+            return False
+    return True
+
+
+def bare_sc_names(lib, sc_tgts):
+    """需要"按当帧选中卡"二次解析的宏名集 = **裸SC宏**。
+
+    P0-6(从零#5): 连段终结类复合宏(TM·6a终结 sc:219 / TM·必杀SC连 sc:219 /
+    TM·空连终结 sc:200)的卡ID与裸卡宏撞车(sel=219→卡·邪恋, sel=200→卡·星星),
+    对它们做二次解析会把匹配器已确定的身份覆盖成同卡的另一个SC宏 →
+    这三个宏在三库中 Y 恒 0(永远学不到)。复合宏不在本集内。
+    """
+    by_name = {m[0]: m[1] for m in lib}
+    return {n for n in sc_tgts
+            if n in by_name and _is_bare_sc_macro(by_name[n])}
+
+
 def resolve_sc_label(sc_tgts, idx_by_name, hand_bytes):
     """R61g(B1): SC通用标签→具体卡宏。专家按下卡键时用的是**选中卡**
     (hand[0]); 匹配器给出的SC标签是"某卡被使用"(所有SC共享按键形态)
@@ -228,6 +254,10 @@ def build_rows(char_id, shards, log=print):
     from train_tm import _parse_sc_targets
     _sc_tgts = _parse_sc_targets(lib)
     _sc_idx_by_name = {m[0]: i for i, m in enumerate(lib)}
+    # P0-6(从零#5): **只有裸SC宏**才需要"按当帧选中卡"二次解析 —— 复合宏
+    # (末步出SC的连段终结类)身份由匹配器整段脚本确定, 二次解析会把它们
+    # 覆盖成同卡的另一个SC宏(卡ID撞车), 详见 bare_sc_names。
+    _bare_sc = bare_sc_names(lib, _sc_tgts)
     fb = FeatureBuilder(n_macros)
     # R39(第十轮审计P1-2): 技能等级230-233/手牌技能可用性234-237由
     # _char_name驱动 — 原漏设 → BC行8维恒零, 与在线分布失配
@@ -300,12 +330,14 @@ def build_rows(char_id, shards, log=print):
             hits = matcher.walk(u16, facings, combo_ctx=_combo_ctx)
             hits = [h for h in hits if h[2] >= CONF_MIN and h[0] >= 2
                     and h[0] < len(fr)]
-            # R61g(B1): SC通用标签→具体卡宏(按当帧手牌选中位解析;
+            # R61g(B1): 裸SC通用标签→具体卡宏(按当帧手牌选中位解析;
             # 解析失败的SC行直接丢 — SC标签占比>0靠具体卡命中)
+            # P0-6(从零#5): 仅**裸SC宏**走二次解析; 复合宏(含末步sc:)保留
+            # 匹配器给出的身份 — 否则被覆盖成同卡的另一个SC宏(见_bare_sc)。
             _fixed = []
             for h in hits:
                 _mname = lib[h[1]][0]
-                if _mname in _sc_tgts:
+                if _mname in _bare_sc:
                     _ri = resolve_sc_label(
                         _sc_tgts, _sc_idx_by_name, fr[h[0]][0]['hand'])
                     if _ri is None:

@@ -42,8 +42,10 @@ def run_game(char, port, my_deck, opp_deck):
     帧上限→回合比分→HP差(与F6同款口径)。"""
     da = SideDriver(char, 'L')
     db = SideDriver(char, 'R')
-    da.load(os.path.join(STORE, 'model_ppo_%s.npz' % char))
-    db.load(os.path.join(STORE, 'model_ppo_%s.npz' % char))
+    # P1-1(从零#5): 活档(_fleet 优先), 原读单机档=静默评估旧模型
+    from kit_config import live_model_path
+    da.load(live_model_path(char, STORE))
+    db.load(live_model_path(char, STORE))
     env = EvalEnv(port, char_left=char, char_right=char, vs_com=False,
                   tps=480, deck_left=my_deck, deck_right=opp_deck)
     ia = ib = {}

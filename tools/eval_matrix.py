@@ -38,8 +38,9 @@ ALL_CHARS = ['reimu', 'marisa', 'suika', 'sakuya', 'patchouli',
 
 
 def has_model(char):
-    return os.path.exists(os.path.join(
-        STORE, 'model_ppo_%s.npz' % char))
+    # P1-1(从零#5): 判活档(_fleet 优先) — 原判单机档, 活 fleet 角色会被误判缺档
+    from kit_config import live_model_path
+    return os.path.exists(live_model_path(char, STORE))
 
 
 def available_chars(n):
@@ -64,8 +65,10 @@ def run_matchup(char_a, char_b, port, games=2, tps=480):
     # 双方都用SideDriver(确定性评估)
     driver_a = SideDriver(char_a, 'L')
     driver_b = SideDriver(char_b, 'R')
-    driver_a.load(os.path.join(STORE, 'model_ppo_%s.npz' % char_a))
-    driver_b.load(os.path.join(STORE, 'model_ppo_%s.npz' % char_b))
+    # P1-1(从零#5): 读**活档**(_fleet 优先) — 原读单机档=静默评估 10-15 旧模型
+    from kit_config import live_model_path
+    driver_a.load(live_model_path(char_a, STORE))
+    driver_b.load(live_model_path(char_b, STORE))
 
     a_wins = 0
     b_wins = 0
@@ -246,6 +249,13 @@ def analyze(matrix, chars):
         'timeout_loss_share': (tl / tn if tn else None),
         'timeout_hp_mean_avg': (sum(hps) / len(hps) if hps else None),
     }
+    # P1-1(从零#5): 报告必须自带模型版本戳(否则无法判断读的是哪一代模型)
+    try:
+        from kit_config import live_model_path, model_stamp
+        report['model_stamp'] = {ch: model_stamp(live_model_path(ch, STORE))
+                                 for ch in chars}
+    except Exception as _e:
+        report['model_stamp'] = {'error': str(_e)}
     report['superhuman_distance'] = {
         'metric': d['worst_lower'],          # None = 样本不足(不再伪造数值)
         'metric_name': 'worst_matchup_wilson_lower',

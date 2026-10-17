@@ -64,13 +64,22 @@ def seed_league_pool(store=STORE, focus=FOCUS_DEFAULT, refresh=False,
             rejected.append('%s(宏数不符)' % ch)
             continue
         os.makedirs(d, exist_ok=True)
+        # P0(从零#5尾): 秒级时间戳在同一秒内 refresh 会与上一次种子**同名覆盖**
+        # → `--refresh` 静默无效(门禁 test_league20_d3 "refresh重种" 间歇红的
+        # 真因; transient 掩盖了两天)。修: 目标名已存在则加递增序号后缀 —
+        # 保持字典序=时间序(_2/_3 在同一秒内递增), 且 refresh 恒产生新档。
+        _ts, _k = ts, 1
+        while (os.path.exists(os.path.join(d, 'seed_%s.npz' % _ts))
+               or os.path.exists(os.path.join(d, 'seed_%s_v.npz' % _ts))):
+            _k += 1
+            _ts = '%s_%d' % (ts, _k)
         # 先v后pi=配对提交标记(outer_loop约定); v缺失只警告(对手只需策略网)
         vsrc = src.replace('.npz', '_v.npz')
         if os.path.exists(vsrc):
-            shutil.copy2(vsrc, os.path.join(d, 'seed_%s_v.npz' % ts))
+            shutil.copy2(vsrc, os.path.join(d, 'seed_%s_v.npz' % _ts))
         elif verbose:
             print('[seed] %s 无_v档 — 只种策略网(对手侧够用)' % ch)
-        shutil.copy2(src, os.path.join(d, 'seed_%s.npz' % ts))
+        shutil.copy2(src, os.path.join(d, 'seed_%s.npz' % _ts))
         seeded.append(ch)
         if verbose:
             print('[seed] %s → fleet/pool (%d宏)' % (ch, n_macros))

@@ -241,6 +241,48 @@ except Exception as e:
     traceback.print_exc()
     chk(False, '7 正常路径回归', '%s: %s' % (type(e).__name__, e))
 
+# ---- P1-4(从零#5): 逐决策数组**行数**对账(原只比宽度) ----
+# 事故形态: feats/sides 8 行、acts/logps 4 行的文件被接受、被 learner 消费、
+# 随后 os.remove —— 无隔离无告警。写者与读者都必须拒收半截 episode。
+print('  ---- P1-4 行数对账 ----')
+_c_ok = build_contract(CHAR, N_OUT, N_SIDE, N_OUT, feat_dim=FEAT)
+_ok_arr = mk_arrays(n=6)
+_c_rows = EC.check_row_counts(_ok_arr)
+chk(_c_rows == [], 'P1-4a 一致行数 → 对账为空', str(_c_rows))
+
+_bad_arr = mk_arrays(n=6)
+_bad_arr['acts'] = np.zeros(4, dtype=np.int64)      # 只 4 行
+_rows = EC.check_row_counts(_bad_arr)
+chk(len(_rows) == 1 and _rows[0][0] == 'acts' and _rows[0][1] == 4,
+    'P1-4b 半截 acts(4/6行) → 对账命中', str(_rows))
+
+# 写者: 拒收(响亮)而不是落盘
+try:
+    save_episode_npz(TMP, CHAR, 0, 90, _bad_arr,
+                     episode_meta(CHAR, 0, 90, 1, 1, 6, contract=_c_ok))
+    chk(False, 'P1-4c 写者拒收半截episode')
+except EpisodeContractError as e:
+    chk('行数' in str(e), 'P1-4c 写者拒收半截episode', str(e)[:60])
+
+# 读者: 直接落一份(绕过写者自检)再读 → 必须拒收
+_badp = os.path.join(TMP, 'ep_bypass.npz')
+_d = dict(_bad_arr)
+_d['meta'] = np.array(episode_meta(CHAR, 0, 91, 1, 1, 6, contract=_c_ok))
+_d['schema'] = np.array(EP_SCHEMA)
+np.savez(_badp, **_d)
+try:
+    load_episode_npz(_badp)
+    chk(False, 'P1-4d 读者拒收半截episode(绕过写者)')
+except EpisodeContractError as e:
+    chk('行数' in str(e), 'P1-4d 读者拒收半截episode(绕过写者)', str(e)[:60])
+
+# 回归: 一致行数的正常档仍可读
+_goodp = save_episode_npz(TMP, CHAR, 0, 92, mk_arrays(n=6),
+                          episode_meta(CHAR, 0, 92, 1, 1, 6, contract=_c_ok))
+_ar, _me = load_episode_npz(_goodp)
+chk(_ar['acts'].shape[0] == 6, 'P1-4e 正常档往返不误伤',
+    str(_ar['acts'].shape))
+
 shutil.rmtree(TMP, ignore_errors=True)
 print()
 if FAILS:
