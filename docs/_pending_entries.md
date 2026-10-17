@@ -6,7 +6,16 @@
 
 ---
 
-1. **public_release_hardening_plan: D3=A 的**历史**那一半尚未执行** |
+1. **docs/THIRD_PARTY.md 需登记 soku_arch 的出处与授权** | 施工已按 D2=A
+   把 `soku_arch` **包本体**(30 py / 283KB) vendor 进仓库根 `soku_arch/`,
+   并写 `soku_arch/VENDORED.md` 记录来源与"授权待核"; 但**包里无任何
+   LICENSE/版权头**, 按 R4 不能猜 → 需规划/用户确认:
+   (a) 自有代码 → 归入根 MIT; (b) 第三方 → 补许可声明或改 README "不提供"。
+   同时 `docs/LICENSE-docs.md` 加限定句"CC-BY-4.0 仅覆盖原创整理"。
+   证据: `ls soku_arch | wc -l` = 31(含 VENDORED.md) / `grep -ri license soku_arch` 空。 |
+   2026-10-18 | 施工
+
+2. **public_release_hardening_plan: D3=A 的**历史**那一半尚未执行** |
    施工 2026-10-18 已按 D3=A 把 `_archive/` 从**索引**移除(117 跟踪档 →
    0, 磁盘 300 档保留), 但**第二次重写没用 `--invert-paths`** →
    `_archive/` 仍留在 2026-10-18 之前的历史里。若要连历史一起剔除,
