@@ -16,6 +16,7 @@ import numpy as np
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
+from feat_builder import FeatureBuilder  # P2(从零#5): 维度派生
 sys.stdout.reconfigure(encoding='utf8')
 
 from passivity_meter import (ADX_COL, OPENING_DECISIONS, episode_passivity,
@@ -62,7 +63,8 @@ def main():
 
     def mk_ep(adx_rows, act_ids):
         n = len(act_ids)
-        sides = np.zeros((n, 5 * n_macros + 330), dtype=np.float32)
+        sides = np.zeros((n, 5 * n_macros + FeatureBuilder.CORE_DIMS),
+                         dtype=np.float32)
         sides[:, 2 * n_macros + ADX_COL] = np.clip(
             np.array(adx_rows) / 600.0, 0, 1)
         return {'acts': np.array(act_ids, dtype=np.int64), 'sides': sides}

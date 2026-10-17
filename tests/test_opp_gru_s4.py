@@ -12,6 +12,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
+from feat_builder import FeatureBuilder  # P2(从零#5): 维度派生
 try:
     sys.stdout.reconfigure(encoding="utf8")
 except Exception:
@@ -53,7 +54,7 @@ def main():
 
     # 2. 切片: 87=75+12, 取位正确
     N = 70
-    side = np.zeros(5 * N + 343, dtype=np.float32)
+    side = np.zeros(5 * N + FeatureBuilder.CORE_DIMS, dtype=np.float32)
     b = 2 * N
     side[b + 152:b + 227] = np.arange(75) / 75.0
     side[b + 330:b + 342] = np.arange(12) / 12.0
@@ -67,7 +68,7 @@ def main():
     # 3. 重放确定性: 逐步step == 整体replay; 同输入同h
     g2 = OppGRU(seed=9)
     rng = np.random.default_rng(1)
-    seq = [rng.standard_normal(5 * N + 343).astype(np.float32)
+    seq = [rng.standard_normal(5 * N + FeatureBuilder.CORE_DIMS).astype(np.float32)
            for _ in range(20)]
     hs_rep = g2.replay(seq, N)
     h = None

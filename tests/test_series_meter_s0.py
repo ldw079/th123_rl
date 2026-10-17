@@ -15,6 +15,7 @@ import numpy as np
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
+from feat_builder import FeatureBuilder  # P2(从零#5): 维度派生
 sys.stdout.reconfigure(encoding='utf8')
 
 from series_meter import (BUCKETS, aux_predict, bucket_of,
@@ -58,7 +59,7 @@ def main():
     except ImportError:
         print("[SKIP] torch不可用 — aux路径以解码/分桶断言为准")
     else:
-        n_out, n_side = 8, 5 * 8 + 330
+        n_out, n_side = 8, 5 * 8 + FeatureBuilder.CORE_DIMS
         tr = PPOTrainerGPU(n_side=n_side, n_out=n_out)
         if hasattr(tr, 'init_fresh'):
             tr.init_fresh(3 * 60 * 80)

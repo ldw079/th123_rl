@@ -22,6 +22,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
+from feat_builder import FeatureBuilder  # P2(从零#5): 维度派生
 
 from episode_core import (EP_SCHEMA, build_contract, episode_meta,
                           load_episode_npz, save_episode_npz)
@@ -153,7 +154,8 @@ def main():
         m_names = [m[0] for m in CHAR_LIBS['marisa']['macros']]
         m_nb = [i for i, nm in enumerate(m_names)
                 if nm not in CHAR_LIBS['marisa']['bullet']][0]
-        sides_m = np.zeros((6, 5 * n_m + 330), dtype=np.float32)
+        sides_m = np.zeros((6, 5 * n_m + FeatureBuilder.CORE_DIMS),
+                       dtype=np.float32)
         sides_m[:, 2 * n_m + 4] = 0.5   # 300px 近距
         arrays_m = dict(
             feats=np.zeros((6, 14400), dtype=np.uint8), sides=sides_m,
