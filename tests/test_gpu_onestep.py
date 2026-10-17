@@ -148,6 +148,31 @@ def main():
     check('KL读数同量级', abs(st_np['kl'] - st_gpu['kl']) < 0.05,
           'np=%.4f gpu=%.4f' % (st_np['kl'], st_gpu['kl']))
 
+    # P1-11(从零#5): 卷积主干的**方向**等价 — 权重范数差看不出方向错
+    # (Adam首步 Δw≈lr·sign(g): 范数相同而方向可反)。审计实测: numpy 用
+    # **step 后**的 W1v 反传价值路 → conv1/2/3 梯度 cos=0.396/0.637/0.564。
+    # 判据: 同起始权重的 ΔW 方向 cos > 0.99(修后), 修前必 <0.7。
+    _d_pre = np.load(b_pi)
+    _cos_conv = {}
+    for _k in ('Wc1', 'Wc2', 'Wc3'):
+        if _k not in d_np.files or _k not in d_g.files:
+            continue
+        _dn = d_np[_k].astype(np.float64) - _d_pre[_k].astype(np.float64)
+        _dg = d_g[_k].astype(np.float64) - _d_pre[_k].astype(np.float64)
+        _nn = float(np.linalg.norm(_dn))
+        _ng = float(np.linalg.norm(_dg))
+        if _nn < 1e-12 or _ng < 1e-12:
+            _cos_conv[_k] = float('nan')
+            continue
+        _cos_conv[_k] = float((_dn * _dg).sum() / (_nn * _ng))
+    _worst_cos = min(_cos_conv.values()) if _cos_conv else float('nan')
+    # 诚实标注: 默认 VF_LR 下 Adam 首步 Δ 很小, 该 cos 对本 bug **不敏感**
+    # (实测修前/修后均 1.0) — 精确守卫是门禁的 _W1v_pre 源码锚。
+    # 本项保留为"主干方向不出现粗粒度回归"的粗检。
+    check('卷积主干梯度方向一致(粗检, P1-11精确守卫在门禁)',
+          bool(_cos_conv) and _worst_cos > 0.99,
+          'cos=%s' % {k: round(v, 4) for k, v in _cos_conv.items()})
+
     # 审计#3 P1-5: 梯度符号级等价 — 显著增量(|Δ|>各自max的1e-3)的
     # 符号必须零翻转(Wc2曾3653/18432翻转→每步±2×PI_LR不可观漂移)
     d_b = np.load(b_pi)

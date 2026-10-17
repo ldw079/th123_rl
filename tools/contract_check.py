@@ -2230,6 +2230,14 @@ chk(src("episode_core.py").count("check_row_counts(") >= 3,
 # P1-9(从零#5): 仪表不许写死"通过"/把样本数当战绩 — 假绿比红灯更贵。
 # 活性巡检行原恒为 '通过(358维, 29+8段)'(该行从不执行巡检, 维度也硬编码)。
 # P2(从零#5): 两处"看不见增长/看不见数据"的清理面。
+# P1-11(从零#5): ppo.py 卷积主干反传必须用 **step 前** 的 W1v。
+# 原版在 vf_adam.step 之后用 self.W1v 反传价值路(旧dH1v×新W1v) — 与 torch
+# 单步计算图不等价(审计实测 conv1/2/3 梯度 cos=0.396/0.637/0.564)。
+# 权重范数差抓不到(Adam 首步 Δ 尺度过小), 故用源码锚 + 反串钉死。
+chk(fn_has("ppo.py", "update", "_W1v_pre")
+    and "_W1v_pre = self.W1v.copy()" in src("ppo.py")
+    and "dH1v @ self.W1v.T)[:, :TRUNK_FLAT]" not in src("ppo.py"),
+    "P1-11(从零#5): numpy主干反传用step前W1v(与torch单步等价)")
 chk("bh_%s_*.json" in src("learner_hub.py")
     and "len(_bhs) - 1000" in src("learner_hub.py"),
     "P2(从零#5): BH旁车保留策略有界(1000/角色, 原无清理方)")

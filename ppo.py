@@ -951,6 +951,13 @@ class PPOTrainer:
                 if _vn > 10.0:
                     _scale = 10.0 / _vn
                     _vg = [g * _scale for g in _vg]
+                # P1-11(从零#5): 卷积主干反传必须用 **step 前** 的 W1v —
+                # 原版在 vf_adam.step **之后** 用 self.W1v 反传价值路(第991行),
+                # 即"旧 dH1v × 新 W1v", 与 torch 单步计算图不等价:
+                # 审计实测 conv1/2/3 的梯度 cos=0.396/0.637/0.564(范数相同、方向不同),
+                # 一步整步 W1 cos=0.785, value_loss numpy 20.36 vs GPU 15.67。
+                # 注: 只影响 numpy 实现(ppo_gpu 走 autograd), 即单机 train_tm/剥削者。
+                _W1v_pre = self.W1v.copy()
                 self._vf_adam.step(_vg, self.VF_LR, maximize=False)
 
                 # R17③对手子网络反向: 三路汇合(全部转上升约定 — _pi_adam
@@ -988,7 +995,7 @@ class PPOTrainer:
 
                 # 卷积主干: 策略+价值+辅助三路梯度累加后一次反传(共享主干)
                 # (价值/辅助=下降, 策略=上升 → 减号; P0-B先例)
-                dflat = dh @ self.W1.T - (dH1v @ self.W1v.T)[:, :TRUNK_FLAT]
+                dflat = dh @ self.W1.T - (dH1v @ _W1v_pre.T)[:, :TRUNK_FLAT]
                 if dq_in is not None:
                     dflat = dflat - dq_in[:, :TRUNK_FLAT]
                 conv_grads = self._trunk_bwd(cache, dflat)

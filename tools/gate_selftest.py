@@ -634,6 +634,10 @@ MUTATIONS = [
      "        _paths += _acts[:1]",
      "        _paths += []",
      "奖励面板回退只读learner日志(结构性空) → P2仪表断言必须红"),
+    ("ppo.py",
+     "                dflat = dh @ self.W1.T - (dH1v @ _W1v_pre.T)[:, :TRUNK_FLAT]",
+     "                dflat = dh @ self.W1.T - (dH1v @ self.W1v.T)[:, :TRUNK_FLAT]",
+     "主干反传混用已更新的W1v(numpy与torch单步不等价) → P1-11断言必须红"),
 ]
 
 
