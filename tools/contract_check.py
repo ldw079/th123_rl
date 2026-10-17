@@ -2039,6 +2039,9 @@ _BEHAVIOR_TESTS = [
     # LE-2(R152): fangyu警戒表深解析
     ("test_fangyu_counters_le2.py",
      "LE-2: fangyu警戒表(11角色/警戒/破防/空防不可/天气/行锚点/建议率)"),
+    # LE-1a(R153): 情境库
+    ("test_situation_lib_le1a.py",
+     "LE-1a: 情境库(2n偏移标签派生/对位覆盖/贴角带/热度/查询语义)"),
     # 系列预测方案阶段0(R67): 系列位置分桶测量仪表
     ("test_series_meter_s0.py",
      "S0: 胜负解码(回合结算块)/系列位置/分桶/aux评分真前向50%构造/曲线行四桶"),
