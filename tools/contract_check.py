@@ -2036,6 +2036,9 @@ _BEHAVIOR_TESTS = [
     # S-6(R147): BC序列感知采样
     ("test_bc_seq_s6.py",
      "S-6: shard组id/连续窗口(宁短勿跨)/保序/trio往返/旧库回落iid"),
+    # LE-2(R152): fangyu警戒表深解析
+    ("test_fangyu_counters_le2.py",
+     "LE-2: fangyu警戒表(11角色/警戒/破防/空防不可/天气/行锚点/建议率)"),
     # 系列预测方案阶段0(R67): 系列位置分桶测量仪表
     ("test_series_meter_s0.py",
      "S0: 胜负解码(回合结算块)/系列位置/分桶/aux评分真前向50%构造/曲线行四桶"),
