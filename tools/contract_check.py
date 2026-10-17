@@ -122,6 +122,16 @@ import macros.suika as macros_suika
 chk(feat_builder.FeatureBuilder.CORE_DIMS >= 343,
     "CORE_DIMS>=343(S-2段330+13; JZ-1后358)",
     "got %r" % feat_builder.FeatureBuilder.CORE_DIMS)
+# 全量sweep抓漏(R150): 原>=343区间界对358→357漂移放行, 靠活性段的
+# IndexError崩溃拦截(非干净FAIL=D12口径漏网) — 增段账本精确锚:
+# feat_builder尾部fill_jz1(s, 343, ...)写[343..343+15), CORE_DIMS
+# 必须==343+jz1宽(单源: N_DIMS=15)
+import jz1_features as _jz1
+chk(feat_builder.FeatureBuilder.CORE_DIMS
+    == 343 + _jz1.N_DIMS,
+    "CORE_DIMS==343+JZ-1段账本(358; 段账本锚替代区间界)",
+    "got %r != %d" % (feat_builder.FeatureBuilder.CORE_DIMS,
+                      343 + _jz1.N_DIMS))
 chk(opp_model.OpponentModel.N_FEATS == 75,
     "opp_model.N_FEATS==75(基础27+历史40+资源8)",
     "got %r" % opp_model.OpponentModel.N_FEATS)
@@ -770,6 +780,7 @@ chk(_ok2, "rebuild取值域枚举(slot0-5×ep200)全在段内(D4)", _det2)
 import re as _re_port
 import portmap as _pm
 _calls = set()
+_all_port_src = []   # R150: 动态格式串豁免用全源汇总
 for _root, _dirs, _fs in os.walk('.'):
     if any(s in _root for s in ('_archive', '.zcode', 'gate_sandbox')):
         continue
@@ -782,14 +793,21 @@ for _root, _dirs, _fs in os.walk('.'):
                         errors='replace').read()
         except OSError:
             continue
+        _all_port_src.append(_src)
         for _m in _re_port.finditer(
                 r'reserved_port\(\s*["\']([^"\']+)["\']\s*\)', _src):
             _calls.add((_fn, _m.group(1)))
+_all_port_blob = '\n'.join(_all_port_src)
 _missing = sorted((f, n) for f, n in _calls if n not in _pm.RESERVED)
 chk(not _missing, "P1-9: reserved_port调用×RESERVED键完备对账",
     '缺键: %s' % (_missing[:4],))
-_unused = sorted(n for n in _pm.RESERVED
-                 if not any(n == c[1] for c in _calls))
+# 动态格式化调用豁免(R150): expert_harvest_w0-3经
+# reserved_port('expert_harvest_w%s' % _wtag)派生(采集并行worker),
+# 静态字面量扫描天然不可见 — 前缀模板在源汇总中命中即算被调用
+_unused = sorted(
+    n for n in _pm.RESERVED
+    if not any(n == c[1] for c in _calls)
+    and ('%s%%s' % n[:-1]) not in _all_port_blob)
 chk(not _unused, "RESERVED无僵尸键(有键无调用)", '僵尸: %s' % (_unused,))
 chk('OPCODE_SPEED, OPCODE_DISPLAY' in src("tm_env.py")
     and '("<BB", 3, 0)' not in src("tm_env.py"),
