@@ -2234,6 +2234,12 @@ chk(src("episode_core.py").count("check_row_counts(") >= 3,
 # 原版在 vf_adam.step 之后用 self.W1v 反传价值路(旧dH1v×新W1v) — 与 torch
 # 单步计算图不等价(审计实测 conv1/2/3 梯度 cos=0.396/0.637/0.564)。
 # 权重范数差抓不到(Adam 首步 Δ 尺度过小), 故用源码锚 + 反串钉死。
+# P2(从零#5): 快照版本文件**损坏**必须响亮 — 原静默返回 0 而 actor 门是
+# `if ver > 0` → "永久用旧权重且看起来健康"(与仪表假绿同族)。
+chk("_VERSION_WARNED" in src("episode_core.py")
+    and "快照版本文件损坏" in src("episode_core.py")
+    and "ver_corrupt" in src("actor_worker.py"),
+    "P2(从零#5): 版本文件损坏=响亮(缺档仍静默0) + actor 侧计数")
 # P1-2(从零#5): 20 角色矩阵里 league 种子 temp=2.0、三主模型 temp=0.5 —
 # 温度/宏库差异会被读成"角色强度"。披露口径: 评估报告必须带 model_temp。
 chk("model_temp" in src("tools/eval_matrix.py")

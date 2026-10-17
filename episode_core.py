@@ -425,13 +425,30 @@ def write_version(snap_dir, ver):
     os.replace(tmp, os.path.join(snap_dir, "version"))
 
 
+# P2(从零#5): 版本文件**损坏**必须响亮 — 原静默返回 0, 而 actor 的门是
+# `if ver > 0`, 于是"永久用旧权重且无日志"(看起来健康)。首错打一次即止
+# (每局都喊会刷屏; 同一文件损坏状态不重复)。
+_VERSION_WARNED = set()
+
+
 def read_version(snap_dir):
-    """读当前版本号。无/损坏 → 0。actor每局边界调用(文件stat廉价)。"""
+    """读当前版本号。**缺档=0(未发布, 正常)**; **损坏=0 但响亮告警一次**。
+
+    actor 每局边界调用(文件 stat 廉价); 语义保持"0=无可用版本"不变。
+    """
     vfile = os.path.join(snap_dir, "version")
     if not os.path.exists(vfile):
-        return 0
+        return 0      # 未发布: 正常路径, 不告警
     try:
         with open(vfile) as f:
-            return int(f.read().strip())
-    except (ValueError, OSError):
+            _txt = f.read().strip()
+        return int(_txt)
+    except (ValueError, OSError) as _e:
+        _key = (str(vfile), type(_e).__name__)
+        if _key not in _VERSION_WARNED:
+            _VERSION_WARNED.add(_key)
+            print('[episode_core] !! 快照版本文件损坏(%s): %r — '
+                  '回退版本0 = actor 会**永久用旧权重**且无其它提示; '
+                  '请查该目录写入方(此后再出现不重复告警)'
+                  % (vfile, _e), flush=True)
         return 0

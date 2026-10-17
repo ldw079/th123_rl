@@ -646,6 +646,10 @@ MUTATIONS = [
      "        report['model_temp'] = _temps",
      "        pass",
      "温度披露缺失(种子temp2.0与主模型0.5混比) → P1-2断言必须红"),
+    ("episode_core.py",
+     "        if _key not in _VERSION_WARNED:",
+     "        if False:",
+     "版本损坏恢复静默(actor永久用旧权重且无提示) → P2版本断言必须红"),
 ]
 
 

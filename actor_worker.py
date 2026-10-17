@@ -205,6 +205,12 @@ def run_actor(char, actor_id, port, tps=480, episodes=1000,
 
     def run_with_snapshot():
         ver = read_version(snap_dir)
+        # P2(从零#5): 版本文件存在但读回 0(损坏) → 局边界记一笔, 防"看起来健康"
+        if ver == 0 and os.path.exists(os.path.join(snap_dir, 'version')):
+            state['ver_corrupt'] = state.get('ver_corrupt', 0) + 1
+            if state['ver_corrupt'] in (1, 10, 100):
+                print('[actor] !! 快照版本不可用(第%d次) — 本轮沿用 v%d'
+                      % (state['ver_corrupt'], state['snap_ver']), flush=True)
         if ver > 0 and ver != state['snap_ver']:
             if load_snapshot_weights(snap_dir, ver, tr):
                 state['snap_ver'] = ver
