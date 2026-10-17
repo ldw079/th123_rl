@@ -37,6 +37,17 @@ import unicodedata as _ud
 _NAME_BAD = re.compile(r'[。．，,；;：:（）()↑←→↓/·…—]{3,}')
 
 
+_SENTENCE_HINTS = ('了', '开始', '所以', '因为', '但是', '虽然', '之后',
+                   '的话', '使用率', '而且', '基本', '很难', '容易', '时候',
+                   '可以', '这个', '那个', '还有')
+
+
+def _looks_like_sentence(s):
+    """P1修(bug_2026-10-17): 含叙述词的中文句不是招名 — has_latin
+    对'原236的使用率开始上升'类建议句误判(数字触发拉丁判定)."""
+    return any(w in s for w in _SENTENCE_HINTS)
+
+
 def is_move_name(ln):
     """警戒节的严格招名(拉丁/片假名记法) — 见上注释."""
     s = ln.strip()
@@ -47,6 +58,8 @@ def is_move_name(ln):
     if s in ('特征', '技能', '备注', '发生时间', '无敌时间', '伤害', '花费'):
         return False
     if _NAME_BAD.search(s):
+        return False
+    if _looks_like_sentence(s):
         return False
     has_latin = any(c.isascii() and c.isalnum() for c in s)
     if has_latin:
@@ -60,31 +73,47 @@ def is_move_name(ln):
 
 def is_list_item(ln):
     """列表节(破防/空防不可/天气)的宽松条目名 — 枚举节里中文短行
-    也是条目(如'雾雨萝卜'), 只需短+无句末标点(首版行为)."""
+    也是条目(如'雾雨萝卜'), P1修: 长度放宽60(单行多招枚举由
+    parse_list_section拆分), 补节标题过滤+叙述句排除."""
     s = ln.strip()
-    if not s or len(s) > 20:
+    if not s or len(s) > 60:
         return False
-    if s.endswith(('。', '，', '、', '：', '；', '？', '！')):
+    if s.endswith(('。', '？', '！')):
+        return False
+    if s in (SEC_GC, SEC_AIR, SEC_WX, '特征'):
+        return False
+    if _looks_like_sentence(s):
         return False
     return not _NAME_BAD.search(s)
 
 
 def parse_list_section(body):
-    """一击破防/空防不可/天气: 逐条(宽松条目名is_list_item)."""
+    """一击破防/空防不可/天气: 逐条(宽松条目名is_list_item).
+
+    P1修(bug审计2026-10-17): 枚举节大量单行多招式("中段：H6A、蓄力花剪、
+    …" / "A連、遠A、6A、2A、DA、DB、…") — 长度上限放宽到60且按顿号
+    拆分逐招计数(计数先验的口径=招数, 非行数)."""
     items = []
     cur = None
+
+    def _flush(name, note):
+        # 顿号拆分: "H6A、蓄力花剪" → 两条
+        parts = [p.strip() for p in name.split('、') if p.strip()]
+        for p in parts:
+            items.append({'name': p[:24], 'note': note[:120]})
+
     for ln in body.splitlines():
         s = ln.strip()
         if not s:
             continue
         if is_list_item(s):
             if cur:
-                items.append(cur)
+                _flush(cur['name'], cur['note'])
             cur = {'name': s, 'note': ''}
         elif cur is not None:
-            cur['note'] = (cur['note'] + ' ' + s).strip()[:120]
+            cur['note'] = (cur['note'] + ' ' + s).strip()
     if cur:
-        items.append(cur)
+        _flush(cur['name'], cur['note'])
     return items
 
 
