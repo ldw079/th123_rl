@@ -626,6 +626,14 @@ MUTATIONS = [
      "        rows2.append(kv('特征维度', 'CORE_DIMS=%d (真值)' % _cd, 'good'))",
      "        rows2.append(kv('活性巡检', '通过(358维, 29+8段)', 'good'))",
      "仪表写死\"通过\"(假绿: 巡检从未执行/维度硬编码) → P1-9断言必须红"),
+    ("learner_hub.py",
+     "    for _b in _bhs[:max(0, len(_bhs) - 1000)]:",
+     "    for _b in []:",
+     "BH旁车保留策略失效(旁车无界增长) → P2旁车断言必须红"),
+    ("tools/audit_all.py",
+     "        _paths += _acts[:1]",
+     "        _paths += []",
+     "奖励面板回退只读learner日志(结构性空) → P2仪表断言必须红"),
 ]
 
 

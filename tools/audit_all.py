@@ -86,8 +86,15 @@ def main():
     # 3. 日志尾读
     sec('3 日志尾读')
     for ch in chars:
-        for path in (r'D:\temp\learner_%s.log' % ch,
-                     r'D:\temp\train_%s.log' % ch):
+        # P2(从零#5): 奖励成分行由 **train_tm 打进 actor 日志**
+        # (learner 只打批更新/曲线) — 原只读 learner/train 两个档, 面板恒
+        # 显示"无奖励行"(结构性失效)。按 actor 日志补读(取最新一个 actor)。
+        _paths = [r'D:\temp\learner_%s.log' % ch,
+                  r'D:\temp\train_%s.log' % ch]
+        _acts = sorted(glob.glob(r'D:\temp\actor_%s_*.log' % ch),
+                       key=os.path.getmtime, reverse=True)
+        _paths += _acts[:1]
+        for path in _paths:
             if os.path.exists(path):
                 mt = time.strftime('%m-%d %H:%M', time.localtime(
                     os.path.getmtime(path)))

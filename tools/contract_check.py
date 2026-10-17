@@ -2229,6 +2229,13 @@ chk(src("episode_core.py").count("check_row_counts(") >= 3,
 # 20% 上限从未 clamp。assertion 用"正串在场 + 反串不在场"双向锁定。
 # P1-9(从零#5): 仪表不许写死"通过"/把样本数当战绩 — 假绿比红灯更贵。
 # 活性巡检行原恒为 '通过(358维, 29+8段)'(该行从不执行巡检, 维度也硬编码)。
+# P2(从零#5): 两处"看不见增长/看不见数据"的清理面。
+chk("bh_%s_*.json" in src("learner_hub.py")
+    and "len(_bhs) - 1000" in src("learner_hub.py"),
+    "P2(从零#5): BH旁车保留策略有界(1000/角色, 原无清理方)")
+chk("actor_%s_*.log" in src("tools/audit_all.py")
+    and "_acts[:1]" in src("tools/audit_all.py"),
+    "P2(从零#5): audit_all奖励面板补读actor日志(原结构性空)")
 chk("通过(358维" not in src("tools/status_dashboard.py")
     and "CORE_DIMS=%d (真值)" in src("tools/status_dashboard.py"),
     "P1-9(从零#5): 仪表活性巡检不写死\"通过\"(真值+如实标注)")

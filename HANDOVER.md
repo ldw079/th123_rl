@@ -62,7 +62,7 @@ guard_height.json+matchup_combo_prior.json+move_displacement_*.json。
 | `soku_client2.py` | TCP锁步协议客户端 | 协议变更 |
 | `tools/human_match_v2.py` | **人测runner**(RPM观察+内存写行动) | 人测流程变更 |
 | `tools/eval_matrix.py` | 评估矩阵(四口径+vs_Human+被动仪表) | 评估变更 |
-| `tools/contract_check.py` | **门禁**(643断言, 0 FAIL 才可提交) | 新增断言+配对变异 |
+| `tools/contract_check.py` | **门禁**(658断言/0 WARN, 0 FAIL 才可提交) | 新增断言+配对变异 |
 | `tools/gate_selftest.py` | 变异自检(沙箱逐条变异→门禁必红) | 新增变异 |
 | `portmap.py` | 端口段划分(20800-21299) | 端口变更 |
 | `series_manager.py` | BO15系列赛管理(阶段1, flag门控) | 系列赛启用时 |

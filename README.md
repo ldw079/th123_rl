@@ -60,7 +60,7 @@ th123_rl/
 ├── frame_events.py        帧级事件检测+反应掩码
 ├── bc_*.py / distill.py / teach.py            BC 库/蒸馏诊断/教学层
 ├── macros/                宏库包(__init__=灵梦库+共享规范化器, 20 角色各一档)
-├── tests/                 行为测试(89 档, 门禁 C15 白名单全量对账)
+├── tests/                 行为测试(**92 档**, 门禁 C15 白名单全量对账)
 ├── tools/                 工具(train_start/audit_all/contract_check/评估仪表…)
 ├── docs/                  文档(主规划/审查报告/设计文档/手册)
 ├── data/                  本地数据(BC 库/神谕分片, gitignore)

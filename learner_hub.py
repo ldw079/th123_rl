@@ -74,6 +74,17 @@ def _dg_cleanup(ep_dir, snap_dir, char=None):
             os.remove(old)
         except OSError:
             pass
+    # P2(从零#5): BH 旁车(bh_*.json)保留策略 — 原**无任何清理方**:
+    # 自 10-16 20:25 起累积 556 份且继续增长(每局 ~1KB, 与 episode 同生命周期,
+    # 但消费方只删 ep_*.npz) → 按角色保留最近 1000 份。
+    _bhs = sorted(glob.glob(os.path.join(ep_dir, 'bh_%s_*.json' % char))
+                  if char else glob.glob(os.path.join(ep_dir, 'bh_*.json')),
+                  key=lambda p: (os.path.getmtime(p), p))
+    for _b in _bhs[:max(0, len(_bhs) - 1000)]:
+        try:
+            os.remove(_b)
+        except OSError:
+            pass
     # P2(审计#3): 降容硬杀残留的半写tmp(生产者已死, 原无清理方)
     for st in glob.glob(os.path.join(ep_dir, '*.tmp.npz')):
         try:
