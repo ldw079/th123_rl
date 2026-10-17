@@ -889,12 +889,29 @@ chk(_MS.N_MACROS_SUIKA >= 77
     "suika原子在位+宏数≥77(R35+R61n底数; 扩展波尾增合法)")
 # R38(第九轮审计§2.1): 原死表达式`STORE if False else 硬编码路径` —
 # 门禁成为单PC仪器。改环境变量可覆盖, 默认仓库data/bc(bc_build产物位)。
+# P1-2b(从零#5): 断言对象改成**活档** — 原读 data/bc/*.npz(330代 legacy 镜像,
+# 仅在仓内 gitignore 区), 活库是 STORE/bc_<ch>_{X,S,Y}.npy + _meta.json。
+# 「量错了对象」与 P1-1(评估读旧模型)同族: 断言绿/红都不代表生产实况。
 _bc_dir = os.environ.get(
     "TH123_BC_DIR",
     os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                  'data', 'bc'))
-_bc_npz = np.load(os.path.join(_bc_dir, 'bc_suika.npz'), allow_pickle=True)
-_bc_s = _bc_npz['S']
+_liveS = os.path.join(STORE, 'bc_suika_S.npy')
+if os.path.exists(_liveS):
+    _bc_s = np.load(_liveS, mmap_mode='r')
+    try:
+        import json as _json0
+        _bc_meta0 = _json0.load(io.open(
+            os.path.join(STORE, 'bc_suika_meta.json'), encoding='utf8'))
+    except (OSError, ValueError):
+        _bc_meta0 = {}
+    _bc_npz = {'S': _bc_s, 'meta': _json0.dumps(_bc_meta0)}
+    _bc_src_note = '活档trio'
+else:
+    _bc_npz = np.load(os.path.join(_bc_dir, 'bc_suika.npz'),
+                      allow_pickle=True)
+    _bc_s = _bc_npz['S']
+    _bc_src_note = 'data/bc(legacy镜像)'
 _bc_want = 5 * _MS.N_MACROS_SUIKA + _FB.FeatureBuilder.CORE_DIMS
 if _bc_s.shape[1] != _bc_want:
     warn(_bc_s.shape[1] == _bc_want,
@@ -902,7 +919,7 @@ if _bc_s.shape[1] != _bc_want:
          "S=%d want=%d" % (_bc_s.shape[1], _bc_want))
 else:
     chk(True, "suika BC库宽度与五块布局对齐(R23-30)",
-        "S=%d" % _bc_s.shape[1])
+        "S=%d src=%s" % (_bc_s.shape[1], _bc_src_note))
 # R38: 重建后的库必须带布局版本且gap/untech块有真实数据(非零填充)
 try:
     import json as _json
@@ -1613,12 +1630,17 @@ chk('if axis in ("H", "V") and mirror:' not in tt63,
 # (非现役17角色档仍为66宏=旧308代际残留; 该断言会把他们点出来)
 from episode_core import code_macro_count as _rt_code_n   # noqa: E402
 for _ch in ("reimu", "marisa", "suika"):
-    _mc = os.path.join(STORE, "macro_counts_%s.npy" % _ch)
+    # P1-2b(从零#5): 活档优先 — fleet 写 _fleet 后缀; 原查无后缀档(单机遗留,
+    # 宽 70/76/77) → 三条 WARN 常驻且指向退役产物, 掩盖真实代际问题。
+    _mc_f = os.path.join(STORE, "macro_counts_%s_fleet.npy" % _ch)
+    _mc = _mc_f if os.path.exists(_mc_f) else os.path.join(
+        STORE, "macro_counts_%s.npy" % _ch)
     _cn = _rt_code_n(_ch)
     _got = (int(len(np.load(_mc))) if os.path.exists(_mc) else None)
     warn(_got is not None and _cn is not None and _got == _cn,
          "R63(P0-2): macro_counts_%s宽度==代码宏数(%s)" % (_ch, _cn),
-         "%s" % (_got if _got is not None else "缺档"))
+         "%s src=%s" % (_got if _got is not None else "缺档",
+                        os.path.basename(_mc)))
 chk("def aggregate_stats(" in src("fleet_supervisor.py"),
     "R57-2.6: supervisor聚合actor stats(league数据源)")
 
