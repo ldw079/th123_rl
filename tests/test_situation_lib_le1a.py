@@ -87,7 +87,11 @@ def main():
     check('查询sakuya近距攻击情境', idx is not None and 0 < len(idx) <= 100,
           'n=%s' % (len(idx) if idx is not None else '-'))
     idx_all = query('reimu', k=0)
-    check('k=0全量', idx_all is not None and len(idx_all) == 429411)
+    _exp_rows = json.loads(str(np.load(os.path.join(
+        OUT_DIR, 'reimu_index.npz'), allow_pickle=True)['meta']))['rows']
+    check('k=0全量', idx_all is not None and len(idx_all) == _exp_rows,
+          'n=%d/meta=%d' % (len(idx_all) if idx_all is not None else -1,
+                            _exp_rows))
 
     # ===== P0防复发(bug_2026-10-17): 热度不恒1 — 用合成raw数据直测
     # matchup_heat(合成fate计数: vs某对位hit=3其余fate=97 → heat≈0.97) =====
