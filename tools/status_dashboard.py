@@ -195,6 +195,21 @@ def check_fleet():
     return n_game, n_py
 
 
+def get_fleet_alert():
+    """P1-7(从零#5): fleet_heartbeat.alert 的**读者**。
+
+    原该文件写而不读(假账): 减员告警写进去, 仪表/审计都不看, 且重启路径的
+    无参心跳会把它自己清掉。现在仪表"舰队"栏显式展示。
+    返回 (显示串, 颜色标记)。
+    """
+    p = os.path.join(STORE, 'fleet_heartbeat.alert')
+    try:
+        txt = io.open(p, encoding='utf8').read().strip()
+    except OSError:
+        return '无告警', 'good'
+    return (txt[:60] if txt else '空告警文件'), 'bad'
+
+
 def get_watchdog_status():
     """P0-3存活自检(从零#5): 读 fleet_heartbeat.wd = 看门狗最后采样时点+族CPU。
 
@@ -234,6 +249,7 @@ def main():
     n_game, n_py = check_fleet()
     n_eps, n_recent = get_episode_stats()
     _wd_txt, _wd_ok = get_watchdog_status()
+    _al_txt = get_fleet_alert()
     fleet_ok = n_game >= 2 and n_py >= 3
     print()
     items = [
@@ -244,6 +260,7 @@ def main():
            'good' if n_recent > 0 else 'warn'),
         kv('league对手', '27位 (主3×3 + league17 + COM)'),
         kv('CPU看门狗', _wd_txt, _wd_ok),
+        kv('车队告警', *_al_txt),
     ]
     print(box('舰队', items))
 

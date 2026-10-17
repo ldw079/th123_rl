@@ -266,6 +266,27 @@ CHARS = ('reimu', 'marisa', 'suika')   # 主角色(有learner); D3'(R65): --focu
 LEAGUE_FOCUS_WEIGHT = 3
 STAGGER_S = 20
 MAX_RESTARTS = 20
+# P1-7(从零#5): 重启预算**按窗口衰减** — 原 restarts 终身累计
+# (20 次崩溃即永久减员, 与"偶发崩溃是常态"相悖)。窗口内无重启
+# 则计数折半, 连续两个窗口无重启清零。
+RESTART_DECAY_S = 1800.0
+
+
+def restart_budget(restarts, last_restart, now=None, window=RESTART_DECAY_S):
+    """重启预算按窗口衰减 → 新计数dict(**不改入参**)。
+
+    P1-7(从零#5): 原 restarts 终身累计 — 20 次崩溃即永久减员, 且重启预算
+    是最容易被"偶发崩溃堆积"误伤的机制。语义:
+      · 该 key 上次重启距今 ≤ window  → 计数保持;
+      · > window(窗口内无重启)        → 折半(连续两窗无重启自然清零);
+      · 未重启过(last=0)              → 保持(0 恒为 0)。
+    """
+    now = time.time() if now is None else now
+    out = {}
+    for k, n in restarts.items():
+        last = last_restart.get(k, 0.0)
+        out[k] = (int(n) // 2) if (n and last and now - last > window) else int(n)
+    return out
 COOLDOWN_S = 30
 LEAGUE_INTERVAL = 3600  # league重分配周期(秒)
 # R63(P1-5): actor局预算 — supervisor的actor是**长期生产者**, 原不传
@@ -276,10 +297,19 @@ ACTOR_EPISODES = 1000000
 
 
 def log(msg):
+    """监督日志 — P1-8(从零#5): 写盘失败**不得**掀翻监督器。
+
+    原实现 open(append) 裸抛: 盘满/被占用/杀软占用 → 异常穿出主循环 →
+    `finally` 只删锁, 不走 _clean_shutdown → learner/actor/游戏全成孤儿
+    (监督日志 16:51 有"孤儿回收 PID=19136"前例)。
+    """
     line = '[%s] %s' % (time.strftime('%m-%d %H:%M:%S'), msg)
     print(line, flush=True)
-    with open(SUPERVISION_LOG, 'a', encoding='utf8') as f:
-        f.write(line + '\n')
+    try:
+        with open(SUPERVISION_LOG, 'a', encoding='utf8') as f:
+            f.write(line + '\n')
+    except OSError as _e:
+        print('[log] 监督日志写失败(%r) — 仅控制台' % (_e,), flush=True)
 
 
 def league_alloc(n_actors, chars=CHARS, stats=None):
@@ -407,12 +437,20 @@ def _spawn_actor(ch, aid, port, opp_specs, tps=480):
     for spec in opp_specs:
         cmd += ['--opp', spec]
     # P2(审计#3): 原日志fd内联在Popen里永不关(重启风暴泄漏句柄)
-    _lf = open(r'D:\temp\actor_%s_%d.log' % (ch, aid),
-               'a', encoding='utf8')
+    try:
+        _lf = open(r'D:\temp\actor_%s_%d.log' % (ch, aid),
+                   'a', encoding='utf8')
+    except OSError as _e:
+        # P1-8(从零#5): 日志档打不开不该等于**该 actor 起不来** —
+        # 回落 DEVNULL 继续拉人(原异常穿出主循环=整队孤儿)。
+        print('[spawn] actor日志打开失败(%r) — 回落DEVNULL' % (_e,),
+              flush=True)
+        _lf = subprocess.DEVNULL
     p = subprocess.Popen(
         cmd, cwd=HERE, creationflags=CG | PRIORITY,
         stdout=_lf, stderr=subprocess.STDOUT)
-    _lf.close()   # 子进程已继承句柄, 父侧关闭不影响子进程写
+    if _lf is not subprocess.DEVNULL:
+        _lf.close()   # 子进程已继承句柄, 父侧关闭不影响子进程写
     return p
 
 
@@ -547,6 +585,7 @@ def main():
         # 监督循环
         restarts = {k: 0 for k in list(actors) + [
             ('learner', ch) for ch in chars]}
+        _last_restart = {}   # P1-7: key→上次重启时刻(衰减窗口用)
         last_league = time.time()
         report_offline_gap()
         _hb = 0
@@ -572,12 +611,14 @@ def main():
                     _clean_shutdown(actors, learners)
                     break
             _hb += 1
+            # P1-7(从零#5): alert 文本一次算好, 循环内所有心跳调用都带上 —
+            # 原重启路径的无参 write_heartbeat() 会把减员告警**自己清掉**,
+            # 且该文件当时**无任何读者**(写而不读=假账)。
+            _alert_txt = ('restart_exhausted:%s'
+                          % ','.join(sorted(map(str, _exhausted)))
+                          ) if _exhausted else None
             if _hb % HEARTBEAT_EVERY == 0:
-                # P0: 心跳携带减员告警(防无参调用清除alert文件)
-                write_heartbeat(
-                    alert=('restart_exhausted:%s'
-                           % ','.join(sorted(map(str, _exhausted)))
-                           ) if _exhausted else None)
+                write_heartbeat(alert=_alert_txt)
             # P0: 耗尽减员节流重播(每18循环≈3min) — 静默事故不再
             if _exhausted and _hb % 18 == 0:
                 log('!!ALERT!! 车队减员在案: %s (需人工介入)'
@@ -643,6 +684,10 @@ def main():
                         key, p.returncode))
                 ch, aid = key
                 rk = restarts.get(key, 0)
+                # P1-7: 窗口内无重启 → 预算折半(偶发崩溃不再终身记账)
+                _dec = restart_budget({key: rk}, _last_restart)[key]
+                if _dec != rk:
+                    rk = restarts[key] = _dec
                 if rk >= MAX_RESTARTS:
                     # P0(从零#4, bug_restart_exhaust_silent): 耗尽=事故
                     # 不是静默减员 — 原仅del无告警, marisa缺员1.6h无人
@@ -659,12 +704,13 @@ def main():
                     str(key), p.returncode, COOLDOWN_S))
                 # P2(审计#3): 重启风暴时N×30s阻塞主循环>心跳窗(90s)
                 # → 假离线账 — 冷却期照写心跳
-                write_heartbeat()
+                write_heartbeat(alert=_alert_txt)
                 time.sleep(COOLDOWN_S)
                 p2 = _spawn_actor(ch, aid, fleet_port(aid), opp_specs,
                                  args.tps)
                 actors[key] = p2
                 restarts[key] = rk + 1
+                _last_restart[key] = time.time()   # P1-7: 衰减窗口起点
                 log('%s 已重启 PID=%d' % (str(key), p2.pid))
 
             # learner检查
@@ -689,12 +735,23 @@ def main():
                     stderr=subprocess.STDOUT)
                 learners[ch] = p2
                 restarts[('learner', ch)] = rk + 1
+                _last_restart[('learner', ch)] = time.time()
 
         log('全部结束')
 
     except KeyboardInterrupt:
         log('中断 — 先停actor等待退出, 再停learner')
         _clean_shutdown(actors, learners)
+
+    except Exception as _fatal:
+        # P1-8(从零#5): 任何未预期异常都必须**先收队再抛** — 原只删锁,
+        # learner/actor/游戏全成孤儿(监督日志有"孤儿回收 PID=19136"前例)。
+        log('!!监督器异常退出(%r) — 先干净收队再抛(防整队孤儿)' % (_fatal,))
+        try:
+            _clean_shutdown(actors, learners)
+        except Exception as _e2:
+            log('收队期间异常(%r) — 继续抛出原错' % (_e2,))
+        raise
 
     finally:
         try:

@@ -614,6 +614,14 @@ MUTATIONS = [
      "    eff = min(INJECT_RATIO, INJECT_CAP)",
      "    eff = INJECT_RATIO",
      "20%注入上限失效(半批被回放行挤占) → le1b测试必须红"),
+    ("fleet_supervisor.py",
+     "                _dec = restart_budget({key: rk}, _last_restart)[key]",
+     "                _dec = rk",
+     "重启预算衰减断线(终身累计=偶发崩溃永久减员) → watchdog测试必须红"),
+    ("fleet_supervisor.py",
+     "                write_heartbeat(alert=_alert_txt)\n                time.sleep(COOLDOWN_S)",
+     "                write_heartbeat()\n                time.sleep(COOLDOWN_S)",
+     "重启路径心跳丢 alert(减员告警被自己清掉) → watchdog测试必须红"),
 ]
 
 

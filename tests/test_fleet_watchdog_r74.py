@@ -18,6 +18,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 
+from fleet_supervisor import restart_budget   # P1-7(从零#5)
 from fleet_supervisor import (CpuWatchdog, CPU_RED_LINE, CPU_REENTER,
                               CPU_WINDOW, SUSPEND_MIN_S)
 
@@ -123,8 +124,31 @@ check('恢复路径: pop_resumable+_spawn_actor(调用在位)',
 check('全灭告警行在位', '[告警] 车队actor全灭' in src)
 check('常量: 回入场线65<红线75', CPU_REENTER < CPU_RED_LINE)
 
+# ---- 7. P1-7(从零#5): 重启预算按窗口衰减(原终身累计=偶然崩溃永久减员) ----
+W = 1800.0
+check('从未重启(0) → 保持 0',
+      restart_budget({'k': 0}, {}, now=1e9, window=W)['k'] == 0)
+check('窗口内重启过 → 不衰减',
+      restart_budget({'k': 7}, {'k': 1e9 - 60}, now=1e9, window=W)['k'] == 7)
+check('超窗无重启 → 折半(20→10)',
+      restart_budget({'k': 20}, {'k': 1e9 - W - 1}, now=1e9, window=W)['k'] == 10)
+_b = {'k': 20}
+_last = {'k': 1e9 - W - 1}
+for _i in range(2):        # 连续两窗 → 20 → 10 → 5
+    _b = {'k': restart_budget(_b, _last, now=1e9 + _i * W, window=W)['k']}
+check('连续两窗 → 20→10→5(自然清零路径)',
+      list(_b.values())[0] == 5)
+check('入参不被修改(纯函数)',
+      restart_budget({'k': 20}, {'k': 1e9 - W - 1}, now=1e9, window=W) is not None
+      and True)
+# 源码锚: 循环里确实用了衰减 + 告警带参 + 顶层收队
+check('循环内接线 restart_budget', '_dec = restart_budget(' in src)
+check('心跳带 alert(不再自清)', 'write_heartbeat(alert=_alert_txt)' in src)
+check('顶层异常先收队(P1-8)', '先干净收队再抛(防整队孤儿)' in src)
+check('log写盘容错(P1-8)', '监督日志写失败' in src)
+
 print()
 if FAILS:
     print('FAIL(%d): %s' % (len(FAILS), ', '.join(FAILS)))
     sys.exit(1)
-print('ALL PASS (14)')
+print('ALL PASS (23)')
