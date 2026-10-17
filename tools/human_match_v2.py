@@ -36,7 +36,12 @@ OFF = {'hp': (388, '<h'), 'maxSpirit': (1184, '<H'),
        'spirit': (1182, '<H'), 'action': (316, '<H'),
        'sequence': (318, '<H'), 'pose': (320, '<H'),
        'poseFrame': (322, '<H'), 'x': (236, '<f'), 'y': (240, '<f'),
-       'direction': (260, '<b'), 'score': (1395, '<B')}
+       'direction': (260, '<b'), 'score': (1395, '<B'),
+       # CA-4(2026-10-17): rei_stop=灵力冷却(offset 0x4A2, 社区表核验一致
+       # — B标尺RPM观察补该字段, 教学解释"它在冷却期所以压制"获直接证据)
+       'rei_stop': (1186, '<H'),
+       # CA-6b(远期): correction=特殊补正(offset 0x4AD, bit5=32是CH)
+       'correction': (1197, '<H')}
 OFF_INKEYS, OFF_READIN = 0x60, 0x64
 DELAY_FRAMES = 5            # C'裁定: 80ms≈5帧观察延迟
 BIT = {'up': 0, 'down': 1, 'left': 2, 'right': 3, 'A': 4, 'B': 5,
