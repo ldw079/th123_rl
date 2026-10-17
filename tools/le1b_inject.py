@@ -30,25 +30,64 @@ INJECT_RATIO = float(os.environ.get('TH123_LE1B_RATIO', '0.0'))
 OUT_DIR = os.path.join(ROOT, 'data', 'situations')
 
 
+# LE-1b硬上限(方案v2): 注入行数不得超过批的 20% — 防回放分布离策略过远。
+INJECT_CAP = 0.20
+
+
 def inject_count(k):
-    """k行采样中注入行数(向上取整但不超过k*INJECT_RATIO)."""
-    if INJECT_RATIO <= 0:
+    """k行批中注入行数 — 比例先钳到 INJECT_CAP(20%), 再向下取整。
+
+    P1-15(从零#5): 原 min(ceil(k*r), int(k*r)) 对 r=0.5/1.0 分别给出
+    32/64(占批 50%/100%), 20% 上限从未生效。
+    """
+    if INJECT_RATIO <= 0 or k <= 0:
         return 0
-    return min(int(np.ceil(k * INJECT_RATIO)), int(k * INJECT_RATIO))
+    eff = min(INJECT_RATIO, INJECT_CAP)
+    return int(np.floor(k * eff))
 
 
-def inject_indices(char, k, rng):
+def _weakest_matchup(char):
+    """情境库 meta 里热度最高(最弱)的对位池槽 — 无 heat 返回 None。
+
+    P1-3(从零#5): 原实现**从不传 matchup** → query 内
+    `if heat_weighted and matchup is not None` 恒假, 热度分支从不执行
+    (实测返回全量 66,940 行 = 无热度)。修=取最弱对位传入。
+    """
+    import json as _json
+    import situation_library as _sl
+    # 运行时取 OUT_DIR(不在 import 期绑定 — R109 教训: 定义时绑定使 patch 失效)
+    p = os.path.join(_sl.OUT_DIR, '%s_index.npz' % char)
+    if not os.path.exists(p):
+        return None
+    try:
+        meta = _json.loads(str(np.load(p, allow_pickle=True)['meta']))
+        heat = meta.get('heat', {})
+        if not heat:
+            return None
+        return int(max(heat, key=lambda k: heat[k]))
+    except (OSError, ValueError, KeyError):
+        return None
+
+
+def inject_indices(char, k, rng, matchup=None):
     """从情境库选k个行索引(热度加权, 对位/贴角/近距/攻击偏好).
 
     参数k=目标注入行数(调用方已算好inject_count, 此处不再衰减 —
     首版双重inject_count致12→2行, 已修).
+    matchup: 对位池槽; None=自动取热度最高(最弱)对位。
     返回: BC库行索引array(可空) 或 None(库缺/不足).
     """
     if k <= 0:
         return None
     from situation_library import query
-    idx = query(char, attack=True, near=True, k=0,
+    if matchup is None:
+        matchup = _weakest_matchup(char)
+    idx = query(char, matchup=matchup, attack=True, near=True, k=0,
                 heat_weighted=True)
+    if idx is None or len(idx) < k:
+        # 热度过滤后可能不足k行 → 退回不加权的同情境集合(不空手而归)
+        idx = query(char, matchup=matchup, attack=True, near=True, k=0,
+                    heat_weighted=False)
     if idx is None or len(idx) < k:
         return None
     sel = rng.choice(len(idx), size=k, replace=False)

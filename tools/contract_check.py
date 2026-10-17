@@ -1837,6 +1837,9 @@ _BEHAVIOR_TESTS = [
     # P0-6(从零#5): SC标签不得覆盖复合连段终结宏(卡ID撞车实证)
     ("test_sc_label_p0.py",
      "P0-6: 裸SC宏按卡解析/复合终结宏保留身份/撞车前提实证"),
+    # P1-3/14/15(从零#5): LE-1b 热度通道四重失效(不传matchup/极性反/键空间错位/上限未生效)
+    ("test_le1b_inject_p1.py",
+     "P1-3/14/15: LE-1b热度(池槽键+极性+20%钳+matchup传入+旧产物反查)"),
     ("test_threat.py", "P0-K: 全零速弹表→(None,0) + TTI语义"),
     ("test_opp_model.py", "P0-L: 9情境可达 + 6段占据无混叠"),
     ("test_feat_segments.py", "R16§3: 每特征段≥1非常数维"),
@@ -2221,6 +2224,15 @@ chk(src("train_tm.py").count("'frame_logs', self.char") >= 2
 # 半截档(feats/sides 8行·acts/logps 4行)曾被接受、被消费、随后 os.remove。
 chk(src("episode_core.py").count("check_row_counts(") >= 3,
     "P1-4(从零#5): episode行数对账(写者+读者双端, 半截档拒收)")
+# P1-3/14/15(从零#5): LE-1b 热度注入通道 — 四重失效一次钉死:
+# 不传 matchup(分支恒假)/极性反(h=1.0 保留0行)/heat 键 raw-id 与 mid 池槽错位/
+# 20% 上限从未 clamp。assertion 用"正串在场 + 反串不在场"双向锁定。
+chk("def raw_to_pool" in src("tools/situation_library.py")
+    and "< float(h)" in src("tools/situation_library.py")
+    and "< (1.0 - float(h))" not in src("tools/situation_library.py")
+    and "INJECT_CAP" in src("tools/le1b_inject.py")
+    and fn_has("tools/le1b_inject.py", "inject_indices", "matchup=matchup"),
+    "P1-3/14/15(从零#5): LE-1b热度通道(池槽键+极性+20%钳+传matchup)")
 # P0-5尾(从零#5): train_start 前置清理按**脚本名**匹配会误杀 LE-0a 对照臂
 # (它跑同样的 learner_hub/actor_worker, 只是 worktree 不同) — 10-17 16:45
 # 主臂重启把对照臂静默杀3h, 预注册A/B终点断流。修=按 worktree 路径判别。

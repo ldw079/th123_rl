@@ -78,7 +78,48 @@ def derive_tags(S_arr, Y, char):
     return tags, mid
 
 
-def matchup_heat(char):
+def raw_to_pool():
+    """{raw_char_id: pool_slot} — mid/heat 必须同处**池槽**空间。
+
+    P1-14(从零#5): heat 原按 raw char id 建键(9=萃香), 而 mid 是池槽(2)
+    → meta 的 '9' 永不命中池槽 2(suika 自镜像), '2'(咲夜 raw id)会**错配**
+    到萃香行; marisa 的 '4'/'7' 更无对应 mid(无任何行)。修=统一到池槽。
+    """
+    from train_tm import TMTrainer, CHAR_LIBS as _CL
+    idx = TMTrainer._CHAR_POOL_IDX          # {name: slot}
+    out = {}
+    for nm, slot in idx.items():
+        lid = (_CL.get(nm) or {}).get('id')
+        if lid is not None:
+            out[int(lid)] = int(slot)
+    return out
+
+
+def matchup_heat(char, keyed_by_pool=True):
+    """BH-1旁车→对位热度(打断率; 无数据→空)。
+
+    P0修(bug_2026-10-17): raw combo_by_opp条目只有四个fate计数 —
+    原d.get('hit_rate')键不存在恒0→heat恒1.0→heat_weighted查询恒空集.
+    修: 由fate计数直接算 hit/(总fate) — 半修复教训: 分子分母都要核.
+    P1-14(从零#5): 默认按**池槽**建键(与原 mid 同空间); 无映射的 raw id 丢弃
+    (宁缺不错配 — 空表优于错表).
+    """
+    from behavior_health import aggregate
+    agg = aggregate(os.path.join(STORE, 'fleet', 'episodes'), char, 200)
+    heat = {}
+    ID2NAME = {l['id']: n for n, l in CHAR_LIBS.items()}
+    r2p = raw_to_pool() if keyed_by_pool else {}
+    for oc, d in agg.get('combo_by_opp', {}).items():
+        n = sum(d.values())   # 条目无'n'键(rates()才加) — fate计数求和
+        if n >= 5 and oc in ID2NAME.values():
+            oid = next(i for i, nm in ID2NAME.items() if nm == oc)
+            hit_rate = d.get('hit', 0) / n    # 直接由fate计数算
+            k = r2p.get(int(oid), int(oid)) if keyed_by_pool else int(oid)
+            heat[int(k)] = round(1.0 - hit_rate, 3)
+    return heat
+
+
+
     """BH-1旁车→对位热度(打断率; 无数据→空).
     P0修(bug_2026-10-17): raw combo_by_opp条目只有四个fate计数 —
     原d.get('hit_rate')键不存在恒0→heat恒1.0→heat_weighted查询恒空集.
@@ -159,10 +200,16 @@ def query(char, matchup=None, corner=None, near=None, attack=None,
     idx = np.where(sel)[0]
     if heat_weighted and matchup is not None:
         meta = json.loads(str(d['meta']))
-        h = meta.get('heat', {}).get(str(int(matchup)))
-        if h:
-            # 热度加权下采样: 弱点对位全取, 强势对位按(1-h)保留
-            keep = np.random.default_rng(7).random(len(idx)) < (1.0 - h)
+        heat = meta.get('heat', {})
+        h = heat.get(str(int(matchup)))
+        if h is None:
+            # 旧产物兼容: heat 曾按 raw char id 建键 → 池槽反查 raw 再取
+            _p2r = {v: k for k, v in raw_to_pool().items()}
+            h = heat.get(str(_p2r.get(int(matchup), -1)))
+        if h is not None:
+            # P1-3(从零#5): 极性修正 — 原 keep = rng < (1-h) 与设计**相反**
+            # (设计: 弱点对位=h高→全取; 强势=h低→按(1-h)少取)。
+            keep = np.random.default_rng(7).random(len(idx)) < float(h)
             idx = idx[keep]
     return idx[:k] if k else idx
 

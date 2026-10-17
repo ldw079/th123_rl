@@ -606,6 +606,14 @@ MUTATIONS = [
      "        for _k, _n in check_row_counts(arrays):",
      "        for _k, _n in []:",
      "读者行数对账失效(半截episode被消费后删除) → P1-4行数断言必须红"),
+    ("tools/situation_library.py",
+     "            keep = np.random.default_rng(7).random(len(idx)) < float(h)",
+     "            keep = np.random.default_rng(7).random(len(idx)) < (1.0 - float(h))",
+     "热度极性反转(弱点对位h=1.0保留0行=注入全空) → le1b测试必须红"),
+    ("tools/le1b_inject.py",
+     "    eff = min(INJECT_RATIO, INJECT_CAP)",
+     "    eff = INJECT_RATIO",
+     "20%注入上限失效(半批被回放行挤占) → le1b测试必须红"),
 ]
 
 
