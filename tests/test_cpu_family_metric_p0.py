@@ -76,8 +76,12 @@ ck(_one is not None and abs(_one - 4.0) < 1e-6,
 # ── 4. 失败=哨兵None(不是0) ──
 ck(fs.family_cpu_seconds(root_pid=100, ps_out='{坏json') is None,
    '坏JSON → None哨兵(家族CPU不可当0用)')
-ck(fs.family_cpu_seconds(root_pid=100, ps_out='') == 0.0,
-   '空表 → 0.0(进程都没了与查询失败必须区分)')
+# P0-3b(上线首日实弹): 空表=查询失败(None), **不是 0%** —
+# 本监督器自身必在表中, 表空说明 WMI 查询坏了; 当 0 会让红线永不触发。
+ck(fs.family_cpu_seconds(root_pid=100, ps_out='') is None,
+   '空表 → None失败哨兵(不是0%: 假低会让红线永不触发)')
+ck(fs.family_cpu_seconds(root_pid=999, ps_out=_JSON) is None,
+   '缺自身PID → None(部分表=查询不可信)')
 
 # ── 5. 比率口径 + clamp ──
 fs._WD_CPU_LAST.update({'ts': None, 'cpu': None, 'pct': None})

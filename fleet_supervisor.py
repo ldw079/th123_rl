@@ -154,6 +154,11 @@ def family_cpu_seconds(root_pid=None, ps_out=None):
     if rows is None:
         return None
     root = os.getpid() if root_pid is None else root_pid
+    # P0-3b(从零#5, 上线首日实弹): **空表/缺自身** = 查询失败, 不是 0%。
+    # 原把空表算成 0 → 看门狗读到"CPU 很闲"(假低), 红线永不触发(与整机
+    # 口径失效同族)。本监督器自身必然是 python.exe → 表里没有 root 即失败。
+    if not rows or all(r[0] != root for r in rows):
+        return None
     cpu_by_pid = {r[0]: r[2] for r in rows}
     kids = {}
     for pid, ppid, _c in rows:
