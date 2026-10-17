@@ -7,3 +7,6 @@ torch>=2.0
 # - th123 游戏 + SokuAITrainer/SokuDirectXOptimizations/MemoryPatch mod集
 #   (mod源码树 D:\temp\build\SokuAI-master, 血统C9校验)
 # - oracle录制: SOKUAI_INPUTLOG=1 的mod构建(D:\temp\soku_arch)
+
+# 非 pip 依赖(游戏本体/自制 mod/便携 Python)见 README「已知状态」段
+# soku_arch 已 vendor 入库, 无需外部安装(授权待核)

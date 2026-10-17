@@ -38,8 +38,28 @@
 D:\temp\pyenv\python.exe -X utf8 tools\contract_check.py
 ```
 
+> **以上「快速开始」面向维护者本机** — 下面的路径(`D:\temp\pyenv` / `D:\touhou\...`)
+> 是开发机约定; 访客克隆后请看下面的「已知状态」按需改环境变量
+> (`TH123_GAME_DIR` / `TH123_STORE` / `TH123_SOKU_ARCH` 等, 见 `kit_config.py`)。
+
 环境: Python 3.12(`D:\temp\pyenv\python.exe` 便携) · 游戏 `D:\touhou\hisoutensoku2026-06-15\th123_train`
 · 模型存储 `D:\temp\th123_models\` · Windows 10 x64。依赖见 `requirements.txt`。
+
+## 已知状态(2026-10-18 实测, 供访客判断"能复现到什么程度")
+
+| 项 | 状态 |
+|---|---|
+| **门禁** | `666 PASS / 0 WARN / 0 FAIL`（`tools/contract_check.py`，裸跑退出码 0；变异 205 条） |
+| 行为测试 | `tests/` 92 档，全部入 C15 白名单对账 |
+| 核心常量 | `CORE_DIMS=358`（S-2段343+JZ-1段15）；宏数 reimu 88 / marisa 95 / suika 91；`n_side` = 798/833/813 |
+| **`soku_arch`** | 已 **vendor 入库**（`soku_arch/`，30 档 283KB，见其 `VENDORED.md`）；**授权待核**，出处见该文件 |
+| 可复现项 | 代码/门禁/行为测试/宏库/帧数据表（`data/guide_tables/cleista/`）**齐全**，`git clone` 后改三五个环境变量即可跑门禁与工具 |
+| **不可复现项** | ① **训练数据**（BC 库 / oracle 分片 / 回放语料）与 **模型权重** 不在本仓库（见 `docs/DATA_POLICY.md`）；② **游戏本体** `th123` 与自制 mod（`SokuAITrainer` 等 DLL）需自备，`th123_train` 目录是开发机副本；③ 依赖外部**高手 rep 库**（6 万+ rep）的采集脚本无法在缺数据时复跑 |
+| 训练规模 | 本机 3 actor + 3 learner + 20 角色对手生态（league）；CPU 红线 ≤75% |
+| 用途边界 | **仅本地离线研究** —— 不用于联机对战、不随游戏分发、不提供任何绕过公平性的通道 |
+
+> 复现验证方式: `git clone` 到**不同路径** → 改 `TH123_*` 环境变量 → 跑 `tools/contract_check.py`。
+> 上表"不可复现项"即预期失败面, 失败项请按 `docs/_plans/public_release_hardening_plan_2026-10-17.md` 核对。
 
 ## 目录结构
 
