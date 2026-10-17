@@ -2227,6 +2227,11 @@ chk(src("episode_core.py").count("check_row_counts(") >= 3,
 # P1-3/14/15(从零#5): LE-1b 热度注入通道 — 四重失效一次钉死:
 # 不传 matchup(分支恒假)/极性反(h=1.0 保留0行)/heat 键 raw-id 与 mid 池槽错位/
 # 20% 上限从未 clamp。assertion 用"正串在场 + 反串不在场"双向锁定。
+# P1-9(从零#5): 仪表不许写死"通过"/把样本数当战绩 — 假绿比红灯更贵。
+# 活性巡检行原恒为 '通过(358维, 29+8段)'(该行从不执行巡检, 维度也硬编码)。
+chk("通过(358维" not in src("tools/status_dashboard.py")
+    and "CORE_DIMS=%d (真值)" in src("tools/status_dashboard.py"),
+    "P1-9(从零#5): 仪表活性巡检不写死\"通过\"(真值+如实标注)")
 chk("def raw_to_pool" in src("tools/situation_library.py")
     and "< float(h)" in src("tools/situation_library.py")
     and "< (1.0 - float(h))" not in src("tools/situation_library.py")

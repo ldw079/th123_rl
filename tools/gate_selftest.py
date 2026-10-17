@@ -622,6 +622,10 @@ MUTATIONS = [
      "                write_heartbeat(alert=_alert_txt)\n                time.sleep(COOLDOWN_S)",
      "                write_heartbeat()\n                time.sleep(COOLDOWN_S)",
      "重启路径心跳丢 alert(减员告警被自己清掉) → watchdog测试必须红"),
+    ("tools/status_dashboard.py",
+     "        rows2.append(kv('特征维度', 'CORE_DIMS=%d (真值)' % _cd, 'good'))",
+     "        rows2.append(kv('活性巡检', '通过(358维, 29+8段)', 'good'))",
+     "仪表写死\"通过\"(假绿: 巡检从未执行/维度硬编码) → P1-9断言必须红"),
 ]
 
 

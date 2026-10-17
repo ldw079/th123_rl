@@ -188,7 +188,7 @@ def four_lenses(matrix, chars, sup_log=None):
             lens['targeted_value'] = {
                 'pair': worst[0], 'wr': round(worst[1], 3),
                 'games': worst[2]}
-    sup_log = sup_log or r'D:	emp	h123_modelsleet_supervision.log'
+    sup_log = sup_log or r'D:\temp\th123_models\fleet_supervision.log'
     try:
         from tools.league_weekly import parse_league_blocks, analyze             as lw_analyze
         blocks = parse_league_blocks(sup_log)

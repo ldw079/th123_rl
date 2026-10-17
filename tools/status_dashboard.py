@@ -304,8 +304,20 @@ def main():
         if w is not None:
             rows2.append(kv('  %s W_gru' % ch, '%.6f' % w,
                             'good' if w > 1e-4 else 'warn'))
-    rows2.append(kv('活性巡检', '通过(358维, 29+8段)',
-                    'good'))
+    # P1-9(从零#5): 原该行写死"巡检通过+固定维度+固定段数" —— 假绿(它从不
+    # 执行巡检, 维度也是硬编码)。改为: 维度取 FeatureBuilder 真值; 执行状态
+    # 如实标注(tools/feature_liveness.py 需重放分片, 分钟级, 由用户显式跑)。
+    try:
+        import feat_builder as _fb2
+        _cd = int(_fb2.FeatureBuilder.CORE_DIMS)
+        rows2.append(kv('特征维度', 'CORE_DIMS=%d (真值)' % _cd, 'good'))
+    except Exception as _e3:
+        rows2.append(kv('特征维度', '读取失败(%s)' % type(_e3).__name__,
+                        'bad'))
+    rows2.append(kv('活性巡检',
+                    '跳过(quick模式) — 用 tools/feature_liveness.py 显式跑'
+                    if a.quick else '未自动执行 — 用 tools/feature_liveness.py',
+                    'warn'))
     print(box('特征栈与机制', rows2))
 
     # ── 4. 行为观察 ──
