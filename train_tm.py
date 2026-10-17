@@ -1391,12 +1391,28 @@ class TMTrainer:
         # 在episode落盘后flush旁车json — 不动episode npz契约)
         from behavior_health import BehaviorCounter as _BHC
         self.bh = _BHC(self.char)
-        # CE-0.1: 帧日志抽样(TH123_FRAME_LOG=1开启, 默认关; EVERY抽样
-        # — BH-1表6-8数据源, ~250-400KB/抽样局)
+        # CE-0.1: 帧日志抽样(TH123_FRAME_LOG=1开启, 默认关)
+        # — BH-1表6-8数据源, ~250-400KB/抽样局
+        # R151: 计数改**时间基准**(距该角色上次抽样>INTERVAL秒) —
+        # 原进程内局计数在fleet重启后清零, 每次重启都要重攒50局,
+        # 反复重启把抽样吃掉(实测仅1份). 时间基准对重启鲁棒.
         from behavior_health import (frame_log_enabled as _fle,
-                                     frame_log_every as _flev, FL_FIELDS)
+                                     frame_log_interval as _fliv,
+                                     FL_FIELDS)
         self._bh_ep_n = getattr(self, '_bh_ep_n', 0) + 1
-        _fl_on = _fle() and (self._bh_ep_n % _flev() == 0)
+        _fl_on = False
+        if _fle():
+            _mark = os.path.join(STORE_DIR, 'frame_logs',
+                                 '.last_%s' % self.char)
+            try:
+                _last = os.path.getmtime(_mark)
+            except OSError:
+                _last = 0.0
+            if time.time() - _last > _fliv():
+                _fl_on = True
+                os.makedirs(os.path.dirname(_mark), exist_ok=True)
+                io_open = open(_mark, 'w')
+                io_open.close()
         self._fl_frames = [] if _fl_on else None
         self._fl_decisions = [] if _fl_on else None
         # P1-4b修复(真): 对手水平速度=包位置逐帧差分EMA(包无vx字段,

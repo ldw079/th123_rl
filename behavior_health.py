@@ -129,8 +129,10 @@ def frame_log_enabled():
     return os.environ.get('TH123_FRAME_LOG', '0') == '1'
 
 
-def frame_log_every():
-    return max(1, int(os.environ.get('TH123_FRAME_LOG_EVERY', '50')))
+def frame_log_interval():
+    """R151: 抽样间隔(秒, 默认1800=30分钟/角色) — 时间基准对进程
+    重启鲁棒(原局计数在fleet重启后清零, 反复重启把抽样吃掉)."""
+    return max(60, int(os.environ.get('TH123_FRAME_LOG_INTERVAL', '1800')))
 
 
 # 帧日志字段(R131定稿12字段/侧+BH-1增direction — 位移混乱度/防守
