@@ -6,7 +6,13 @@
 
 ---
 
-1. **METHODOLOGY.md §0 红线表 R4** | 建议增补第二权威源：
+1. **docs/INDEX.md 登记新工具** | 建议在「根目录 · 活跃文档」的工具表内加一行：
+   `| tools/bc_accept.py | **验收工具** | 重建换装验收探针(--where v3|store)：
+   三复合SC宏Y计数>0 + S宽度=5N+CORE_DIMS + 行数; 每次重建前后各跑一次 |`
+   （原临时件 tools/_p0_6_accept.py 已由施工改名常驻化，用户 2026-10-18 裁定） |
+   2026-10-18 | 施工
+
+2. **METHODOLOGY.md §0 红线表 R4** | 建议增补第二权威源：
    "**wikiwiki.jp/th123ai API 语义表**（fflags/aflags 逐位/动作值全表/
    obj-ID 対応表/get_special_data，社区逆向+官方 document.txt 交叉）——
    与 cleista 分域: cleista=帧数据权威，wiki 语义表=引擎标志/动作分类
