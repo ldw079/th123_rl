@@ -477,6 +477,10 @@ def main():
             if _exhausted and _hb % 18 == 0:
                 log('!!ALERT!! 车队减员在案: %s (需人工介入)'
                     % sorted(map(str, _exhausted)))
+            # P0-3修(从零#5): CPU看门狗移出_exhausted守卫 — 原版把
+            # _wd.sample圈在耗尽分支内, 正常运行时CPU策略从不执行
+            # (红线R14两日死代码). 现每心跳(30s)采样一次.
+            if _hb % HEARTBEAT_EVERY == 0:
                 _cpu = cpu_load_pct()
                 # R75: 策略在CpuWatchdog(纯逻辑), 进程管理在此。
                 # 降容=可恢复暂停(非移除) — 全灭事故修正。

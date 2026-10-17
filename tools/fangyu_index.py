@@ -21,7 +21,7 @@ import sys
 
 sys.stdout.reconfigure(encoding='utf8')
 
-SRC = r'%USERPROFILE%\Desktop\workplace\_extracted\fangyu.txt'
+SRC = os.path.expandvars(r'%USERPROFILE%\Desktop\workplace\_extracted\fangyu.txt')
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                    'data', 'guide_tables', 'fangyu_index.json')
 

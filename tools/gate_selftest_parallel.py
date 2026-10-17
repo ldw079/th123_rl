@@ -90,6 +90,52 @@ def main():
         if _tags and not any(t in why for t in _tags):
             continue
         todo.append((i, (f, old, new, why)))
+
+    # P0-4修(从零#5): 基线绿守卫 — 原版无此步, 基线红时所有变异
+    # 都"✓红"(rc!=0+FAIL), 结论全部空判. 复用串行版gate_selftest的
+    # 基线检查逻辑: 先建一个未变异沙箱跑门禁, 不绿则拒绝继续.
+    print('[P0-4] 基线绿守卫检查中...')
+    import tempfile
+    from gate_selftest import build_sandbox, _sandbox_tmpdir
+    _tmp = _sandbox_tmpdir()
+    _base = tempfile.mkdtemp(prefix='gst_baseline_', dir=_tmp)
+    try:
+        _sb = os.path.join(_base, 'baseline')
+        os.makedirs(_sb)
+        build_sandbox(_sb)
+        _store = os.path.join(_sb, 'store')
+        _env = dict(os.environ)
+        _env['TH123_STORE'] = _store
+        _env['TH123_MODROOT'] = os.path.join(_sb, 'modroot')
+        _env['TH123_BC_DIR'] = os.path.join(_sb, 'bc')
+        _env['TH123_ORACLE_MODROOT'] = os.path.join(_sb, 'oraclemod')
+        _ml = os.path.join(_sb, 'ModLoaderSettings.json')
+        if os.path.exists(_ml):
+            _env['TH123_ML'] = _ml
+        try:
+            _r = subprocess.run(
+                [PY, '-X', 'utf8',
+                 os.path.join(_sb, 'tools', 'contract_check.py')],
+                capture_output=True, text=True, timeout=GATE_TIMEOUT,
+                encoding='utf-8', errors='replace', env=_env, cwd=_sb)
+            _baseline_rc = _r.returncode
+            _baseline_out = (_r.stdout or '') + (_r.stderr or '')
+        except subprocess.TimeoutExpired:
+            _baseline_rc = 124
+            _baseline_out = 'timeout'
+        if _baseline_rc != 0:
+            print('[P0-4] !! 基线不绿(exit=%d) — 拒绝继续' % _baseline_rc)
+            print('  末行:', _baseline_out.strip().splitlines()[-1][:100]
+                  if _baseline_out.strip() else '(无输出)')
+            print('  修复门禁后再跑变异自检')
+            import shutil
+            shutil.rmtree(_base, ignore_errors=True)
+            return 1
+        print('[P0-4] 基线绿 ✓ (exit=0)')
+    finally:
+        import shutil
+        shutil.rmtree(_base, ignore_errors=True)
+
     print('[并行] %d条变异 × %d workers (D:%.0fGB)'
           % (len(todo), n_workers, _free_gb(ROOT) or -1))
 

@@ -7,11 +7,12 @@
 3. numpy save → GPU load → 前向一致
 4. 维度与现存模型兼容(reimu 63宏)
 """
+import os
 import sys
 
 import numpy as np
 
-sys.path.insert(0, r'%USERPROFILE%/Desktop/workplace/th123_rl')
+sys.path.insert(0, os.path.expandvars(r'%USERPROFILE%/Desktop/workplace/th123_rl'))
 sys.stdout.reconfigure(encoding='utf8')
 
 try:

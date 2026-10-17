@@ -16,8 +16,8 @@ sys.stdout.reconfigure(encoding='utf8')
 
 # 用户提取件: 文件名与内容互换(萃香数据.txt实为灵梦) — 按内容角色入档
 SOURCES = [
-    (r'%USERPROFILE%\Downloads\萃香数据.txt', 'reimu'),
-    (r'%USERPROFILE%\Downloads\灵梦数据.txt', 'suika'),
+    (os.path.expandvars(r'%USERPROFILE%\Downloads\萃香数据.txt'), 'reimu'),
+    (os.path.expandvars(r'%USERPROFILE%\Downloads\灵梦数据.txt'), 'suika'),
 ]
 
 SEC_RE = re.compile(r'^[一二三四]、(.+)$')

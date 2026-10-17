@@ -19,7 +19,7 @@ import sys
 
 sys.stdout.reconfigure(encoding='utf8')
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = r'%USERPROFILE%\Desktop\workplace\_extracted\fangyu.txt'
+SRC = os.path.expandvars(r'%USERPROFILE%\Desktop\workplace\_extracted\fangyu.txt')
 IDX = os.path.join(ROOT, 'data', 'guide_tables', 'fangyu_index.json')
 OUT = os.path.join(ROOT, 'data', 'guide_tables', 'fangyu_counters.json')
 

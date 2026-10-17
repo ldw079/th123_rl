@@ -20,7 +20,7 @@ GAME = os.environ.get('SOKUAI_GAME_DIR', r'D:\temp\rl_game')
 EXE = os.path.join(GAME, 'th123.exe')
 ML = os.path.join(GAME, 'ModLoaderSettings.json')
 ROOT = r'D:\temp\expert_reps'
-OUT = r'%USERPROFILE%\Desktop\workplace\th123_rl\data\oracle_v2'
+OUT = os.path.expandvars(r'%USERPROFILE%\Desktop\workplace\th123_rl\data\oracle_v2')
 ORACLE_SET = ['MemoryPatch', 'ReplayDnD-old', 'SokuAITrainerEnv', 'ChainCFix',
               'FixMeiling236']
 OURS = {0, 1, 9}

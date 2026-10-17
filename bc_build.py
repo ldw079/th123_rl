@@ -25,7 +25,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, r'D:\temp\soku_arch')
-sys.path.insert(0, r'%USERPROFILE%\Desktop\workplace\th123_rl')
+sys.path.insert(0, os.path.expandvars(r'%USERPROFILE%\Desktop\workplace\th123_rl'))
 from soku_arch.packet_schema import CS_SIZE, unpack_player
 from bc_align import estimate_lag_map, realign, post_validate
 from bc_match import StreamMatcher, LOW_INFO
@@ -481,7 +481,7 @@ def main(suffix=''):
     if '--char' in _s.argv:
         only = int(_s.argv[_s.argv.index('--char') + 1])
     shards_all = sorted(glob.glob(
-        r'%USERPROFILE%\Desktop\workplace\th123_rl\data\oracle_v2\shards\*.npz'))
+        os.path.expandvars(r'%USERPROFILE%\Desktop\workplace\th123_rl\data\oracle_v2\shards\*.npz')))
     print('v2分片:', len(shards_all))
     # 预过滤索引(每分片一次meta读, ~ms级)
     _probe = {sp: _shard_meta_probe(sp) for sp in shards_all}
@@ -489,7 +489,7 @@ def main(suffix=''):
     # 改道D盘; 换装时拷回或TH123_BC_DIR指认)
     out_dir = os.environ.get(
         'TH123_BC_OUT', r'D:\temp\th123_bc_v3' if suffix
-        else r'%USERPROFILE%\Desktop\workplace\th123_rl\data\bc')
+        else os.path.expandvars(r'%USERPROFILE%\Desktop\workplace\th123_rl\data\bc'))
     os.makedirs(out_dir, exist_ok=True)
     for cid in (0, 1, 9):
         if only is not None and cid != only:

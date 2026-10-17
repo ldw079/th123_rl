@@ -11,7 +11,7 @@ import subprocess
 import sys
 import time
 
-DIR = r"%USERPROFILE%\Desktop\workplace\th123_rl"
+DIR = os.path.expandvars(r"%USERPROFILE%\Desktop\workplace\th123_rl")
 PY = r"D:\temp\pyenv\python.exe"
 
 CHARS = [

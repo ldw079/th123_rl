@@ -11,11 +11,12 @@ pose四变量计算后未写入(实写另在尾部)、"攻击区0.5标记"门控
 4. 负例: 待机(0)与移动(1)不得误触下段位(查表只有4个ID);
 5. 尾部维度布局: 下段位在CORE-5, pose区在CORE-4..CORE-1。
 """
+import os
 import sys
 
 import numpy as np
 
-sys.path.insert(0, r"%USERPROFILE%\Desktop\workplace\th123_rl")
+sys.path.insert(0, os.path.expandvars(r"%USERPROFILE%\Desktop\workplace\th123_rl"))
 from feat_builder import (FeatureBuilder, LOW_ATTACK_IDS,  # noqa: E402
                           F_VARIANT_IDS)
 

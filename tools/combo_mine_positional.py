@@ -20,7 +20,7 @@ sys.stdout.reconfigure(encoding='utf8')
 from bc_build import build_shard, mirror_frames, CS_SIZE  # noqa: E402
 
 SHARDS = sorted(glob.glob(
-    r'%USERPROFILE%\Desktop\workplace\th123_rl\data\oracle_v2\shards\*.npz'))
+    os.path.expandvars(r'%USERPROFILE%\Desktop\workplace\th123_rl\data\oracle_v2\shards\*.npz')))
 CHAR_IDS = {'reimu': 0, 'marisa': 1, 'suika': 9}
 GUARD_IDS = set(range(150, 168))
 HOR = {0: (), 1: ('right',), 3: ('left',)}   # u>>6&3
