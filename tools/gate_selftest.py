@@ -583,8 +583,8 @@ MUTATIONS = [
      "    rows = _wd_proc_rows(ps_out)\n    if rows is None:\n        return None\n    return sum(r[2] for r in rows)   # 变异: 全机口径(旁路/对照臂混入)\n    root = os.getpid() if root_pid is None else root_pid",
      "训练族口径退化为全机(旁路/对照臂混入训练负载) → cpu_family测试必须红"),
     ("tools/train_start.py",
-     "\"|exploiter' -and $_.CommandLine -notmatch 'th123_rl_control'} \"",
-     "\"|exploiter'} \"",
+     "-and $_.CommandLine -notmatch 'th123_rl_control'}; \"",
+     "}; \"",
      "前置清理回退为脚本名匹配(主臂重启静默杀对照臂) → control臂豁免断言必须红"),
 ]
 

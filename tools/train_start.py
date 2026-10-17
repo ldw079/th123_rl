@@ -46,17 +46,24 @@ def _cleanup_ps_cmd(exclude_pid):
     learner_hub.py/actor_worker.py, 只是 worktree 在 th123_rl_control)
     — 10-17 16:45 主臂重启把对照臂静默杀掉≈3h, 预注册A/B终点断流。
     修=按 worktree 路径判别: 命令行含 th123_rl_control 的一律不动。
+    **P0-5b(R170b, 同日实弹复现)**: 仅给 python 侧加路径豁免还不够 —
+    对照臂的游戏跑的是**同一个** th123_train\\th123.exe, 按 exe 路径判别
+    照样把它杀掉(实测 22:25 对照臂游戏被清 → actor 连接断 → 整臂倒下)。
+    终修=游戏侧也不再按路径猜, 而按**父进程**: 只清"父进程∈本轮已杀
+    python 集"的游戏。对照臂的游戏父进程是它自己的 actor(未入杀集) → 免疫。
     """
     return ['powershell', '-NoProfile', '-Command',
-            "$me=%d; Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" "
+            "$me=%d; "
+            "$t=Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" "
             "| Where-Object { $_.ProcessId -ne $me -and $_.CommandLine -match "
             "'fleet_supervisor|run_parallel|learner_hub|actor_worker"
-            "|exploiter' -and $_.CommandLine -notmatch 'th123_rl_control'} "
-            "| ForEach-Object { taskkill /PID $_.ProcessId /T /F }; "
+            "|exploiter' -and $_.CommandLine -notmatch 'th123_rl_control'}; "
+            "$p=@($t | Select-Object -ExpandProperty ProcessId); "
+            "$t | ForEach-Object { taskkill /PID $_.ProcessId /T /F }; "
             "Start-Sleep 2; "
             "Get-CimInstance Win32_Process -Filter \"Name='th123.exe'\" "
             "| Where-Object { $_.ExecutablePath -like '*th123_train*' -and "
-            "$_.ExecutablePath -notlike '*_control*' } "
+            "$p -contains $_.ParentProcessId } "
             "| ForEach-Object { taskkill /PID $_.ProcessId /T /F }"
             % int(exclude_pid)]
 
