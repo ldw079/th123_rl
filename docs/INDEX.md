@@ -101,6 +101,7 @@
 | `behavioral_health_recovery_plan_2026-10-15.md` | **行为健康修复方案（BH-0..BH-6，v4 重构版）— 当前最高优先** | 六症状×六根因(+对位盲); BC 排查四判决定稿(语料健康/字段语义/碎片化标注/三角色泡泡); untech 门最优先→冻结窗+八仪表+BC 四子项合批重建; ≈7 人日+1-2 周治疗窗; **CE/JZ/CH 余波排队待 BH 退出** |
 | `learning_efficiency_alignment_plan_2026-10-16.md` | **学习效率与人类能力对齐方案（LE-0..LE-8，v2 自审版）— BH 后第一优先** | "2000局之问"收束+七项自审修复: **孪生对照臂主测量**(可见提升的反事实基线)+预注册终点(P1 主臂≥2×对照)+情境重演引擎(离线段 BH 窗内并行); ≈11.5 人日; 判定时点=系列启动后 4-6 周 |
 | `community_ai_adoption_plan_2026-10-16.md` | **社区AI对标改进方案（CA-0..CA-7，v2）** | th123ai转化: **第四评估口径**(BH窗内可跑=第三测量轴)+偏移地图+**语义表资产(game_semantics_tables.md)**+objs定向复查(obj-ID値域)+**CA-6语义反哺(untech门/防御高度表/JZ-2规则表/CH信号获权威判据)**; ≈4.3 人日; 零mod/奖励/特征变更 |
+| `public_release_hardening_plan_2026-10-17.md` | **公开化改造方案（PR-0..PR-5）— 切 public 前必读** | 审计完成: 全历史零密钥/无PII/无侵权资产; **用户裁定: LICENSE=MIT+CC-BY-4.0, 用户名=全历史重写(filter-repo)**; PR-1..4 内容批次已执行(LICENSE/LICENSE-docs/DATA_POLICY/README访客段); PR-5 重写含 force-push 剧本与控制臂树哈希重锄法; 切换 runbook 在 §③ |
 | `branch_gate_activation_2026-10-13.md` | 分支门激活方案（CH-1..CH-4 框架） | branch宏confirm→四路路由 |
 | `kit_portable_python_plan_2026-10-13.md` | 轻量采集包迁移方案 | kit zip→收件人runner→数据回传 |
 | `top_yardstick_human_match_plan_2026-10-13.md` | 人测标尺对局方案 | B线顶端标尺配套 |

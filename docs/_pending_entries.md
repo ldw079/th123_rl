@@ -30,3 +30,15 @@
      采用前须实测交叉。证据: docs/th123ai_community_ai_analysis_
      2026-10-16.md §7（动作 ID 与我方 action_tables.py 逐 ID 实证
      同源）。" | 2026-10-17 | 规划
+
+5. **根目录 LICENSE + docs/LICENSE-docs（PR-1，待用户裁定档位后）** |
+   见 docs/_plans/public_release_hardening_plan_2026-10-17.md §④
+   决策 1——默认推荐 MIT(代码)+CC-BY-4.0(文档)双列，README 加
+   徽标行。用户裁定前**不创建**。 | 2026-10-17 | 规划
+
+6. **代码侧用户名脱敏（PR-2 代码半边，~10 个 py + 12 个 bat）** |
+   规则见 public_release_hardening_plan §PR-2: .bat 中
+   `%USERPROFILE%`→`%USERPROFILE%`; py 默认路径逐处改
+   `os.path.expanduser`/相对路径并跑门禁+本机冒烟（三 worktree 不
+   可破坏）; `_archive` 一律不动。文档侧约 5 个 md 由规划自行处理。
+   **与 BH-4.4 批错开提交**。 | 2026-10-17 | 规划

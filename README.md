@@ -4,6 +4,13 @@
 目标超人水平。游戏经 mod(SokuAITrainer)的 TCP 锁步协议与 Python 通信;
 本地 fleet 架构(learner 批更新 + actor 采集 + 剥削者 + 20 角色 league 对手生态)持续训练。
 
+> **访客须知**: 这是研究型项目, 复现需要 **东方非想天则 (Touhou 12.3) 游戏本体**
+> + 自制 game mod + Windows 环境, 且训练数据(回放语料/模型权重)不在本仓库分发
+> (见 [docs/DATA_POLICY.md](docs/DATA_POLICY.md))。下方"快速开始"面向维护者本机
+> 环境; 通用流程见 [docs/fleet_ignition_runbook.md](docs/fleet_ignition_runbook.md)。
+> 本项目与黄昏フロンティア/社区 AI 工具(th123_ai)无隶属关系, 帧数据表的来源
+> 标注见各文档内引用。
+
 ## 两条最高教义
 
 1. 非想天则是 **62 帧游戏**(帧↔秒一律 /62, 禁 60)
@@ -66,3 +73,11 @@ th123_rl/
 2. 改代码 → 跑 `tools/contract_check.py`(必须全绿)→ 提交 git
 3. 训练相关变更 → 重启训练(`train_start.py`)
 4. 定期 `audit_all.py` 产出诊断报告
+
+## 许可
+
+- **代码**: [MIT License](LICENSE)
+- **文档**(`*.md`): [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.zh)
+  (见 [docs/LICENSE-docs.md](docs/LICENSE-docs.md))
+- **数据边界**: 训练数据与模型权重不在本仓库分发,
+  见 [docs/DATA_POLICY.md](docs/DATA_POLICY.md)
