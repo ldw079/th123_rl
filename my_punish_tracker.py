@@ -61,7 +61,14 @@ class MyPunishTracker:
     CE-1(2026-10-15): 双层结构 — 类别层(原有, 特征[330..333]/[339])
     + 宏层(per-macro EMA, 半衰~3min跨多局)。API向后兼容:
     begin(cls) 不传name时行为与原版完全一致。
+
+    LE-3(2026-10-17, 后BH段): 即时反馈加速 — 明确被反制(PUNISHED)时
+    α临时放大(事件驱动大步更新), 正常结果维持慢EMA。单实现在此,
+    在线/离线同代码路径(方案v2硬约束)。加速因子=PUNISHED_SPEEDUP.
     """
+
+    # LE-3: PUNISHED结果的α放大因子(事件驱动大步; 正常结果不变)
+    PUNISHED_SPEEDUP = 3.0
 
     def __init__(self, alpha=0.3, macro_alpha=0.1):
         # α=0.3: ~3次同类结果内显著移动(合成验收"连跳被对空→>0.6"),
@@ -121,14 +128,22 @@ class MyPunishTracker:
             outcome = WHIFFED
         self.n_done[cls] += 1
         is_p = 1.0 if outcome == PUNISHED else 0.0
-        self.rate[cls] += self.alpha * (is_p - self.rate[cls])
-        # CE-1: 宏层EMA(慢更新+跨局累积)
+        # LE-3: 明确被反制时α放大(事件驱动大步更新 — 惩罚→行为
+        # 改变延迟缩短; 正常结果维持慢EMA防振荡)
+        _alpha = self.alpha * (self.PUNISHED_SPEEDUP
+                               if outcome == PUNISHED else 1.0)
+        _alpha = min(_alpha, 1.0)   # α不超过1(全量更新)
+        self.rate[cls] += _alpha * (is_p - self.rate[cls])
+        # CE-1: 宏层EMA(慢更新+跨局累积; LE-3同加速)
         if name is not None:
             if name not in self.macro_rate:
                 self.macro_rate[name] = 0.0
                 self.macro_n[name] = 0
             self.macro_n[name] += 1
-            self.macro_rate[name] += self.macro_alpha * (
+            _m_alpha = self.macro_alpha * (
+                self.PUNISHED_SPEEDUP if outcome == PUNISHED else 1.0)
+            _m_alpha = min(_m_alpha, 1.0)
+            self.macro_rate[name] += _m_alpha * (
                 is_p - self.macro_rate[name])
         return outcome
 

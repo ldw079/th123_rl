@@ -65,7 +65,8 @@ def main():
     t3.begin('JUMP')
     t3.frame(800, True, 0)
     t3.end()
-    check('单次punish不满格(0.3)', abs(t3.punish_rate('JUMP') - 0.3) < 1e-9)
+    check('单次punish(LE-3加速0.9)',
+          abs(t3.punish_rate('JUMP') - 0.9) < 1e-9)
 
     # 5. 分类优先级与名集
     check('classify立防→GUARD_PREP', classify('立防') == 'GUARD_PREP')
