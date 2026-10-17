@@ -195,6 +195,25 @@ def check_fleet():
     return n_game, n_py
 
 
+def get_watchdog_status():
+    """P0-3存活自检(从零#5): 读 fleet_heartbeat.wd = 看门狗最后采样时点+族CPU。
+
+    动机: 看门狗曾"制度写着、代码不执行"两日无人察觉 — 文件停更即证据。
+    返回 (显示串, 颜色标记)。
+    """
+    p = os.path.join(STORE, 'fleet_heartbeat.wd')
+    try:
+        parts = io.open(p, encoding='utf8').read().split()
+        ts = float(parts[0])
+        pct = parts[1] if len(parts) > 1 else '-'
+    except (OSError, ValueError, IndexError):
+        return '无采样记录(未跑新版/未到首个心跳)', 'warn'
+    age = int(time.time() - ts)
+    ok = 'good' if age < 180 else 'warn'
+    return ('最后采样 %ds 前 · 训练族CPU %s'
+            % (age, pct + '%' if pct != '-' else '查询失败')), ok
+
+
 # ── 主函数 ──────────────────────────────────────────────
 
 
@@ -214,6 +233,7 @@ def main():
     # ── 1. 舰队健康 ──
     n_game, n_py = check_fleet()
     n_eps, n_recent = get_episode_stats()
+    _wd_txt, _wd_ok = get_watchdog_status()
     fleet_ok = n_game >= 2 and n_py >= 3
     print()
     items = [
@@ -223,6 +243,7 @@ def main():
         kv('episodes', '%d个 (近10分钟 +%d)' % (n_eps, n_recent),
            'good' if n_recent > 0 else 'warn'),
         kv('league对手', '27位 (主3×3 + league17 + COM)'),
+        kv('CPU看门狗', _wd_txt, _wd_ok),
     ]
     print(box('舰队', items))
 

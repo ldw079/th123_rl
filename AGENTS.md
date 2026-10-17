@@ -3,6 +3,7 @@
 > 本文件是唯一入口路由。改代码前先读这里; 规范细节以 `METHODOLOGY.md`(宪法)为准。
 > **交接文档: `HANDOVER.md`(新智能体接手时第一读)。**
 > **审计工作入口: `docs/audit_protocol.md`(审计智能体路由, 与本文件同级); bug 立档: `docs/bugs/`。**
+> **三智能体并行工作流: `PARALLEL_WORKFLOW.md`(单写者规则 + docs/_pending_entries.md 队列, 2026-10-16 试行) — 写文件前先查写入权。**
 >
 > 两条最高教义: **非想天则是 62 帧游戏**(帧↔秒一律 /62, 禁 60); **用户报告的观察是地面真相**。
 > 修订 2026-10-08: fleet 架构 + DCB(流派适应三件) + B 风格估计器 + 剥削者。
@@ -24,7 +25,7 @@
 | league20 | 对手周期27位=主角色块×3交错+league17静态种子+COM(D3'/R65); `tools/seed_league_pool.py` 点火自愈 |
 | 环境 | `tm_env.py`(TCP 锁步, 同进程续局, 崩溃重启车道环回) |
 | 学习 | `ppo.py`(numpy, 单实例) / `ppo_gpu.py`(torch, fleet learner) |
-| 特征 | `feat_builder.py`(**CORE_DIMS=330**, 含 14 维对手风格段) |
+| 特征 | `feat_builder.py`(**CORE_DIMS=358** = S-2段343 + JZ-1段15, 含14维对手风格段) |
 | 执行器 | `macro_executor.py`(统一宏推进, train_tm+side_driver 共用) |
 | 事件 | `frame_events.py`(帧级事件检测+反应掩码, B2 策略条件化) |
 | 卡组 | `deck_sampler.py`(课程采样 + C 对抗性四层加权) |
@@ -57,7 +58,7 @@ D:\temp\pyenv\python.exe -X utf8 tools\contract_check.py
 
 - 必须 0 FAIL 才能提交
 - 变异自检: `SELFTEST_TAGS=<标签> python tools/gate_selftest.py`
-- 当前断言: 568(2026-10-11 实测), 变异钉 150+
+- 当前断言: **643**(2026-10-17 裸跑实测, 5 WARN 全为旧代 store 残留), 变异 186 条
 
 ## 2. 奖励体系(当前)
 
@@ -77,9 +78,9 @@ D:\temp\pyenv\python.exe -X utf8 tools\contract_check.py
 
 | 角色 | 宏数 | 来源 |
 |---|---|---|
-| reimu | 70 | 手写+原子+压起身+C4 |
-| marisa | 76 | 同上 |
-| suika | 77 | 同上 |
+| reimu | **88** | 手写+原子+压起身+C4+分支波 |
+| marisa | **95** | 同上(蓄力真值+系统卡+DD+HJC) |
+| suika | **91** | 同上(623B萃鬼投技族) |
 | 17 新角色 | 各 60-80 | R44 生成+C6 TM 连段 |
 
 宏语法: 键步/confirm/cconfirm/branch/link/ender/sc: — 由 `macro_executor.py` 统一推进.
@@ -103,7 +104,7 @@ D:\temp\pyenv\python.exe -X utf8 tools\contract_check.py
 5. 共享档单写者纪律
 6. 原子落盘(tmp+replace)
 7. 62fps 教义(帧↔秒 /62)
-8. **CPU负载红线(R14)**: 训练全家总CPU ≤75% — learner torch限2线程(TH123_TORCH_THREADS可调)/全树BELOW_NORMAL/supervisor看门狗(连续3次>75%自动降容)/--tps 360降载
+8. **CPU负载红线(R14)**: 训练全家总CPU ≤75% — learner torch限2线程(TH123_TORCH_THREADS可调)/全树BELOW_NORMAL/supervisor看门狗**口径=训练族进程树CPU(非整机, R170)**/6采样滚动窗均值>75%降容(可恢复暂停)/<65%连续两满窗恢复/--tps 360降载
 
 ## 6. 工具速查
 

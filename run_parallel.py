@@ -11,7 +11,8 @@ import subprocess
 import sys
 import time
 
-DIR = os.path.expandvars(r"%USERPROFILE%\Desktop\workplace\th123_rl")
+# P0-2(从零#5): 仓库根由本文件位置派生(原用户家目录宏字面量只在本机成立)
+DIR = os.path.dirname(os.path.abspath(__file__))
 PY = r"D:\temp\pyenv\python.exe"
 
 CHARS = [

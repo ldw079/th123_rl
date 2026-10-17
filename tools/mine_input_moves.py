@@ -12,15 +12,18 @@ from collections import Counter
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _REPO)
 sys.stdout.reconfigure(encoding='utf8')
 from bc_build import build_shard, mirror_frames  # noqa: E402
 from action_tables import CHAR_ACTION_TABLES as T  # noqa: E402
 
-SHARDS = sorted(glob.glob(
-    r'%USERPROFILE%\Desktop\workplace\th123_rl\data\oracle_v2\shards\*.npz'))
+# P0-2(从零#5): 路径取仓库相对(原 用户家目录宏 字面量只在本机成立)
+SHARDS = sorted(glob.glob(os.path.join(
+    os.environ.get('TH123_ORACLE_SHARDS')
+    or os.path.join(_REPO, 'data', 'oracle_v2', 'shards'), '*.npz')))
 CHAR_IDS = {'reimu': 0, 'marisa': 1, 'suika': 9}
-OUT = r'%USERPROFILE%\Desktop\workplace\th123_rl\data'
+OUT = os.path.join(_REPO, 'data')
 
 
 def sig_of(u):

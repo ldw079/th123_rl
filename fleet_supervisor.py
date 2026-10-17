@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import signal
 import subprocess
@@ -96,17 +97,100 @@ class CpuWatchdog:
         return None
 
 
-def cpu_load_pct():
+_LOGICAL_CORES = os.cpu_count() or 1
+
+
+def _wd_proc_rows(ps_out=None):
+    """(pid, ppid, 累计CPU秒) 三元组 — 只取 python.exe / th123.exe。
+
+    ps_out 仅供测试注入(免真实 PowerShell; 传 JSON 文本)。
+    返回 None = 采样失败(看门狗哨兵, 不可当 0 用)。
+    """
+    if ps_out is None:
+        try:
+            out = subprocess.run(
+                ['powershell', '-NoProfile', '-Command',
+                 "Get-CimInstance Win32_Process -Filter \"Name='python.exe' OR "
+                 "Name='th123.exe'\" | Select-Object ProcessId,"
+                 "ParentProcessId,KernelModeTime,UserModeTime | "
+                 "ConvertTo-Json -Compress"],
+                capture_output=True, text=True, timeout=25)
+        except Exception:
+            return None
+        ps_out = out.stdout
+    txt = (ps_out or '').strip()
+    if not txt:
+        return []
     try:
-        out = subprocess.run(
-            ['powershell', '-NoProfile', '-Command',
-             '(Get-CimInstance Win32_Processor | '
-             'Measure-Object -Property LoadPercentage -Average)'
-             '.Average'],
-            capture_output=True, text=True, timeout=20)
-        return float(out.stdout.strip())
-    except Exception:
+        data = json.loads(txt)
+    except ValueError:
         return None
+    if isinstance(data, dict):      # ConvertTo-Json 单元素返回对象而非数组
+        data = [data]
+    rows = []
+    for d in data:
+        if not isinstance(d, dict):
+            continue
+        try:
+            # Win32_Process 的 KernelModeTime/UserModeTime 单位=100ns
+            cpu = (float(d.get('KernelModeTime') or 0)
+                   + float(d.get('UserModeTime') or 0)) / 1e7
+            rows.append((int(d['ProcessId']), int(d['ParentProcessId']), cpu))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return rows
+
+
+def family_cpu_seconds(root_pid=None, ps_out=None):
+    """训练族(本监督器进程树)累计CPU秒 — R14 的正确分子。
+
+    P0-3(从零#5)口径修: 原 cpu_load_pct 取**整机**处理器利用率。实测整机
+    100% 时 fleet 全家(3 learner+3 actor+监督器+3游戏)仅 ≈17% —— 旁路负载
+    (ZCode会话/变异sweep/BC重建)被算成"训练负载", 看门狗据此杀 actor;
+    而恢复线在旁路不退时永不满足 → 10-14 的"降容↔恢复"震荡(32min/8次)
+    的真因。树口径还顺带把**对照臂**(另一 worktree/独立树)排除在外。
+    """
+    rows = _wd_proc_rows(ps_out)
+    if rows is None:
+        return None
+    root = os.getpid() if root_pid is None else root_pid
+    cpu_by_pid = {r[0]: r[2] for r in rows}
+    kids = {}
+    for pid, ppid, _c in rows:
+        kids.setdefault(ppid, []).append(pid)
+    seen, stack, total = set(), [root], 0.0
+    while stack:
+        p = stack.pop()
+        if p in seen:
+            continue
+        seen.add(p)
+        total += cpu_by_pid.get(p, 0.0)
+        stack.extend(kids.get(p, ()))
+    return total
+
+
+_WD_CPU_LAST = {'ts': None, 'cpu': None, 'pct': None}
+
+
+def cpu_load_pct(now=None, ps_out=None, cores=None, root_pid=None):
+    """训练族CPU占用率(%) = Δ族累计CPU / (Δ墙钟 × 逻辑核数) × 100。
+
+    首次调用返回 None(无 Δt), 采样失败返回 None(哨兵, CpuWatchdog
+    拒收 — 见 sample() 的 cpu is None/负值语义)。
+    root_pid/ps_out/cores 仅测试注入(生产一律默认: 本监督器进程树)。
+    """
+    now = time.time() if now is None else now
+    cur = family_cpu_seconds(root_pid=root_pid, ps_out=ps_out)
+    if cur is None:
+        return None
+    prev_ts, prev_cpu = _WD_CPU_LAST['ts'], _WD_CPU_LAST['cpu']
+    _WD_CPU_LAST['ts'], _WD_CPU_LAST['cpu'] = now, cur
+    if prev_ts is None or now <= prev_ts:
+        return None
+    pct = (cur - prev_cpu) / ((now - prev_ts) * (cores or _LOGICAL_CORES)) * 100.0
+    pct = max(0.0, min(100.0, pct))   # 进程退出致 Δ<0 / 越界都不得入窗
+    _WD_CPU_LAST['pct'] = pct
+    return pct
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # 首跑缺陷(2026-10-06点火): 本机解释器safe-path模式(sys.path[0]=
@@ -138,6 +222,27 @@ def write_heartbeat(alert=None):
                 f.write('%s %s' % (time.strftime('%m-%d %H:%M:%S'), alert))
         elif os.path.exists(ap):
             os.remove(ap)
+    except OSError:
+        pass
+
+
+# P0-3存活自检(从零#5): 心跳主文件内容格式**不变**(离线gap读数依赖
+# float(...)), 看门狗存活证据走独立 sidecar。消费方: tools/status_dashboard.py
+WD_STATUS = HEARTBEAT + '.wd'
+
+
+def write_watchdog_status(pct, now=None):
+    """写看门狗存活+读数 sidecar(`<ts> <pct|->`)。
+
+    动机(从零#5 P0-3): 看门狗曾是"制度写着、代码不执行"两天无人察觉。
+    每次采样都留痕(含 pct=None 的失败采样) — 文件停更即证据。
+    """
+    now = time.time() if now is None else now
+    try:
+        tmp = WD_STATUS + '.tmp'
+        with open(tmp, 'w', encoding='utf8') as f:
+            f.write('%.3f %s\n' % (now, '-' if pct is None else '%.2f' % pct))
+        os.replace(tmp, WD_STATUS)
     except OSError:
         pass
 
@@ -481,7 +586,8 @@ def main():
             # _wd.sample圈在耗尽分支内, 正常运行时CPU策略从不执行
             # (红线R14两日死代码). 现每心跳(30s)采样一次.
             if _hb % HEARTBEAT_EVERY == 0:
-                _cpu = cpu_load_pct()
+                _cpu = cpu_load_pct()          # 训练族口径(见 family_cpu_seconds)
+                write_watchdog_status(_cpu)    # 存活证据(消费方=status_dashboard)
                 # R75: 策略在CpuWatchdog(纯逻辑), 进程管理在此。
                 # 降容=可恢复暂停(非移除) — 全灭事故修正。
                 _dec, _avg = _wd.sample(_cpu, time.time())

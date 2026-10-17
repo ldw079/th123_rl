@@ -2,7 +2,7 @@
 
 > 日期: 2026-10-16 · 增量(**BH-4.1 matcher连段语境✓[真受击帧攻击标签43/46/33%]**/BH-3感知修复三项✅/BH-1仪表盘✅/BH-4.2采集进行中/BH-4.3先验表✅/CE离线件全谱✅/git两波提交87bb8b3+fa8b34d) · 供下一个智能体直接接手
 
-**当前栈速览(2026-10-16)**: CORE_DIMS=**358**(S-2段343+JZ-1段15);
+**当前栈速览(2026-10-17 R170)**: CORE_DIMS=**358**(S-2段343+JZ-1段15); 并行开发必读 `PARALLEL_WORKFLOW.md`(写入权+队列); 门禁**643/5/0**;
 宏数reimu88/marisa95/suika91(蓄力cleista真值+系统卡+DD+HJC);
 S-4 GRU序列记忆全链就绪(阶段2a); BH方案v4执行中: **BH-3.1/3.2/3.3
 感知修复✅** / **BH-1 行为健康仪表盘✅**(bh旁车+CE-0.1帧日志开关+
@@ -19,7 +19,7 @@ tools/bh41_measure.py) / **BH-4.2 对位语料采集✅完成**(51/51对×14-15�
 四子项+S-6[untech门+段位表+matcher语境+762对位分片+I列]; 重建实弹
 抓出bc_build两处对位兼容bug[LIBS键/池位]已修76cc402; 完成→bc_swap_v3
 →fleet重启)。
-CE离线件全谱就绪(R131-139); 观察期继续。门禁634/0; 帧日志需
+CE离线件全谱就绪(R131-139); 观察期继续。门禁**643/5/0**(R170实测); 帧日志需
 TH123_FRAME_LOG=1。关键数据: cleista/(API全量+守备段位134档)+
 guard_height.json+matchup_combo_prior.json+move_displacement_*.json。
 > 读完本文即可开始工作; 细节按需查阅引用文档。历史版见 git log。
@@ -62,7 +62,7 @@ guard_height.json+matchup_combo_prior.json+move_displacement_*.json。
 | `soku_client2.py` | TCP锁步协议客户端 | 协议变更 |
 | `tools/human_match_v2.py` | **人测runner**(RPM观察+内存写行动) | 人测流程变更 |
 | `tools/eval_matrix.py` | 评估矩阵(四口径+vs_Human+被动仪表) | 评估变更 |
-| `tools/contract_check.py` | **门禁**(618+断言, 全绿才可提交) | 新增断言 |
+| `tools/contract_check.py` | **门禁**(643断言, 0 FAIL 才可提交) | 新增断言+配对变异 |
 | `tools/gate_selftest.py` | 变异自检(沙箱逐条变异→门禁必红) | 新增变异 |
 | `portmap.py` | 端口段划分(20800-21299) | 端口变更 |
 | `series_manager.py` | BO15系列赛管理(阶段1, flag门控) | 系列赛启用时 |
@@ -94,7 +94,7 @@ tail -5 D:\temp\th123_models\fleet_supervision.log
 
 ```bash
 D:\temp\pyenv\python.exe tools/contract_check.py
-# 必须 exit 0 (从零#4时点 618 PASS / 2 WARN / 1 FAIL—FAIL为在途注册缺口, 已清)
+# 必须 exit 0 —— 2026-10-17 晚实测 643 PASS / 5 WARN / 0 FAIL(WARN=旧代store残留)
 ```
 
 **纪律**: 裸跑(不pipe)+检查退出码. `| tail` 会吞退出码(f4668e1事故).
@@ -211,6 +211,10 @@ D:\temp\pyenv\python.exe tools/build_kit.py --zip
 | 平面日志误读进度 | bc_build日志无角色分段头, "[精确对齐]"行数跨角色累计 — 773行≠"还在建reimu"(实际reimu已完成在建marisa) | 判进度先看输出目录npz的mtime+meta(shards_used/S宽), 别只数日志行 | 2026-10-14 |
 | 文件存在≠现行代码产物 | 同名_v3.npz混有330代旧档(S宽710/715)与343新档(693) | 验收必查S宽=2N+343+3N与meta; 换代重建前删旧同名档 | 2026-10-14 |
 | 无ilog旧分片静默慢算 | 走R38互相关对齐路径单片30-60秒且不打日志行, 表面"卡死"实则满核工作 | 判卡死先查进程CPU时间Δ(20秒Δ≈20秒=在工作), 别急杀 | 2026-10-14 |
+| **路径只修本机(expandvars)** | R169 把绝对路径包 expandvars — 展开后仍钉死本机用户名, 访客克隆到别处 import/glob 全废(bc_build 分片 glob 字面量实测=0=下次重建静默产空库) | 仓库内路径一律**由文件位置派生**(`dirname(abspath(__file__))`/`kit_config.repo_path`); expandvars 只给用户家目录输入档; 门禁常驻断言"活py零字面量" | R170 |
+| **变异验证用 git checkout 还原** | 还原变异时把同文件的**未提交改动**一起冲掉(本轮实损两处改动) | 变异前后用"内存原文写回"还原; 或先提交再做变异验证 | R170 |
+| **新断言抓自己的注释** | "活py零字面量"断言首跑红10文件, 全是刚写的说明性注释 | 注释里引用被禁字面量用中文代称; 字面量只许出现在变异台/断言本体 | R170 |
+| **看门狗口径=整机负载** | 整机100%而训练族仅17% → 误杀actor且恢复线永不满足(10-14震荡32min/8次) | 口径=训练族**进程树**累计CPU/逻辑核(树外旁路与对照臂天然排除)+存活sidecar+仪表读者 | R170 |
 
 ## 十一、文档索引
 

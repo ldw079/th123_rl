@@ -15,9 +15,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.stdout.reconfigure(encoding='utf8')
 
 # 用户提取件: 文件名与内容互换(萃香数据.txt实为灵梦) — 按内容角色入档
+# P0-2(从零#5): 用户家目录输入档用 expanduser(不钉用户名), TH123_CLEISTA_SRC 可覆盖
+_HOME = os.path.expanduser('~')
+_OVR = os.environ.get('TH123_CLEISTA_SRC', '')
 SOURCES = [
-    (os.path.expandvars(r'%USERPROFILE%\Downloads\萃香数据.txt'), 'reimu'),
-    (os.path.expandvars(r'%USERPROFILE%\Downloads\灵梦数据.txt'), 'suika'),
+    (os.path.join(_OVR or os.path.join(_HOME, 'Downloads'), '萃香数据.txt'), 'reimu'),
+    (os.path.join(_OVR or os.path.join(_HOME, 'Downloads'), '灵梦数据.txt'), 'suika'),
 ]
 
 SEC_RE = re.compile(r'^[一二三四]、(.+)$')

@@ -21,6 +21,23 @@ IS_KIT = os.path.isdir(_kit_models) and \
     any(f.endswith('.npz') for f in os.listdir(_kit_models))
 
 
+# 仓库根 — 由本文件位置派生, 是"仓库内路径"的唯一来源。
+# P0-2(从零#5): 全库曾用"用户家目录宏 + Desktop/workplace/th123_rl"字面量
+# (PR-5 历史重写引入), 包 expandvars 只在本机成立 — 访客克隆到别处仍失败。
+# 纪律: 仓库内路径一律 repo_path(...); expand() 只给真正的用户家目录输入档。
+REPO_ROOT = _HERE
+
+
+def repo_path(*parts):
+    """仓库根下的绝对路径(跨机器可复现)。
+
+    消费纪律: 仓库内路径**不要**再手写用户家目录宏; 需要绝对路径时用它,
+    或按同一口径 `dirname(abspath(__file__))` 就地派生(单文件工具首选,
+    免 import 耦合)。真正属于"用户家目录输入档"的件才用 expanduser。
+    """
+    return os.path.join(REPO_ROOT, *parts)
+
+
 def _load():
     """config.json(两个候选位置) > 无。
 

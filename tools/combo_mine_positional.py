@@ -15,12 +15,15 @@ from collections import Counter, defaultdict
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _REPO)
 sys.stdout.reconfigure(encoding='utf8')
 from bc_build import build_shard, mirror_frames, CS_SIZE  # noqa: E402
 
-SHARDS = sorted(glob.glob(
-    os.path.expandvars(r'%USERPROFILE%\Desktop\workplace\th123_rl\data\oracle_v2\shards\*.npz')))
+# P0-2(从零#5): 分片根取仓库相对(原 用户家目录宏 字面量只在本机成立)
+SHARDS = sorted(glob.glob(os.path.join(
+    os.environ.get('TH123_ORACLE_SHARDS')
+    or os.path.join(_REPO, 'data', 'oracle_v2', 'shards'), '*.npz')))
 CHAR_IDS = {'reimu': 0, 'marisa': 1, 'suika': 9}
 GUARD_IDS = set(range(150, 168))
 HOR = {0: (), 1: ('right',), 3: ('left',)}   # u>>6&3

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """LE-2表提取·第一步: fangyu攻略逐角色章节索引(结构+锚点).
 
-源: %USERPROFILE%/Desktop/workplace/_extracted/fangyu.txt (CHM反编译全文,
+源: 仓库同级 _extracted/fangyu.txt (CHM反编译全文, TH123_FANGYU_SRC 可覆盖,
 4341行) — TOC(行1~447) + 正文("##### outline_N.htm [enc]"分节).
 
 产出: data/guide_tables/fangyu_index.json
@@ -21,9 +21,10 @@ import sys
 
 sys.stdout.reconfigure(encoding='utf8')
 
-SRC = os.path.expandvars(r'%USERPROFILE%\Desktop\workplace\_extracted\fangyu.txt')
-OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                   'data', 'guide_tables', 'fangyu_index.json')
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SRC = (os.environ.get('TH123_FANGYU_SRC')
+       or os.path.join(os.path.dirname(_ROOT), '_extracted', 'fangyu.txt'))
+OUT = os.path.join(_ROOT, 'data', 'guide_tables', 'fangyu_index.json')
 
 # 警戒子节类别(TOC Name精确匹配)
 CATEGORIES = (

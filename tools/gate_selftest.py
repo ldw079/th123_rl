@@ -573,6 +573,19 @@ MUTATIONS = [
      "    st = int(starts[gi]) + (int(rng.integers(0, max(1, L - k + 1)))\n                            if L > k else 0)\n    return np.arange(st, st + min(k, L))",
      "    st = int(starts[gi])\n    return np.arange(st, st + min(k, L))",
      "S-6窗口起点恒组首(样本偏置+假跨组风险) → bc_seq测试必须红"),
+    # 从零#5(2026-10-17): P0-2 路径可复现 + P0-3 看门狗口径
+    ("run_parallel.py",
+     "DIR = os.path.dirname(os.path.abspath(__file__))",
+     "DIR = r'%USERPROFILE%\\Desktop\\workplace\\th123_rl'",
+     "路径钉死用户家目录(访客克隆到别处import/glob全废, bc分片glob=0) → P0-2零字面量断言必须红"),
+    ("fleet_supervisor.py",
+     "    rows = _wd_proc_rows(ps_out)\n    if rows is None:\n        return None\n    root = os.getpid() if root_pid is None else root_pid",
+     "    rows = _wd_proc_rows(ps_out)\n    if rows is None:\n        return None\n    return sum(r[2] for r in rows)   # 变异: 全机口径(旁路/对照臂混入)\n    root = os.getpid() if root_pid is None else root_pid",
+     "训练族口径退化为全机(旁路/对照臂混入训练负载) → cpu_family测试必须红"),
+    ("tools/train_start.py",
+     "\"|exploiter' -and $_.CommandLine -notmatch 'th123_rl_control'} \"",
+     "\"|exploiter'} \"",
+     "前置清理回退为脚本名匹配(主臂重启静默杀对照臂) → control臂豁免断言必须红"),
 ]
 
 

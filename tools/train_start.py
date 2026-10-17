@@ -42,16 +42,21 @@ def _cleanup_ps_cmd(exclude_pid):
     审计#3 P1-6: 游戏清理原taskkill /IM th123.exe /F按映像名无差别杀
     — 会误杀用户游玩中的原版整合包与rl_game离线重放实例。改按
     ExecutablePath含th123_train精确匹配(训练族游戏专用目录)。
+    P0-5(从零#5): 脚本名匹配会**误杀LE-0a对照臂**(它跑的就是
+    learner_hub.py/actor_worker.py, 只是 worktree 在 th123_rl_control)
+    — 10-17 16:45 主臂重启把对照臂静默杀掉≈3h, 预注册A/B终点断流。
+    修=按 worktree 路径判别: 命令行含 th123_rl_control 的一律不动。
     """
     return ['powershell', '-NoProfile', '-Command',
             "$me=%d; Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" "
             "| Where-Object { $_.ProcessId -ne $me -and $_.CommandLine -match "
             "'fleet_supervisor|run_parallel|learner_hub|actor_worker"
-            "|exploiter'} "
+            "|exploiter' -and $_.CommandLine -notmatch 'th123_rl_control'} "
             "| ForEach-Object { taskkill /PID $_.ProcessId /T /F }; "
             "Start-Sleep 2; "
             "Get-CimInstance Win32_Process -Filter \"Name='th123.exe'\" "
-            "| Where-Object { $_.ExecutablePath -like '*th123_train*' } "
+            "| Where-Object { $_.ExecutablePath -like '*th123_train*' -and "
+            "$_.ExecutablePath -notlike '*_control*' } "
             "| ForEach-Object { taskkill /PID $_.ProcessId /T /F }"
             % int(exclude_pid)]
 

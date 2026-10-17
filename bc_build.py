@@ -24,8 +24,12 @@ import sys
 
 import numpy as np
 
-sys.path.insert(0, r'D:\temp\soku_arch')
-sys.path.insert(0, os.path.expandvars(r'%USERPROFILE%\Desktop\workplace\th123_rl'))
+# D2(公开化未决): soku_arch 是外部包(vendor 与否待用户裁定) — 至少改为可覆盖
+sys.path.insert(0, os.environ.get('TH123_SOKU_ARCH', r'D:\temp\soku_arch'))
+# P0-2(从零#5): 仓库根由本文件位置派生 — 原 用户家目录宏 字面量(package
+# expandvars 也只在本机成立), 访客克隆到别处 import 必失败。
+_REPO = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _REPO)
 from soku_arch.packet_schema import CS_SIZE, unpack_player
 from bc_align import estimate_lag_map, realign, post_validate
 from bc_match import StreamMatcher, LOW_INFO
@@ -480,8 +484,11 @@ def main(suffix=''):
     only = None
     if '--char' in _s.argv:
         only = int(_s.argv[_s.argv.index('--char') + 1])
-    shards_all = sorted(glob.glob(
-        os.path.expandvars(r'%USERPROFILE%\Desktop\workplace\th123_rl\data\oracle_v2\shards\*.npz')))
+    # P0-2(从零#5): 分片根取**仓库相对**(库内实测 1724 片; 原 用户家目录宏
+    # 字面量 glob 实测=0 → 下次重建会静默产空库, 而 BC 是全部模仿梯度来源)。
+    _shard_root = (os.environ.get('TH123_ORACLE_SHARDS')
+                   or os.path.join(_REPO, 'data', 'oracle_v2', 'shards'))
+    shards_all = sorted(glob.glob(os.path.join(_shard_root, '*.npz')))
     print('v2分片:', len(shards_all))
     # 预过滤索引(每分片一次meta读, ~ms级)
     _probe = {sp: _shard_meta_probe(sp) for sp in shards_all}
@@ -489,7 +496,7 @@ def main(suffix=''):
     # 改道D盘; 换装时拷回或TH123_BC_DIR指认)
     out_dir = os.environ.get(
         'TH123_BC_OUT', r'D:\temp\th123_bc_v3' if suffix
-        else os.path.expandvars(r'%USERPROFILE%\Desktop\workplace\th123_rl\data\bc'))
+        else os.path.join(_REPO, 'data', 'bc'))
     os.makedirs(out_dir, exist_ok=True)
     for cid in (0, 1, 9):
         if only is not None and cid != only:

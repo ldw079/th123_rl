@@ -47,7 +47,7 @@ D:\temp\pyenv\python.exe -X utf8 tools\contract_check.py
 th123_rl/
 ├── train_tm.py            主训练器(奖励/宏/门控/对手轮换, actor 组合复用)
 ├── ppo.py / ppo_gpu.py    PPO 数学层(numpy 单实例 / torch fleet learner, 语义对齐)
-├── feat_builder.py        特征构建(CORE_DIMS=343, S-2变招/心理/风格段)
+├── feat_builder.py        特征构建(CORE_DIMS=358, S-2变招/心理/风格段+JZ-1段)
 ├── macro_executor.py      统一宏执行器(train_tm+side_driver 共用)
 ├── fleet_supervisor.py    fleet 监督器(league 分配/死亡重启/停机卫生)
 ├── learner_hub.py         fleet 中央 learner(episode 消费/快照发布)
@@ -60,7 +60,7 @@ th123_rl/
 ├── frame_events.py        帧级事件检测+反应掩码
 ├── bc_*.py / distill.py / teach.py            BC 库/蒸馏诊断/教学层
 ├── macros/                宏库包(__init__=灵梦库+共享规范化器, 20 角色各一档)
-├── tests/                 行为测试(71 档, 门禁 C15 白名单70/70对账)
+├── tests/                 行为测试(89 档, 门禁 C15 白名单全量对账)
 ├── tools/                 工具(train_start/audit_all/contract_check/评估仪表…)
 ├── docs/                  文档(主规划/审查报告/设计文档/手册)
 ├── data/                  本地数据(BC 库/神谕分片, gitignore)

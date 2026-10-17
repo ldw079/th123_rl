@@ -1809,6 +1809,9 @@ chk("self._seiran_gauge" in tt60
     "R61c(B5): cardGauge晴岚哨兵(晴岚期冻结gauge, 伪势跳±2.0防线) [多形态, 合理文本钉]")
 
 _BEHAVIOR_TESTS = [
+    # P0-3(从零#5): 看门狗必须用训练族进程树口径(树外旁路/对照臂不计入)
+    ("test_cpu_family_metric_p0.py",
+     "P0-3: CPU族口径(树内计入/树外排除/失败哨兵/比率clamp/整机口径退役)"),
     ("test_threat.py", "P0-K: 全零速弹表→(None,0) + TTI语义"),
     ("test_opp_model.py", "P0-L: 9情境可达 + 6段占据无混叠"),
     ("test_feat_segments.py", "R16§3: 每特征段≥1非常数维"),
@@ -2117,6 +2120,48 @@ chk("_lf.close()" in src("fleet_supervisor.py"),
     "P2: actor日志fd显式关闭(防句柄泄漏)")
 chk("'actor_worker|learner_hub|exploiter'" in src("fleet_supervisor.py"),
     "P2: 孤儿回收含剥削者lane")
+# ── 从零#5(2026-10-17)清偿: P0-2 路径可复现 + P0-3 看门狗口径 ──
+# P0-2: PR-5 历史重写把绝对路径批量换成 %USERPROFILE% 字面量 — 即便包
+# expandvars 也只在本机成立(访客克隆到别处 import/glob 全废; bc_build
+# 分片 glob 字面量实测=0 → 下次重建静默产空库而 BC 是模仿梯度的唯一来源)。
+# 防复发=常驻断言; 豁免: 退役归档/隔离区/自检沙箱。
+_UP_HITS = []
+for _r2, _ds2, _fs2 in os.walk(ROOT):
+    _rel = os.path.relpath(_r2, ROOT).replace('\\', '/')
+    if any(s in _rel for s in ('_archive', 'tools/quarantine', 'gate_sandbox',
+                               '.git', '__pycache__')):
+        continue
+    for _f2 in _fs2:
+        # 自检/变异台必须持有字面量原件(变异串要把它注入回去), 非生产路径
+        if not _f2.endswith('.py') or _f2 in ('contract_check.py',
+                                             'gate_selftest.py'):
+            continue
+        try:
+            _s2 = io.open(os.path.join(_r2, _f2), encoding='utf8',
+                          errors='replace').read()
+        except OSError:
+            continue
+        if '%USERPROFILE%' in _s2:
+            _UP_HITS.append(_f2 if _rel == '.' else '%s/%s' % (_rel, _f2))
+chk(not _UP_HITS,
+    "P0-2(从零#5): 活py零%USERPROFILE%字面量(路径由文件位置/kit_config派生)",
+    '残留%d: %s' % (len(_UP_HITS), sorted(_UP_HITS)[:5]))
+# P0-3: 看门狗口径=训练族进程树。整机处理器利用率会把旁路(ZCode会话/
+# 变异sweep/BC重建)算成训练负载 → 误杀actor; 且恢复线在旁路不退时永不
+# 满足 → 10-14 "降容↔恢复"震荡(32min/8次往返)的真因。
+chk(fn_has("fleet_supervisor.py", "cpu_load_pct", "family_cpu_seconds")
+    and "Get-CimInstance Win32_Processor" not in src("fleet_supervisor.py")
+    and fn_has("fleet_supervisor.py", "family_cpu_seconds", "kids.get"),
+    "P0-3(从零#5): CPU看门狗用训练族进程树口径(整机利用率口径退役)")
+chk("write_watchdog_status" in src("fleet_supervisor.py")
+    and "fleet_heartbeat.wd" in src("tools/status_dashboard.py"),
+    "P0-3b(从零#5): 看门狗存活sidecar有写者(fleet)且有读者(仪表)")
+# P0-5尾(从零#5): train_start 前置清理按**脚本名**匹配会误杀 LE-0a 对照臂
+# (它跑同样的 learner_hub/actor_worker, 只是 worktree 不同) — 10-17 16:45
+# 主臂重启把对照臂静默杀3h, 预注册A/B终点断流。修=按 worktree 路径判别。
+chk(fn_has("tools/train_start.py", "_cleanup_ps_cmd",
+           "-notmatch 'th123_rl_control'"),
+    "P0-5尾(从零#5): 前置清理豁免对照臂worktree(按路径判别, 非脚本名)")
 chk("活性宽限" in src("learner_hub.py")
     and "*.tmp.npz" in src("learner_hub.py"),
     "P2: 低盘清理活性宽限+陈旧tmp清理方")

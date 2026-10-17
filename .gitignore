@@ -20,3 +20,8 @@ __pycache__/
 
 # R92(kit制品): dist/为build_kit输出(收件人包), 不入库
 dist/
+
+# P0-2(从零#5): 评估/裁定**运行产物**——含路径与时间戳, 只会继续漂移。
+# 已有在库件已把路径脱敏为 <repo>; 新产物一律不入库(证据留档走审计命名空间)。
+tools/ab_verdict_*.json
+tools/eval_matrix_quick_*.json

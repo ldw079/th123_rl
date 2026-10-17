@@ -219,7 +219,7 @@
    "missing_for_ideal_gauge": "缺少\"真人 vs COM(各难度)\"实测 — 那才是与模型评估同口径的锚。需要真人上机若干局并按难度记录(接线点: from_com_log)。",
    "n_matches": 191,
    "origin": "export",
-   "source_pattern": "%USERPROFILE%\\Desktop\\workplace\\th123_rl\\data\\oracle\\shards\\*.npz",
+   "source_pattern": "<repo>\\Desktop\\workplace\\th123_rl\\data\\oracle\\shards\\*.npz",
    "sources": 191
   },
   "comparison": {

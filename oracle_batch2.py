@@ -20,7 +20,11 @@ GAME = os.environ.get('SOKUAI_GAME_DIR', r'D:\temp\rl_game')
 EXE = os.path.join(GAME, 'th123.exe')
 ML = os.path.join(GAME, 'ModLoaderSettings.json')
 ROOT = r'D:\temp\expert_reps'
-OUT = os.path.expandvars(r'%USERPROFILE%\Desktop\workplace\th123_rl\data\oracle_v2')
+# P0-2(从零#5): 产物目录取仓库相对(原 用户家目录宏 字面量 → 展开另存, 访客机
+# 会在 CWD 下建字面量目录); TH123_ORACLE_OUT 可覆盖。
+OUT = (os.environ.get('TH123_ORACLE_OUT')
+       or os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       'data', 'oracle_v2'))
 ORACLE_SET = ['MemoryPatch', 'ReplayDnD-old', 'SokuAITrainerEnv', 'ChainCFix',
               'FixMeiling236']
 OURS = {0, 1, 9}

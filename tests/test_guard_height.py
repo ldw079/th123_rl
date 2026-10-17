@@ -16,7 +16,8 @@ import sys
 
 import numpy as np
 
-sys.path.insert(0, os.path.expandvars(r"%USERPROFILE%\Desktop\workplace\th123_rl"))
+# P0-2(从零#5): 仓库根由本文件位置派生(原 用户家目录宏 字面量只在本机成立)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from feat_builder import (FeatureBuilder, LOW_ATTACK_IDS,  # noqa: E402
                           F_VARIANT_IDS)
 

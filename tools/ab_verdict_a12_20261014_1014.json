@@ -16,6 +16,6 @@
  "winrate_base": 25.0,
  "winrate_delta": 8.3,
  "verdict": "保留A1-2, 验收未达成(顶时判负率未达标) — 继续观察/A1-4备选",
- "eval_json": "%USERPROFILE%\\Desktop\\workplace\\th123_rl\\tools\\eval_matrix_quick_20261014.json",
+ "eval_json": "<repo>\\Desktop\\workplace\\th123_rl\\tools\\eval_matrix_quick_20261014.json",
  "ts": "2026-10-14 10:14:44"
 }
