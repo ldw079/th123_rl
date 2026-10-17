@@ -89,6 +89,36 @@ def main():
     idx_all = query('reimu', k=0)
     check('k=0全量', idx_all is not None and len(idx_all) == 429411)
 
+    # ===== P0防复发(bug_2026-10-17): 热度不恒1 — 用合成raw数据直测
+    # matchup_heat(合成fate计数: vs某对位hit=3其余fate=97 → heat≈0.97) =====
+    from situation_library import matchup_heat, TAG_ATTACK as _TA
+    import situation_library as sl
+    _orig_agg = sl.aggregate if hasattr(sl, 'aggregate') else None
+
+    class _FakeBH:
+        aggregate = staticmethod(lambda *a, **k: {
+            'combo_by_opp': {'reimu': {'hit': 3, 'blocked': 0,
+                                       'dropped': 57, 'interrupted': 40}}})
+
+    import behavior_health as _bh
+    _orig_mod = sys.modules.get('behavior_health')
+    sys.modules['behavior_health'] = _FakeBH
+    try:
+        h = matchup_heat('reimu')
+    finally:
+        sys.modules['behavior_health'] = _orig_mod
+    check('热度≠恒1(合成hit率0.03→heat0.97)',
+          h.get(0) is not None and abs(h[0] - 0.97) < 0.01, str(h))
+    check('热度非空', len(h) >= 1)
+
+    # 产物meta的热度也不恒1(重建后; 若旁车真实hit率>0则heat<1)
+    d2 = np.load(os.path.join(OUT_DIR, 'reimu_index.npz'),
+                 allow_pickle=True)
+    meta2 = json.loads(str(d2['meta']))
+    hv = list(meta2.get('heat', {}).values())
+    check('产物热度存在且<1(真实数据)', hv and all(v < 1.0 for v in hv),
+          str(hv[:3]))
+
     print('\n%d PASS / %d FAIL' % (len(PASS), len(FAIL)))
     if FAIL:
         sys.exit(1)

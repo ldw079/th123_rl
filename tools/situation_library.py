@@ -79,16 +79,20 @@ def derive_tags(S_arr, Y, char):
 
 
 def matchup_heat(char):
-    """BH-1旁车→对位热度(打断率; 无数据→空)."""
+    """BH-1旁车→对位热度(打断率; 无数据→空).
+    P0修(bug_2026-10-17): raw combo_by_opp条目只有四个fate计数 —
+    原d.get('hit_rate')键不存在恒0→heat恒1.0→heat_weighted查询恒空集.
+    修: 由fate计数直接算 hit/(总fate) — 半修复教训: 分子分母都要核."""
     from behavior_health import aggregate
     agg = aggregate(os.path.join(STORE, 'fleet', 'episodes'), char, 200)
     heat = {}
     ID2NAME = {l['id']: n for n, l in CHAR_LIBS.items()}
     for oc, d in agg.get('combo_by_opp', {}).items():
-        n = sum(d.values())   # 条目无'n'键(rates()才加) — 原d.get('n',0)恒0
+        n = sum(d.values())   # 条目无'n'键(rates()才加) — fate计数求和
         if n >= 5 and oc in ID2NAME.values():
             oid = next(i for i, nm in ID2NAME.items() if nm == oc)
-            heat[int(oid)] = round(1.0 - d.get('hit_rate', 0.0), 3)
+            hit_rate = d.get('hit', 0) / n    # 直接由fate计数算
+            heat[int(oid)] = round(1.0 - hit_rate, 3)
     return heat
 
 
