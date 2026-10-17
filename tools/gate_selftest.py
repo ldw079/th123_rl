@@ -650,6 +650,10 @@ MUTATIONS = [
      "        if _key not in _VERSION_WARNED:",
      "        if False:",
      "版本损坏恢复静默(actor永久用旧权重且无提示) → P2版本断言必须红"),
+    ("bc_build.py",
+     "        _rng_low = np.random.default_rng(20261018 + n_sh * 7 + int(n_low))",
+     "        _rng_low = None",
+     "降采样回退取前N(低信息样本偏置到最早对位槽) → P1-13断言必须红"),
 ]
 
 

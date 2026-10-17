@@ -486,7 +486,15 @@ def build_rows(char_id, shards, log=print):
     keep = ~low_mask
     n_low = int(low_mask.sum() * IDLE_KEEP)
     if n_low:
-        low_pos = np.where(low_mask)[0][:n_low]
+        # P1-13(从零#5): 低信息行**随机抽**而不是"取行序最前 N"。
+        # 原实现取 [:n_low] → 保留的待机/前进/后退/守 样本系统性来自**最早**
+        # 的 shard/对手槽(实测低信息行只出现在 group 序 reimu 0..162/961、
+        # marisa 0..143/898、suika 0..102/813, 对手槽仅前段) — 在跑库 12-15%
+        # 行的移动先验被偏置到"最早遇到的那几个对手"。
+        # 确定性: 固定种子(重建可复现, 维持 R108"确定性三连验证"性质)。
+        _rng_low = np.random.default_rng(20261018 + n_sh * 7 + int(n_low))
+        low_pos = np.sort(_rng_low.choice(
+            np.where(low_mask)[0], size=n_low, replace=False))
         sel = np.sort(np.concatenate([np.where(keep)[0], low_pos]))
         X, S, Y, C, I = X[sel], S[sel], Y[sel], C[sel], I[sel]
     return name, (X, S, Y, C, I), {'shards_used': n_sh,

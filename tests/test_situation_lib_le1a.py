@@ -106,8 +106,15 @@ def main():
                      allow_pickle=True)
         meta2 = json.loads(str(d2['meta']))
         hv = list(meta2.get('heat', {}).values())
-        check('产物热度存在且<1(真实数据)',
-              hv and all(v < 1.0 for v in hv), str(hv[:3]))
+        # P1-14(从零#5): 原判据 "all(v<1)" 是拿 reimu 旧的 3 对位标定的;
+        # 换库后 heat 覆盖全 20 对位, 其中"有样本但 0 命中"的对位 h=1.0 是
+        # **合法真值**(=最弱对位, 极性修正后应全取)。真正要防的是
+        # bug_2026-10-17 那种"热度恒 1.0"(全表同一值) → 改为:
+        # 值域 (0,1] 且**非恒等**, 且至少一条 <1。
+        check('产物热度存在且非恒1(真实数据)',
+              bool(hv) and all(0.0 < v <= 1.0 for v in hv)
+              and any(v < 1.0 for v in hv),
+              str(sorted(hv)[:3]) + ' ...max=' + str(max(hv) if hv else None))
     else:
         check('查询语义(沙箱跳过)', True, '产物不入沙箱')
 

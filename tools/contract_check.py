@@ -2234,6 +2234,11 @@ chk(src("episode_core.py").count("check_row_counts(") >= 3,
 # 原版在 vf_adam.step 之后用 self.W1v 反传价值路(旧dH1v×新W1v) — 与 torch
 # 单步计算图不等价(审计实测 conv1/2/3 梯度 cos=0.396/0.637/0.564)。
 # 权重范数差抓不到(Adam 首步 Δ 尺度过小), 故用源码锚 + 反串钉死。
+# P1-13(从零#5): 低信息行降采样必须**随机**(原"取行序最前N"把保留样本
+# 系统性偏置到最早的 shard/对手槽 — 在跑库 12-15% 行的移动先验被偏置)。
+chk("_rng_low.choice(" in src("bc_build.py")
+    and "np.where(low_mask)[0][:n_low]" not in src("bc_build.py"),
+    "P1-13(从零#5): 低信息降采样随机(非取前N, 固定种子可复现)")
 # P2(从零#5): 快照版本文件**损坏**必须响亮 — 原静默返回 0 而 actor 门是
 # `if ver > 0` → "永久用旧权重且看起来健康"(与仪表假绿同族)。
 chk("_VERSION_WARNED" in src("episode_core.py")
