@@ -131,3 +131,11 @@ id, ox, oy, hp, img, frame, oxs, oys, oid, attack_n, hit_n, fflags, aflags
 | 0x4B4 | combo_count | 连段HIT数 |
 | 0x334 | hitarea_flag | 受击标志 |
 | 0x1CB/0x1CC | attackarea_n/hitarea_n | 判定矩形数(CA-7) |
+
+## 8. CA-2 探针结论(2026-10-17, 假设检验完毕)
+
+**假设**: objs position[3] 包含社区対応表 obj-ID 值域(800-869)
+**实测**: 15分片大样本 position[3] 恒为 899(不随shard角色变化)
+**结论**: **未命中** — 社区Lua API(get_obj_data)对原始内存做了归一化,
+対応表是Lua侧归一化ID→类型映射, 不直接适用于我方mod裸内存objs.
+CE-2 维持行为特征降级版(CE-0裁定). 対応表留档作远期mod扩包参考.
