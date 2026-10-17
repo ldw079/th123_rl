@@ -20,3 +20,13 @@
 3. **HANDOVER.md 交接必读** | 建议在头部"供下一个智能体直接接手"附近
    加："并行开发必读 `PARALLEL_WORKFLOW.md`（写入权+队列）;
    规划侧文档变更看 docs/_plans/ 与 INDEX。" | 2026-10-16 | 规划
+
+4. **METHODOLOGY.md 修订记录** | 建议追加一行（版本号顺延）：
+   "- 3.2x (2026-10-17, R1xx 权威源分域增补): R4 红线新增第二权威源
+     **wikiwiki.jp/th123ai API 语义表**（fflags/aflags 逐位/动作值
+     全表/obj-ID 対応表/get_special_data，社区逆向+官方 document.txt
+     交叉）——与 cleista 分域: cleista=帧数据权威，wiki 语义表=引擎
+     标志/动作分类权威；未确认位（wiki 标注'解析中'）不得当定论，
+     采用前须实测交叉。证据: docs/th123ai_community_ai_analysis_
+     2026-10-16.md §7（动作 ID 与我方 action_tables.py 逐 ID 实证
+     同源）。" | 2026-10-17 | 规划

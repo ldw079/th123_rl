@@ -28,7 +28,7 @@
 | `frame_adv.py` | 纯函数 | 攻击等级表驱动帧差(cleista真值) |
 | `rep_format_notes.md` | 数据参考 | rep 格式实测笔记 |
 | `multi_instance_input.md` | 数据参考 | TM 通道全档 |
-| `th123ai_community_ai_analysis_2026-10-16.md` | 数据参考 | 社区AI(th123ai)实现分析: RPM+键盘+Lua脚本/2011公平垫片先例/观察API=JZ-CE需求清单/第四评估口径建议 |
+| `th123ai_community_ai_analysis_2026-10-16.md` | 数据参考 | 社区AI(th123ai)实现分析(v2含wiki复查): RPM+键盘+Lua脚本/2011公平垫片先例/观察API=JZ-CE需求清单/**§7引擎语义表金矿(fflags·aflags逐位/动作值全表/obj-ID対応表)·与我方action_tables逐ID实证同源/AIManager已死** |
 | `mod_masking_runtime_dump.md` | 数据参考 | mod 遮蔽运行时验证 |
 | `architecture_gap_analysis.md` | 历史分析（活跃引用） | 架构差距（v2 时代, AGENTS 引用） |
 | `com_ladder_log.md` | 运行日志 | COM 阶梯爬升记录 |
@@ -100,6 +100,7 @@
 | `capability_extension_plan_2026-10-15.md` | 能力扩展方案（CE-0..CE-7） | 招式级惩罚×实体语义×位置预测×自打挖掘×位置路由门×推板势; ≈9 人日; CE-0 探针已完成(v2); CE-7 奖励项部署排 A/B 验收后 |
 | `behavioral_health_recovery_plan_2026-10-15.md` | **行为健康修复方案（BH-0..BH-6，v4 重构版）— 当前最高优先** | 六症状×六根因(+对位盲); BC 排查四判决定稿(语料健康/字段语义/碎片化标注/三角色泡泡); untech 门最优先→冻结窗+八仪表+BC 四子项合批重建; ≈7 人日+1-2 周治疗窗; **CE/JZ/CH 余波排队待 BH 退出** |
 | `learning_efficiency_alignment_plan_2026-10-16.md` | **学习效率与人类能力对齐方案（LE-0..LE-8，v2 自审版）— BH 后第一优先** | "2000局之问"收束+七项自审修复: **孪生对照臂主测量**(可见提升的反事实基线)+预注册终点(P1 主臂≥2×对照)+情境重演引擎(离线段 BH 窗内并行); ≈11.5 人日; 判定时点=系列启动后 4-6 周 |
+| `community_ai_adoption_plan_2026-10-16.md` | **社区AI对标改进方案（CA-0..CA-7，v2）** | th123ai转化: **第四评估口径**(BH窗内可跑=第三测量轴)+偏移地图+**语义表资产(game_semantics_tables.md)**+objs定向复查(obj-ID値域)+**CA-6语义反哺(untech门/防御高度表/JZ-2规则表/CH信号获权威判据)**; ≈4.3 人日; 零mod/奖励/特征变更 |
 | `branch_gate_activation_2026-10-13.md` | 分支门激活方案（CH-1..CH-4 框架） | branch宏confirm→四路路由 |
 | `kit_portable_python_plan_2026-10-13.md` | 轻量采集包迁移方案 | kit zip→收件人runner→数据回传 |
 | `top_yardstick_human_match_plan_2026-10-13.md` | 人测标尺对局方案 | B线顶端标尺配套 |
