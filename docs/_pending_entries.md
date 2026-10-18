@@ -6,35 +6,7 @@
 
 ---
 
-1. **[已裁定 2026-10-18: soku_arch=自有代码→MIT, 施工已落 VENDORED.md+SPDX 头]**
-   **docs/THIRD_PARTY.md 已由施工起草**(2026-10-18, 待规划确认+INDEX登记) | 已含 cleista API(签名/限速)、
-   wikiwiki.jp/th123ai、CHM 攻略(引用结论)、SokuLib Action.hpp 枚举表 ——
-   逐项 `来源/许可/加工程度`; LICENSE-docs 加"CC-BY-4.0 仅覆盖原创整理"。
-   (原条目正文保留供溯源) 施工已按 D2=A
-   把 `soku_arch` **包本体**(30 py / 283KB) vendor 进仓库根 `soku_arch/`,
-   并写 `soku_arch/VENDORED.md` 记录来源与"授权待核"; 但**包里无任何
-   LICENSE/版权头**, 按 R4 不能猜 → 需规划/用户确认:
-   (a) 自有代码 → 归入根 MIT; (b) 第三方 → 补许可声明或改 README "不提供"。
-   同时 `docs/LICENSE-docs.md` 加限定句"CC-BY-4.0 仅覆盖原创整理"。
-   证据: `ls soku_arch | wc -l` = 31(含 VENDORED.md) / `grep -ri license soku_arch` 空。 |
-   2026-10-18 | 施工
-
-2. **public_release_hardening_plan: D3=A 的**历史**那一半尚未执行** |
-   施工 2026-10-18 已按 D3=A 把 `_archive/` 从**索引**移除(117 跟踪档 →
-   0, 磁盘 300 档保留), 但**第二次重写没用 `--invert-paths`** →
-   `_archive/` 仍留在 2026-10-18 之前的历史里。若要连历史一起剔除,
-   需要**第三次**全历史重写(哈希再变一次; 控制臂需按 commit-map 重锚)。
-   请规划裁定: (A) 认账(仅 HEAD 不带) / (B) 择日做第三次重写。
-   证据: git ls-files _archive = 0 / git log --all -- _archive 仍可见。 |
-   2026-10-18 | 施工
-
-2. **docs/INDEX.md 登记新工具** | 建议在「根目录 · 活跃文档」的工具表内加一行：
-   `| tools/bc_accept.py | **验收工具** | 重建换装验收探针(--where v3|store)：
-   三复合SC宏Y计数>0 + S宽度=5N+CORE_DIMS + 行数; 每次重建前后各跑一次 |`
-   （原临时件 tools/_p0_6_accept.py 已由施工改名常驻化，用户 2026-10-18 裁定） |
-   2026-10-18 | 施工
-
-2. **METHODOLOGY.md §0 红线表 R4** | 建议增补第二权威源：
+1. **METHODOLOGY.md §0 红线表 R4** | 建议增补第二权威源：
    "**wikiwiki.jp/th123ai API 语义表**（fflags/aflags 逐位/动作值全表/
    obj-ID 対応表/get_special_data，社区逆向+官方 document.txt 交叉）——
    与 cleista 分域: cleista=帧数据权威，wiki 语义表=引擎标志/动作分类
@@ -45,17 +17,14 @@
    > 备查: 若准, 同批在 R4 行末补"分域"措辞, 并在 §10 事故清单加一行
    > "语义标志靠猜→wiki 语义表入源(CA-0/CA-2 已按此核验 objs 未命中)"。
 
-（队列已清空 — 2026-10-17 21:5x 施工消费记录）
-- 原条目 1/2/3（PARALLEL_WORKFLOW 入宪 + AGENTS/HANDOVER 路由行）→ **已转录**
-  （METHODOLOGY 3.60 / AGENTS 头部路由区 / HANDOVER 当前栈速览）。
-- 原条目 4（R4 第二权威源）→ 见上方第 1 条, **挂起待用户裁定**。
-- 原条目 5（PR-1 许可文件）→ **已核对**: LICENSE(MIT)/docs/LICENSE-docs.md(CC-BY-4.0)/
-  docs/DATA_POLICY.md/README 访客段均在库, 无施工待办 → 消费完毕。
-- 原条目 6（PR-2 余项路径适配）→ **已执行, 但口径按审计侧修正**: 不包 expandvars
-  （那只修本机), 改为**仓库相对/文件位置派生** + `kit_config.REPO_ROOT/repo_path/
-  expand` 单源; 覆盖 2 测试/bc_build(分片 glob→repo 相对, 实测 1724 片)/
-  oracle_batch2/run_parallel/6 tools; 6 个运行产物 json 路径脱敏并入 .gitignore
-  → 详见 METHODOLOGY 3.60(R170)。
-- 原条目 7（git 历史已重写通知）→ **已收到**; 施工侧已同步（HEAD 756558b 起为
-  重写后历史, 旧哈希仅存本地 pre-rewrite-backup）。控制臂锚 46920e9→ef7f92f 已按树哈希
-  重钉(见 _plans/public_release_hardening_plan_2026-10-17.md)。
+（队列消费记录 — 2026-10-18 11:1x 施工 W1-EXEC）
+- 条目「docs/THIRD_PARTY.md 已起草, 待规划确认 + INDEX 登记」→**已关闭**:
+  规划已完成并合入 main（`docs/INDEX.md:25` 实测已登记 `tools/bc_accept.py`;
+  soku_arch 授权已由 R191 裁定"自有代码→MIT"并落 `soku_arch/VENDORED.md`+SPDX 头）。
+- 条目「_archive 历史半程（第二次重写未用 --invert-paths）」→**已关闭**:
+  R192 第三次全历史重写已按 `--invert-paths --path _archive` 剔除
+  （全历史 0 提交, HEAD 树哈希不变; 见 METHODOLOGY 3.63）。
+- 条目「docs/INDEX.md 登记 bc_accept 验收工具」→**已关闭**（同上, 规划 88f49ab 已登记）。
+- 条目「R4 第二权威源（wikiwiki.jp/th123ai）」→**仍挂起待用户裁定**（见上方第 1 条）。
+- 原 2026-10-17 消费记录（PARALLEL_WORKFLOW 入宪 / R4 挂起 / PR-1 许可核验 /
+  PR-2 路径适配 / git 重写通知）→ 见 METHODOLOGY 3.60(R170) 与历史 git log, 均已闭环。

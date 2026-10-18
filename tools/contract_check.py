@@ -2255,13 +2255,20 @@ chk("_rng_low.choice(" in src("bc_build.py")
     "P1-13(从零#5): 低信息降采样随机(非取前N, 固定种子可复现)")
 # P2(从零#5): 快照版本文件**损坏**必须响亮 — 原静默返回 0 而 actor 门是
 # `if ver > 0` → "永久用旧权重且看起来健康"(与仪表假绿同族)。
-chk("_VERSION_WARNED" in src("episode_core.py")
+# P1(审计#6, 2026-10-18): 原断言只查 `_VERSION_WARNED` 串 — 变异把门条件
+# `if _key not in _VERSION_WARNED:` 改成 `if False:` 后, 定义(:431)/.add(:449)/
+# print(:450) 文本仍在 → 变异不红(自证断言假绿)。收紧: 必须命中**门条件本体**
+# (告警实际可达), 而非仅"变量名出现过"。
+chk("if _key not in _VERSION_WARNED:" in src("episode_core.py")
     and "快照版本文件损坏" in src("episode_core.py")
     and "ver_corrupt" in src("actor_worker.py"),
     "P2(从零#5): 版本文件损坏=响亮(缺档仍静默0) + actor 侧计数")
 # P1-2(从零#5): 20 角色矩阵里 league 种子 temp=2.0、三主模型 temp=0.5 —
 # 温度/宏库差异会被读成"角色强度"。披露口径: 评估报告必须带 model_temp。
-chk("model_temp" in src("tools/eval_matrix.py")
+# P1(审计#6, 2026-10-18): 原断言只查 `model_temp` 串 — 变异删 :264 赋值后,
+# :272 except 分支仍含同名串 → 变异不红(自证断言假绿)。收紧: 必须命中
+# **try 正常路径的实际赋值**(report['model_temp'] = _temps), 仅 error 兜底不算披露。
+chk("report['model_temp'] = _temps" in src("tools/eval_matrix.py")
     and "def model_meta" in src("kit_config.py"),
     "P1-2(从零#5): 评估报告披露模型温度(种子2.0/主模型0.5)")
 # P1-12(从零#5): fangyu 警戒表的**叙述句伪条目** — 审计实测 71/255(28%) 是句子

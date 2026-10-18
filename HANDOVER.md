@@ -5,9 +5,11 @@
 > **2026-10-18 交接快照（R170-R195 收口；另一智能体接手时先读这段）**
 >
 > **门禁**: 668 PASS / 0 WARN / 0 FAIL（裸跑看退出码，勿用管道吞码）；变异 **206** 条；行为测试 92 档。
-> **仓库**: HEAD=`f7e5d65`=`origin/main`；三 worktree: 主仓 / `D:\temp\th123_rl_control`(330 代对照臂栈, detached)
+> **W1 验收门禁**: `D:\temp\gate_r197_final.txt`（12:12:51, exit=0, 原始末行 `668 PASS / 0 WARN / 0 FAIL`）。
+> **仓库**: HEAD=`4e13aa5`(=R196 c447ef7 + 规划文档 6 提交 ff 合并；生产内容与 c447ef7 相同；
+> `origin/main`=c447ef7, 规划文档提交未推)；三 worktree: 主仓 / `D:\temp\th123_rl_control`(330 代对照臂栈, detached)
 > / `D:\temp\th123_rl_planning`；2026-10-18 做了**第三次全历史重写**（剔除 `_archive`），新哈希
-> main `9cb67db`(→现 f7e5d65) / planning `ae6c39f` / 控制臂 `8720cdd`，备份 `D:\temp\repo-mirror-20261018b`。
+> main `9cb67db`(→现 4e13aa5) / planning `ae6c39f` / 控制臂 `8720cdd`，备份 `D:\temp\repo-mirror-20261018b`。
 > **当前在跑**: 主臂(supervisor+3 learner+3 actor+3 游戏) + 对照臂(learner+actor@21080, **绝对路径**启动)。
 > 训练族 CPU 看 `D:\temp\th123_models\fleet_heartbeat.wd` 第二列（红线 75%）。
 >
@@ -17,14 +19,24 @@
 > `TM·空连终结`=6,389（修前恒 0）。**换库后必须重建情境库索引**（`tools/situation_library.py`，行号空间）。
 >
 > **未完成（接手优先）**:
-> 1. **改动面增量变异 sweep（20 条, 2 workers）** —— 施工接到"暂停"指令时**已中止并清空沙箱**；
->    恢复（低载时）:
->    `$env:SELFTEST_TAGS='bc分片glob=0,cpu_family,control臂豁免,sc_label,league20 refresh,P1-1活档,P1-5隔离,P2旁车断言,P2仪表断言,P1-11断言,P1-2断言,P2版本断言,P1-13断言,P0池回退断言,P1-6断言,P1-12断言,P1-9断言,P1-4行数断言,热度极性,注入上限'`
->    `D:\temp\pyenv\python.exe -X utf8 tools\gate_selftest_parallel.py 2`
->    （内含基线绿守卫；**必须分离进程**，见坑 2）
+> 1. **改动面增量变异 sweep（20 条, 2 workers）** —— **R197 已恢复并跑通前半**: 两条自证断言先修（见 #5），
+>    `SELFTEST_TAGS='P1-2断言,P2版本断言'` 单跑已 **2红/0漏网/0未判定**（11:33, exit=1 632s/641s,
+>    基线绿守卫先过）；20 条全量试跑在 **4/20 红**后被用户中止（沙箱 `test_r17_ppo` 把整机拉到
+>    85-100%，族口径 20-30% 不可见，见坑 10）。**用户裁定 B1: 增量 20 条 + 全量 206 条统一推到
+>    今晚 20:00 夜间窗**（分离进程、2 workers、分两晚；闸门任务=W2-1）。
+>    复跑命令: `$env:SELFTEST_TAGS='...'` + `python -u tools\gate_selftest_parallel.py 2`
+>    （内含基线绿守卫；**必须分离进程**，见坑 2；夜间窗外受 load_gate 闸门约束）
 > 2. **全量变异 206 条** —— 需低载窗，约 2 核 × 20h。
-> 3. `docs/THIRD_PARTY.md` 已起草待规划确认 + INDEX 登记；**P1-2 温度用户裁定"先不改"**（仅报告披露）。
+> 3. ~~`docs/THIRD_PARTY.md` 待规划确认 + INDEX 登记~~ **已关闭**: 规划已确认并合入 main
+>    （`docs/INDEX.md:25` 已登记 `bc_accept`；soku_arch 授权=R191"自有代码→MIT"）；**P1-2 温度用户裁定"先不改"**（仅报告披露）。
 > 4. 用户自有: CA-1 第四口径（管理员跑一次 `eval_vs_th123ai.py`）、人测窗口。
+> 5. **审计#6（postR196, 11:08-11:16）已出**: `docs/audit/audit_2026-10-18_postR196.md` — 无新增 P0。
+>    两条 P1 新发现已随 R197 修复（R181/R183 **自证断言假绿**；README 复现声明把不入库的
+>    `data/guide_tables` 说成齐全 → 改为如实声明）；P1-13 数据层（活 trio 早于 R185）待下轮重建窗（用户裁定）；
+>    W2 候选分级见审计 §三。
+> 6. **P1-6 残余（W2，W1 不改行为）**: `tools/attribution_probe.py:69` / `tools/branch_demo.py:170` /
+>    `tools/danger_reveal.py:245-254` 未注 `opp_char_id`（门禁 `contract_check.py:2239-2243` 覆盖不到）→
+>    这些读数仍 OOD，不得用于强度/归因结论。
 >
 > **今日新坑（务必看）**:
 > 1. **重建必须逐路串行**: 3 路并行 bc_build 会 OOM（3×6GB 吃满 31.5GB → 换页假死；
@@ -41,6 +53,10 @@
 >    双臂点火 → `bc_accept --where store` → 重建情境库索引；回滚 `D:\temp\th123_bc_v3\pre_v3_backup`。
 > 9. 可清（确认本代库稳定后）: `pre_v3_backup` 与 `D:\temp\bc_store_backup_20261018`（各 ~18GB）；
 >    `D:\temp\gate_sandbox` 停 sweep 后应为空（残件=泄漏，要清）。
+> 10. **族口径红线看不到树外重载**: 2 workers 沙箱 `contract_check`+`test_r17_ppo`（单进程≈5 核）
+>    把**整机**拉到 85-100%，而训练族口径仅 20-30% 不触发 75% 红线（R14 族口径只管训练树）。
+>    → 重活白天不跑；夜间窗由 **W2-1 CPU-H**（`tools/load_gate.py` 整机/内存/族 preflight +
+>    5s 监控 + 协作停止）闸门约束；用户可感知的卡顿=事故。
 
 **当前栈速览(2026-10-18 R195)**: CORE_DIMS=**358**(S-2段343+JZ-1段15); 并行开发必读 `PARALLEL_WORKFLOW.md`(写入权+队列); 门禁**668/0/0**;
 宏数reimu88/marisa95/suika91(蓄力cleista真值+系统卡+DD+HJC);
@@ -59,7 +75,7 @@ tools/bh41_measure.py) / **BH-4.2 对位语料采集✅完成**(51/51对×14-15�
 四子项+S-6[untech门+段位表+matcher语境+762对位分片+I列]; 重建实弹
 抓出bc_build两处对位兼容bug[LIBS键/池位]已修76cc402; 完成→bc_swap_v3
 →fleet重启)。
-CE离线件全谱就绪(R131-139); 观察期继续。门禁**643/5/0**(R170实测); 帧日志需
+CE离线件全谱就绪(R131-139); 观察期继续。门禁**668/0/0**(2026-10-18 裸跑实测); 帧日志需
 TH123_FRAME_LOG=1。关键数据: cleista/(API全量+守备段位134档)+
 guard_height.json+matchup_combo_prior.json+move_displacement_*.json。
 > 读完本文即可开始工作; 细节按需查阅引用文档。历史版见 git log。
@@ -102,7 +118,7 @@ guard_height.json+matchup_combo_prior.json+move_displacement_*.json。
 | `soku_client2.py` | TCP锁步协议客户端 | 协议变更 |
 | `tools/human_match_v2.py` | **人测runner**(RPM观察+内存写行动) | 人测流程变更 |
 | `tools/eval_matrix.py` | 评估矩阵(四口径+vs_Human+被动仪表) | 评估变更 |
-| `tools/contract_check.py` | **门禁**(658断言/0 WARN, 0 FAIL 才可提交) | 新增断言+配对变异 |
+| `tools/contract_check.py` | **门禁**(668断言/0 WARN, 0 FAIL 才可提交) | 新增断言+配对变异 |
 | `tools/gate_selftest.py` | 变异自检(沙箱逐条变异→门禁必红) | 新增变异 |
 | `portmap.py` | 端口段划分(20800-21299) | 端口变更 |
 | `series_manager.py` | BO15系列赛管理(阶段1, flag门控) | 系列赛启用时 |
@@ -142,7 +158,7 @@ tail -5 D:\temp\th123_models\fleet_supervision.log
 
 ```bash
 D:\temp\pyenv\python.exe tools/contract_check.py
-# 必须 exit 0 —— 2026-10-17 晚实测 643 PASS / 5 WARN / 0 FAIL(WARN=旧代store残留)
+# 必须 exit 0 —— 2026-10-18 10:47 实测 668 PASS / 0 WARN / 0 FAIL(gate_r195 原始末行)
 ```
 
 **纪律**: 裸跑(不pipe)+检查退出码. `| tail` 会吞退出码(f4668e1事故).
@@ -278,7 +294,7 @@ D:\temp\pyenv\python.exe tools/build_kit.py --zip
 | 研究借鉴方案 | `docs/_plans/research_borrowing_plan_2026-10-13.md` |
 | 系列赛方案 | `docs/_plans/series_opponent_prediction_plan_2026-10-06.md` |
 | 未决问题方案 | `docs/_plans/unresolved_issues_solutions_2026-10-12.md` |
-| 审计报告 | `docs/audit/`(最新: strict_r82_r90b) |
+| 审计报告 | `docs/audit/`(最新: audit_2026-10-18_postR196.md) |
 | Bug档案 | `docs/bugs/` |
 | 问题陈述(B线) | `docs/_plans/b_problem_statement_2026-10-13.md` |
 | 可行性反思v3 | `docs/_plans/feasibility_reflection_v3_2026-10-06.md` |
