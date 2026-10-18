@@ -257,6 +257,20 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 16. 人测角色自动识别（2026-10-18，已实机验证）
+
+**需求**：用户要求人测工具自动检测游戏内 **P2 角色**并加载对应模型（不再手工 `--char`）。
+
+**证据链（R4：不猜，来源+实测）**：
+1) ❌ `th123ai/SwrAddr.ini` 的 `LCHARID=0x6E6FF0 / RCHARID=0x6E7010` 对本 build **无效**：原始游戏进程实测读到 1958774015 / 3506373482 等垃圾值（0x6ECE7C 亦非 scene）→ 弃用并标 unverified。
+2) ✅ 项目自带 SokuLib 源码（`soku_arch/build/src/SokuLib/src/CharacterManager.hpp`）：`CharacterManager::characterIndex` @ **+0x34C**(u8)、`playerIndex` @ **+0x350**(u8)；经既有 `BM_P=0x8985E4` + `LCHAROFS/RCHAROFS=0x0C/0x10` 链读取。
+3) ✅ **Live 4/4 命中**（只读探针 `D:\temp\probe_charid.py`，训练游戏）：21010 左=marisa(1)、21028 左=suika(9)、21006 左=reimu(0)、21080(对照臂) 左=reimu(0)；右侧=联盟对手 id 3/16/6/5；`playerIndex` 左=0/右=1。原始游戏当时 scene=2（菜单）→ 无 char manager，符合预期。
+
+**落地方案（task-15）**：battle(scene==5) 读 `+0x34C` → `CHAR_LIBS[name]['id']` 逆映射（20/20，不猜）；L=P1 人类 → `set_opponent`；R=P2 模型 → `live_model_path`（`_fleet` 优先）→ 回退候选（每候选做 `n_side==5*n_out+CORE_DIMS` 代际/维度守卫，不兼容跳过并响亮拒绝）→ 记 `model_source/model_stamp`；`--probe-chars` 只读比对；会话 JSON 记 `detected{...}`；决策旁车 `STORE/human_match_decisions/` 原子落盘；门禁断言+变异+C15。
+**回退顺序**：`live _fleet` → `fleet/pool/<char>/seed_*.npz`（最新） → `model_ppo_<char>.npz` → 全缺=SystemExit。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
@@ -273,3 +287,4 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 | 2026-10-18 | v10 | **P-A 验收通过**（R198 `ab1d477`：43 自测 PASS 亲跑、gate_r198 exit=0、失败=关闭路径验证）→ push 同步 `cee0e15`（0/0）；R199 `96bea42` 文档批（task-8 ✅）；**B1 今夜定参**：20:05、workers=1、仅今夜 `TH123_HEAVY_MACHINE_MAX=70`、只跑增量 20（全量明晚）、abort 90/族75/RAM3 不变；19:55 启动/23:45 午夜两个 Lead 提醒就绪（施工不能自建提醒）；增 §14 W2 波次计划 |
 | 2026-10-18 | v11 | **W2-B1→task-9 在途**（diff +65/−0 预审通过；18:25 门禁窗→19:45 提交）；**新 P1 → task-10（W2-B8）**：`_POOL_OPP_NAME` 以游戏 ID 为键却用池序查 → 实测 **18/20 槽错**（suika→'sakuya'、pool20–27→None；仅 reimu/marisa 正确），影响 SideDriver 路径 `_opp_char`/`_jz1_ids`（训练 P2+评估），修复须 ≤15min 停机窗、修复后评估重基线；W2-C1 补"3 会话 + 无 rep 行为工具→子件 0.3–0.5d"；B1 就绪静态核验 20/20 tag 匹配 |
 | 2026-10-18 | v12 | **人测 9 局结论修正**（task-12 审计：旧模型 10-15 单机档+未注入对手=OOD → 9–0/零SC 不代表现行策略；训练侧 SC 非零；frames 比=驱动 39Hz vs 62fps）→ 立 task-15 人测通路修正+**用户新需求自动检测 P2 角色并加载对应模型**（LCHARID/RCHARID 社区表 + 实机 probe 校验 + 活档优先/回退/全缺拒绝 + P1 注入 + model_stamp + 决策日志）；用户裁定 **bcw=B1 长期开 0.05、停机窗今晚**（task-13，与 task-10 合并）；**task-14 训练侧基线 v3 入档 §15**（空挥 82–88%、防御响应 0.2–2.2%、擦弹 TTI P50 0–2.8F、连段 interrupted 54–76%）；18:25 提交清单含 audit#6b 报告 |
+| 2026-10-18 | v13 | **P2 角色自动识别打通（§16）**：th123ai ini 地址表实测无效（垃圾值）→ 弃用；改用 SokuLib `CharacterManager::characterIndex@+0x34C`（`playerIndex@+0x350`），live 4/4 命中（marisa=1/suika=9/reimu=0/对照臂 reimu=0）；task-15 采此方案（活档优先+逐候选代际守卫+probe 只读+model_stamp+决策旁车+断言/变异/C15） |
