@@ -312,6 +312,7 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 **中断账**：起 16:27:31（control learner 最后正常写；actor 16:30:00）→ 止 16:38:10（恢复）；**gap=639s**；游戏 21080 缺失 1 台约 8.5min。恢复=绝对路径+detached+独立 store（`D:\temp\th123_models_control`），`n_out=70/updates3202`、v679、actor 出决策（Lead 复核）。
 **R202 热修（批准）**：supervisor **全部 kill 路径**加 `th123_rl_control` 豁免（不只 reap_orphans）+ 门禁"生效本体"断言 + 配对变异 + C15 静态/行为测试 → 预期 **676/211/96**（METHODOLOGY 3.68）；提交信息附中断账；commit 不 push→Lead 合并规划→push。
 **治理**：以后清理/重启禁用宽口径进程终止；`train_start --stop` 只按 main 进程树 PID 精确终止；审计#7 专列"kill 路径豁免覆盖"检查项。
+**R202 完成（2026-10-18 17:13）**：`dbf767c`（**未 push**，ahead 1）；门禁 **677/0/0** exit=0、MUT **211**、C15 **96**（算术修正：新增 1 断言+1 C15 各 +1 PASS → 675+2=677）；目标变异 `对照臂孤儿回收豁免缺失` exit=1 ✓红、0 漏网、0 未判定（`selftest_r202_mut.exit`=0）；控制臂改用 `--episodes 1000000` 连续模式恢复（`--episodes` 语义=局数上界，0=不跑），**第二次 gap=1697s**（16:42:42→17:10:49）已记附录；待 Lead 合并规划后 push。
 
 ---
 
