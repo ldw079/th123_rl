@@ -212,6 +212,8 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 **新发现（需用户裁定，训练语义类）**：三 learner 初始化 meta 实测 **`bcw0.00`**（`learner_reimu.log` 12:08；`ppo_gpu.py:200-224` `BC_W=0.12→BC_W_MIN=0.0`，R47 设计）→ **R184 新 SC 标签当前不直接进入策略梯度**（数据仍加载，供 LE-1b 情境库/先验与验收用）。若目标含"新标签可被学到"，需（B1）重开 BC 权重窗口 + A/B，或（B2）另立监督 aux 通道；否则（A）接受"标签只作数据层/验收"并补行为口径（SC 使用率）。
 
+**W1 复核（task-7，审计 12:17–12:22，报告 `docs/audit/audit_2026-10-18_r197_verify.md`）**：7/7 项**通过**（自证断言精确对齐变异旧串、selftag sweep 2红/0漏网；入口 668/206/92；README 声明；METHODOLOGY 3.65；队列；R184 归档；R197 树无夹带），**exit=0 已证**（`gate_r197_final.exit`=0x30，生成器落盘 returncode）。**W1 关闭成立**。3 项 docs-only 保留：HANDOVER 顶部 HEAD 行过期（4e13aa5→edbc843）、THIRD_PARTY 关闭引 `INDEX:25` 实为 `:35`、METHODOLOGY 3.65 白天试跑"11:37/4-20"vs 日志"11:33/6-20"；已立 **task-8（W2-DOC）** 更正并收档审计报告。204 条变异与 bcw 裁定仍为已知未完成项。
+
 ---
 
 ## 修订记录
@@ -226,3 +228,4 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 | 2026-10-18 | v6 | **审计#6 完成**（11:16，task-5 ✅，报告 `docs/audit/audit_2026-10-18_postR196.md`）：R184/R192/P1-12/R190 已闭；P1-6/P1-10/P1-13/P1-2 部分；新 P1×2（门禁自证断言、README 复现声明）。增 §11 判决表；W1-EXEC 增补指令已下发（先修 2 条自证断言→清沙箱→README→HANDOVER HEAD）；**上抛用户：P1-13 重建窗、全量 206 变异窗** |
 | 2026-10-18 | v7 | **用户裁定 A1（不做 P1-13 重建，并批下次）+ B1（全量/增量变异 sweep 移今晚 20:00 夜间窗）**；12:00 用户报卡顿 → Lead 终止 gate_selftest_parallel 全树 + 清 7.05GB 沙箱（CPU 85–100%→53%，RAM 15GB 空余，D 61.5GB）；新增 §12 事件与纪律（sweep 一律夜间窗+分离进程+自清；禁止训练高峰并行；禁止连续重跑测试） |
 | 2026-10-18 | v8 | **W1 关闭**（R197 `a6dcbf0`，门禁 `gate_r197_final` 668/0/0 exit=0；自证断言修复 2红/0漏网 exit=1 632s/641s；入口数字 668/206；METHODOLOGY 3.65；队列仅 R4）；W2 启动（task-6 CPU-H P-A 今晚 20:00 前；task-7 R197 复核）；**新发现 bcw=0.00 → 新 SC 标签不直接入策略梯度**（上抛用户：A 接受数据/验收口径 / B1 重开 BC 权重 / B2 监督 aux 通道） |
+| 2026-10-18 | v9 | **task-7 复核通过（W1 关闭成立）**：7/7 项通过、exit=0 已证（.exit=0x30）；3 项 docs-only 保留 → 立 task-8（HANDOVER HEAD 行/index 行号/METHODOLOGY 白天试跑数字 + bc_accept docstring + 审计报告收档）；push 已确认（local=origin=`edbc843`）；P-A `load_gate.py` 落地在途 |
