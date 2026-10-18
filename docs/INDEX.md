@@ -78,7 +78,7 @@
 | `jz_field_semantics_probe_2026-10-14.md` | JZ-0探针 | 封包字段语义(15维入账裁定) |
 | `jz2b_macro_timing_audit_2026-10-14.md` | JZ-2b审计 | 宏时序vs cleista站(萃香3偏差修正+系统动作互证) |
 
-## `_plans/` · 历史规划/分析/方案存档（30 份）
+## `_plans/` · 历史规划/分析/方案存档（31 份）
 
 | 文件 | 性质 | 状态 |
 |---|---|---|
@@ -109,6 +109,7 @@
 | `public_release_hardening_plan_2026-10-17.md` | **公开化改造方案（PR-0..PR-5）— 切 public 前必读** | 审计完成: 全历史零密钥/无PII/无侵权资产; **用户裁定: LICENSE=MIT+CC-BY-4.0, 用户名=全历史重写(filter-repo)**; PR-1..4 内容批次已执行(LICENSE/LICENSE-docs/DATA_POLICY/README访客段); PR-5 重写含 force-push 剧本与控制臂树哈希重锄法; 切换 runbook 在 §③ |
 | `agent_team_orchestration_2026-10-18.md` | **三体编排图与运行规则（用户裁定 A / L0+L1+L2 / 每波必审）** | U→L→C/A 编排图+写域矩阵+五类任务模板+L0事件/L1心跳/L2目标驻留+验收门+升级硬停+交班协议+波次台账; 满 10 波触发从零复审 |
 | `cpu_redline_hardening_2026-10-18.md` | **CPU 红线防护加固方案（CPU-H）— 12:00 卡顿事件驱动** | 现状核验（族口径盲区/默认 8 workers/无优先级/无整机指标）+ L0 观测 + L2 `load_gate` 闸门 + L3 旁路看门狗（L1 75/65 不动）+ P-A 今晚 20:00 前必须 + P-B/C 分阶段 + 量化验收 |
+| `human_match_9games_2026-10-18.md` | **人测 9 局输入级分析（草案·待审计复核）** | 人类 9–0（全 2:0）；模型 SC 沿 0 vs 人类 45、A 长按/蹲多/跳入/几乎不后退、早攻无效；含解释边界（输入层≠决策层）与 W2 整改候选 R1–R4 |
 | `branch_gate_activation_2026-10-13.md` | 分支门激活方案（CH-1..CH-4 框架） | branch宏confirm→四路路由 |
 | `kit_portable_python_plan_2026-10-13.md` | 轻量采集包迁移方案 | kit zip→收件人runner→数据回传 |
 | `top_yardstick_human_match_plan_2026-10-13.md` | 人测标尺对局方案 | B线顶端标尺配套 |
