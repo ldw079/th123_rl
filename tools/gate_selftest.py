@@ -675,6 +675,15 @@ MUTATIONS = [
      '    ("test_load_gate.py",',
      '    ("test_load_gate_renamed_x.py",',
      "C15白名单漏注册(tests/ 多1项未入白名单) → 白名单对账断言必须红"),
+    # 审计#6/task-10+13 配对变异(2026-10-18 合并窗): 回退修复 → 新断言必红
+    ("side_driver.py",
+     "_POOL_OPP_NAME = {v: k for k, v in TMTrainer._CHAR_POOL_IDX.items()}",
+     "_POOL_OPP_NAME = {l['id']: n for n, l in CHAR_LIBS.items()}",
+     "池序映射回退为游戏ID键(20槽错名) → P1池序映射断言必须红"),
+    ("ppo_gpu.py",
+     "        BC_W_MIN = float(os.environ.get('TH123_BCW_MIN', '0.05'))",
+     "        BC_W_MIN = 0.0",
+     "BC权重下限env失效(长期bcw回退0) → bcw env断言必须红"),
 ]
 
 

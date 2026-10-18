@@ -194,6 +194,22 @@ def main():
             print('[P0-4] !! 基线不绿(exit=%d) — 拒绝继续' % _baseline_rc)
             print('  末行:', _baseline_out.strip().splitlines()[-1][:100]
                   if _baseline_out.strip() else '(无输出)')
+            # 2026-10-18 B1: 基线红根因可见化 — 原只打末行, FAIL 项不可见。
+            # 落盘完整门禁输出 + 打印 FAIL 行(诊断用; 不改变判定)。
+            try:
+                _bdir = (r'D:\temp' if os.path.isdir(r'D:\temp')
+                         else tempfile.gettempdir())
+                _bf = os.path.join(_bdir, 'sweep_baseline_fail_%s.log'
+                                   % time.strftime('%Y%m%d_%H%M%S'))
+                with open(_bf, 'w', encoding='utf8') as _fh:
+                    _fh.write(_baseline_out)
+                print('  完整输出:', _bf)
+                _fails = [l for l in _baseline_out.splitlines()
+                          if '  FAIL' in l]
+                for _l in _fails[:10]:
+                    print('  FAIL行:', _l.strip()[:200])
+            except OSError as _e:
+                print('  落盘失败: %r' % (_e,))
             print('  修复门禁后再跑变异自检')
             shutil.rmtree(_base, ignore_errors=True)
             if gate is not None:

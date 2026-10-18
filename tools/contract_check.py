@@ -2081,6 +2081,10 @@ _BEHAVIOR_TESTS = [
     ("test_load_gate.py",
      "CPU-H P-A: 轻载闸门(锁/注册表/preflight/worker cap/优先级/监控中止/"
      "协作停止/轨迹/env旁路) 43 项空跑自测"),
+    ("test_pool_opp_name_map.py",
+     "P1(审计#6): 池序→名映射20/20 + _side_feat 槽位/_opp_char/_jz1_ids 行为"),
+    ("test_bcw_env.py",
+     "D1(bcw=B1): BC_W_MIN 代码默认0.05(任意重启不带env也长期生效) + env=0回滚"),
 ]
 # 审计#6c(2026-10-18): C15 白名单对账 — "新测试漏注册"第3次复发(21档/
 # macros_branch/R198 test_load_gate 43项从未进门槛)的永久防线:
@@ -2099,12 +2103,30 @@ for _tname, _tdesc in _BEHAVIOR_TESTS:
     _r = _sp.run([sys.executable, "-X", "utf8", _tp],
                  capture_output=True, text=True, timeout=600,
                  encoding="utf-8", errors="replace")
+    if _r.returncode != 0:
+        # 2026-10-18 B1: 行为测试失败时落盘**完整 stdout/stderr**(原只回末行,
+        # case 级根因不可见) — 诊断用, 不改变判定。
+        try:
+            _lf = os.path.join(r'D:\temp',
+                               'lg_fail_%s.log' % _tname[:-3])
+            with open(_lf, 'w', encoding='utf8') as _fh:
+                _fh.write((_r.stdout or '') + '\n--- STDERR ---\n'
+                          + (_r.stderr or ''))
+        except OSError:
+            pass
     chk(_r.returncode == 0, "行为测试@%s" % _tname,
         ("%s | 末行: %s" % (_tdesc,
                             (_r.stdout or _r.stderr or "").strip().splitlines()[-1][:60])
          ) if _r.returncode == 0 else
         ("FAIL: %s" % ((_r.stderr or _r.stdout or "").strip().splitlines()[-1][:200])))
 
+chk("TMTrainer._CHAR_POOL_IDX" in src("side_driver.py")
+    and "{l['id']: n for n, l in CHAR_LIBS.items()}" not in src("side_driver.py"),
+    "P1(审计#6): 池序→角色名映射由 _CHAR_POOL_IDX 反演(20/20, 非游戏ID)")
+chk("TH123_BCW_MIN" in src("ppo_gpu.py")
+    and "TH123_BCW_START" in src("ppo_gpu.py")
+    and "max(self.BC_W_MIN, float(m[2]))" in src("ppo_gpu.py"),
+    "D1(bcw=B1): BC权重env化(TH123_BCW_MIN/START)+load下限再挂载")
 # ============ P2波锚(审计#3十九项首波, 2026-10-13) ============
 print("=== P2修复波锚(审计#3) ===")
 # 审计2026-10-16 P1-1防复发: CE-1宏层画像的生产调用形态 — begin必须

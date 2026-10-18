@@ -24,10 +24,13 @@ from ppo import PPOTrainer  # noqa: E402
 from soku_client2 import GameEnded  # noqa: E402
 from tm_env import TMEnv  # noqa: E402
 from train_tm import (CHAR_LIBS, keys_to_input, _parse_sc_targets,  # noqa: E402
-                      GUARD_PREP_MACROS)  # noqa: E402
+                      GUARD_PREP_MACROS, TMTrainer)  # noqa: E402
 
 # BH-3.2: 池序→角色名(守备段位逐角色表查名用)
-_POOL_OPP_NAME = {l['id']: n for n, l in CHAR_LIBS.items()}
+# 审计#6 P1(2026-10-18): 原 {游戏角色ID:名} 被 _side_feat 用**池序**查 →
+# 多数槽位错名(sakuya池11→'aya'/suika池2→'sakuya'/扩展区20-27→None)。
+# 由 TMTrainer._CHAR_POOL_IDX(单一事实源)反演: 池序→名, 20/20 覆盖。
+_POOL_OPP_NAME = {v: k for k, v in TMTrainer._CHAR_POOL_IDX.items()}
 
 
 class EvalEnv(TMEnv):

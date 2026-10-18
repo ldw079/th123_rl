@@ -8,9 +8,9 @@
 > 规划产物规范: **PLANNING_AGENT.md(规划智能体宪章, 2026-10-12用户令)** — 一切规划/方案必须"考察现状→详细可执行→附验收途径"三段齐备, 缺一仅得称草稿; 与本文冲突时以本文红线为准
 > 审计路由: **docs/audit_protocol.md(审计智能体入口, 2026-10-12用户令)** — 地位与 AGENTS.md 之于开发智能体同级, 审计接手第一读; 三必要条件(只读最新状态/结论按时间归档/数轮大更新后从零审查)+标准清单; bug 归档入口 docs/bugs/; 与本文冲突时以本文红线为准
 > 并行开发: **PARALLEL_WORKFLOW.md(三智能体并行约定, 2026-10-16用户批准试行)** — 单写者规则+docs/_pending_entries.md 队列; 写文件前先查写入权
-> 版本: 3.66 · 2026-10-18 · R198-200(**W2 收口首段** / P-A 轻载闸门 `load_gate` 接入 +
-> C15 白名单漏注册根治 / R199 文档更正 / R200 P1-6 残余三处注入 + 审计#6b 人测通路实锤入档) |
-> 门禁 671/0/0, 变异 208
+> 版本: 3.67 · 2026-10-18 · R201(**W2 合并窗** / task-10 池序映射 20/20 + task-13 bcw=B1
+> 代码默认 0.05(env=0 回滚) + 2 断言/2 C15/2 变异已验红 + B1 增量 20 完成) |
+> 门禁 675/0/0, 变异 210
 
 ---
 
@@ -2786,6 +2786,31 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     =检测随机源失效而非惩罚收敛路线)+接管者标注。mock集成测试14项
     全绿(必败检出≥80%/实际≤20%/退化作废/可复现); 真实模式待舰队空闲。
   - 门禁600/0/0。
+- 3.67 (2026-10-18 傍晚, **R201: W2 合并窗 — 池序映射修复 + bcw=B1 代码默认 0.05 + B1 增量 20 完成**):
+  - **B1 增量 20(停训期, 2 workers)**: 用户批准停 main fleet(对照臂不动)全力推自检; 20/20 变异 ✓红,
+    0漏网/0未判定, 墙钟 28min, 轨迹 `heavy_runs/20261018_153920_sweep.json`(final/ok, duration 1829.7s);
+    整机 CPU 峰值 67.5%(822 采样, >85% FLAG=0), RAM 最低 15.6GB, family=0, 未 abort、未触发 90%×3 红线;
+    对照臂 21080 全程未动。**R200 后首跑基线红根因**: parallel sweep 沙箱基线 env 继承调用方
+    `TH123_HEAVY_ALLOW_DAY=1`/`TH123_LOAD_GATE=0`/`TH123_HEAVY_MACHINE_MAX=70` → `test_load_gate`
+    的"窗外未 --allow-day 必须拒绝"用例被 env 放行(42/1)与锁回滚旁路(FileNotFound); 修复=测试顶部
+    隔离 5 个负载 env(测默认口径) + `gate_selftest_parallel` 基线红时落盘完整输出 +
+    `contract_check` 行为测试失败时落盘完整 stdout/stderr(诊断不改判定)。修复后沙箱基线绿、生产门禁 675。
+  - **task-10(审计#6 P1, `side_driver.py`)**: `_POOL_OPP_NAME` 原为 `{游戏角色ID:名}` 却被 `_side_feat`
+    用**池序**查 → sakuya池11→'aya'/suika池2→'sakuya'/扩展区20-27→None(18/20 错名), 污染 BH-3.2
+    `_opp_char`(守备段位表)与 `_jz1_ids`(JZ-1冷却)。修复=由 `TMTrainer._CHAR_POOL_IDX`(单一事实源)
+    反演 `{池序:名}`(20/20); 门禁"生效本体"断言(反演表达式+旧字面量消失)+配对变异(回退→断言必红)。
+  - **task-13(用户裁定 bcw=B1 长期开, `ppo_gpu.py`)**: `BC_W_MIN` 代码默认 **0.05**(env
+    `TH123_BCW_MIN` 可覆盖, `=0` 回滚; 任意重启不带 env 也长期生效), `BC_W` 默认 0.12
+    (`TH123_BCW_START`); `load()` 改 `max(BC_W_MIN, meta_bcw)` 把退火到 0 的旧档重新挂载到 0.05;
+    decay 行 `:588` 原已 `max(self.BC_W_MIN, ...)` 不动。行为测试 4 例(未设=0.12/0.05、MIN=0 回滚、
+    MIN=0.10、START/MIN 组合); 门禁断言(env 接线+load 下限)+变异(删 env 读→必红)。
+  - **验证**: 单测 `test_pool_opp_name_map` 20/20、`test_bcw_env` 4/4、`test_side_driver_semantics` 回归绿;
+    门禁裸跑 `D:\temp\gate_r201.txt`(16:15:34, exit=0) **675 PASS / 0 WARN / 0 FAIL**; MUTATIONS **210**;
+    C15 **95**(93+2 新测试==白名单, 对账断言常驻); **2 条新变异红验证**在提交前、停训期串行完成
+    (`SELFTEST_TAGS='池序映射,BC权重下限'`: 基线绿守卫 → 2/2 ✓红, `D:\temp\selftest_r201_mut.out.log`);
+    入口数字三处同步(AGENTS:61 / README:52-53,84 / HANDOVER:7-10,61,78,121,161)。
+  - **重启**: 不带 env 重启 main fleet(bcw 代码默认 0.05 生效), 验证 `_bcw≥0.05`/BC CE×bcw>0/
+    池序映射 20/20/心跳快照前进; ON 基线用 task-14 脚本 `--since 重启时刻` 重采。
 - 3.66 (2026-10-18 下午, **R198-200: W2 收口首段 — P-A 轻载闸门 + C15 白名单对账根治 + P1-6 残余注入 + 审计#6b 实锤入档**):
   - **R198 (W2-1 P-A `tools/load_gate.py`)**: 轻载闸门落地 — 单实例锁 `STORE/heavy.lock` +
     注册表 `heavy_jobs.json` + 协作停止 `heavy.stop` + 轨迹 `heavy_runs/<ts>_<kind>.json`;

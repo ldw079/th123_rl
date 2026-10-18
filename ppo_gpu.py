@@ -197,8 +197,11 @@ if HAS_TORCH:
         BETA_ENT_0 = 0.02
         BETA_ENT_MIN = 0.001
         ENT_DECAY = 0.97
-        BC_W = 0.12
-        BC_W_MIN = 0.0
+        # CPU-H P-A/task-13(2026-10-18 用户裁定 bcw=B1 长期开): env 化,
+        # **BC_W_MIN 代码默认 0.05**(任何重启不带 env 也长期生效);
+        # 回滚=`TH123_BCW_MIN=0`; TH123_BCW_START 默认 0.12(历史起始)。
+        BC_W = float(os.environ.get('TH123_BCW_START', '0.12'))
+        BC_W_MIN = float(os.environ.get('TH123_BCW_MIN', '0.05'))
         TARGET_KL = 0.03
         AUX_W = 0.15
 
@@ -862,7 +865,7 @@ if HAS_TORCH:
                 m = merged['meta']
                 self._temp = float(m[0])
                 self._beta = float(m[1])
-                self._bcw = float(m[2])
+                self._bcw = max(self.BC_W_MIN, float(m[2]))
                 self._updates = int(m[3])
                 self._rstd = float(m[4])
                 # R61f(F3): 旧档meta仅5元素(无lr_scale) → 越界IndexError

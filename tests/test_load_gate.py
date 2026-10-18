@@ -21,6 +21,15 @@ sys.stdout.reconfigure(encoding='utf8')
 
 import load_gate as lg  # noqa: E402
 
+# 2026-10-18 B1 基线红根因修复: parallel sweep 的沙箱基线 env 带调用方负载覆盖
+# (TH123_LOAD_GATE=0 禁嵌套闸门 / TH123_HEAVY_MACHINE_MAX=70 / ALLOW_DAY=1) —
+# 本自测必须测**默认口径**: ①第1节需真实闸门(不得走回滚旁路) ②窗外未 --allow-day
+# 必须拒绝(env ALLOW_DAY=1 会放行) ③阈值断言按默认 55/6GB/70。
+# 测试内隔离这些 env(不改变生产语义; serial/parallel 沙箱都稳定)。
+_OLD_ENVS = {k: os.environ.pop(k, None) for k in (
+    'TH123_LOAD_GATE', 'TH123_HEAVY_MACHINE_MAX', 'TH123_HEAVY_RAM_MIN_GB',
+    'TH123_HEAVY_FAMILY_MAX', 'TH123_HEAVY_ALLOW_DAY')}
+
 N = 0
 BAD = 0
 
