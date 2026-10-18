@@ -2,7 +2,47 @@
 
 > 日期: 2026-10-16 · 增量(**BH-4.1 matcher连段语境✓[真受击帧攻击标签43/46/33%]**/BH-3感知修复三项✅/BH-1仪表盘✅/BH-4.2采集进行中/BH-4.3先验表✅/CE离线件全谱✅/git两波提交87bb8b3+fa8b34d) · 供下一个智能体直接接手
 
-**当前栈速览(2026-10-17 R170)**: CORE_DIMS=**358**(S-2段343+JZ-1段15); 并行开发必读 `PARALLEL_WORKFLOW.md`(写入权+队列); 门禁**643/5/0**;
+> **2026-10-18 交接快照（R170-R195 收口；另一智能体接手时先读这段）**
+>
+> **门禁**: 668 PASS / 0 WARN / 0 FAIL（裸跑看退出码，勿用管道吞码）；变异 **206** 条；行为测试 92 档。
+> **仓库**: HEAD=`f7e5d65`=`origin/main`；三 worktree: 主仓 / `D:\temp\th123_rl_control`(330 代对照臂栈, detached)
+> / `D:\temp\th123_rl_planning`；2026-10-18 做了**第三次全历史重写**（剔除 `_archive`），新哈希
+> main `9cb67db`(→现 f7e5d65) / planning `ae6c39f` / 控制臂 `8720cdd`，备份 `D:\temp\repo-mirror-20261018b`。
+> **当前在跑**: 主臂(supervisor+3 learner+3 actor+3 游戏) + 对照臂(learner+actor@21080, **绝对路径**启动)。
+> 训练族 CPU 看 `D:\temp\th123_models\fleet_heartbeat.wd` 第二列（红线 75%）。
+>
+> **P0-6 已收官**（SC 复合宏标签；真因=**卡 ID 撞车**，不是审计猜的"取错帧"）:
+> 三库换代 429,411 / 353,622 / 329,250 行（S 798/833/813），已换装并通过
+> `tools/bc_accept.py --where store`；标签实数 `TM·必杀SC连`=24,295 / `TM·6a终结`=271 /
+> `TM·空连终结`=6,389（修前恒 0）。**换库后必须重建情境库索引**（`tools/situation_library.py`，行号空间）。
+>
+> **未完成（接手优先）**:
+> 1. **改动面增量变异 sweep（20 条, 2 workers）** —— 施工接到"暂停"指令时**已中止并清空沙箱**；
+>    恢复（低载时）:
+>    `$env:SELFTEST_TAGS='bc分片glob=0,cpu_family,control臂豁免,sc_label,league20 refresh,P1-1活档,P1-5隔离,P2旁车断言,P2仪表断言,P1-11断言,P1-2断言,P2版本断言,P1-13断言,P0池回退断言,P1-6断言,P1-12断言,P1-9断言,P1-4行数断言,热度极性,注入上限'`
+>    `D:\temp\pyenv\python.exe -X utf8 tools\gate_selftest_parallel.py 2`
+>    （内含基线绿守卫；**必须分离进程**，见坑 2）
+> 2. **全量变异 206 条** —— 需低载窗，约 2 核 × 20h。
+> 3. `docs/THIRD_PARTY.md` 已起草待规划确认 + INDEX 登记；**P1-2 温度用户裁定"先不改"**（仅报告披露）。
+> 4. 用户自有: CA-1 第四口径（管理员跑一次 `eval_vs_th123ai.py`）、人测窗口。
+>
+> **今日新坑（务必看）**:
+> 1. **重建必须逐路串行**: 3 路并行 bc_build 会 OOM（3×6GB 吃满 31.5GB → 换页假死；
+>    np.stack 峰值单进程翻倍）。上限 2 路，且不要与 fleet 同时。
+> 2. **长任务不能跑在会话托管作业里**: Harness 重启会连带杀掉，40 分钟重建白跑零产物；
+>    一律 `Start-Process -WindowStyle Hidden` + 日志重定向。
+> 3. **判进度看 CPU 时间Δ 与产物，不看日志行**；进程判活用 `Get-Process -Id`，
+>    **不要**用 `Win32_Process` 的 CommandLine 过滤（会瞬时为空 → 假"已结束"）。
+> 4. `train_start.py --stop` 会豁免控制臂（cmdline 含 `th123_rl_control` + 绝对路径启动）→ 停主臂后单独停/启控制臂。
+> 5. 池快照"resolve 后到 load 前被 learner 修剪"竞态已在 **R190** 修（回退生产模型，别回退）。
+> 6. 看门狗空表=查询失败→`None` 哨兵（**不是 0%**，R182）；版本文件损坏要响亮（R183）。
+> 7. 重写只改对象库，**多 worktree 磁盘副本要单独核**（规划 worktree 曾留含 PII 旧副本，已还原）。
+> 8. 换装链: `bc_accept --where v3` → 停双臂 → `"YES" | python tools/bc_swap_v3.py` → 门禁 →
+>    双臂点火 → `bc_accept --where store` → 重建情境库索引；回滚 `D:\temp\th123_bc_v3\pre_v3_backup`。
+> 9. 可清（确认本代库稳定后）: `pre_v3_backup` 与 `D:\temp\bc_store_backup_20261018`（各 ~18GB）；
+>    `D:\temp\gate_sandbox` 停 sweep 后应为空（残件=泄漏，要清）。
+
+**当前栈速览(2026-10-18 R195)**: CORE_DIMS=**358**(S-2段343+JZ-1段15); 并行开发必读 `PARALLEL_WORKFLOW.md`(写入权+队列); 门禁**668/0/0**;
 宏数reimu88/marisa95/suika91(蓄力cleista真值+系统卡+DD+HJC);
 S-4 GRU序列记忆全链就绪(阶段2a); BH方案v4执行中: **BH-3.1/3.2/3.3
 感知修复✅** / **BH-1 行为健康仪表盘✅**(bh旁车+CE-0.1帧日志开关+
