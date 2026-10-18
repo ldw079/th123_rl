@@ -6,10 +6,10 @@
 >
 > **门禁**: 668 PASS / 0 WARN / 0 FAIL（裸跑看退出码，勿用管道吞码）；变异 **206** 条；行为测试 92 档。
 > **W1 验收门禁**: `D:\temp\gate_r197_final.txt`（12:12:51, exit=0, 原始末行 `668 PASS / 0 WARN / 0 FAIL`）。
-> **仓库**: HEAD=`4e13aa5`(=R196 c447ef7 + 规划文档 6 提交 ff 合并；生产内容与 c447ef7 相同；
-> `origin/main`=c447ef7, 规划文档提交未推)；三 worktree: 主仓 / `D:\temp\th123_rl_control`(330 代对照臂栈, detached)
+> **仓库**: HEAD=`edbc843`=`origin/main`（已推送）= R197 `a6dcbf0` + 规划文档 4 提交 ff 合并
+> （生产内容与 a6dcbf0 相同）；三 worktree: 主仓 / `D:\temp\th123_rl_control`(330 代对照臂栈, detached)
 > / `D:\temp\th123_rl_planning`；2026-10-18 做了**第三次全历史重写**（剔除 `_archive`），新哈希
-> main `9cb67db`(→现 4e13aa5) / planning `ae6c39f` / 控制臂 `8720cdd`，备份 `D:\temp\repo-mirror-20261018b`。
+> main `9cb67db`(→现 edbc843) / planning `ae6c39f` / 控制臂 `8720cdd`，备份 `D:\temp\repo-mirror-20261018b`。
 > **当前在跑**: 主臂(supervisor+3 learner+3 actor+3 游戏) + 对照臂(learner+actor@21080, **绝对路径**启动)。
 > 训练族 CPU 看 `D:\temp\th123_models\fleet_heartbeat.wd` 第二列（红线 75%）。
 >
@@ -21,14 +21,14 @@
 > **未完成（接手优先）**:
 > 1. **改动面增量变异 sweep（20 条, 2 workers）** —— **R197 已恢复并跑通前半**: 两条自证断言先修（见 #5），
 >    `SELFTEST_TAGS='P1-2断言,P2版本断言'` 单跑已 **2红/0漏网/0未判定**（11:33, exit=1 632s/641s,
->    基线绿守卫先过）；20 条全量试跑在 **4/20 红**后被用户中止（沙箱 `test_r17_ppo` 把整机拉到
+>    基线绿守卫先过）；20 条全量试跑在 **6/20 红**后被用户中止（沙箱 `test_r17_ppo` 把整机拉到
 >    85-100%，族口径 20-30% 不可见，见坑 10）。**用户裁定 B1: 增量 20 条 + 全量 206 条统一推到
 >    今晚 20:00 夜间窗**（分离进程、2 workers、分两晚；闸门任务=W2-1）。
 >    复跑命令: `$env:SELFTEST_TAGS='...'` + `python -u tools\gate_selftest_parallel.py 2`
 >    （内含基线绿守卫；**必须分离进程**，见坑 2；夜间窗外受 load_gate 闸门约束）
 > 2. **全量变异 206 条** —— 需低载窗，约 2 核 × 20h。
 > 3. ~~`docs/THIRD_PARTY.md` 待规划确认 + INDEX 登记~~ **已关闭**: 规划已确认并合入 main
->    （`docs/INDEX.md:25` 已登记 `bc_accept`；soku_arch 授权=R191"自有代码→MIT"）；**P1-2 温度用户裁定"先不改"**（仅报告披露）。
+>    （`docs/INDEX.md:35` 已登记 THIRD_PARTY；`bc_accept` 登记见 :25；soku_arch 授权=R191"自有代码→MIT"）；**P1-2 温度用户裁定"先不改"**（仅报告披露）。
 > 4. 用户自有: CA-1 第四口径（管理员跑一次 `eval_vs_th123ai.py`）、人测窗口。
 > 5. **审计#6（postR196, 11:08-11:16）已出**: `docs/audit/audit_2026-10-18_postR196.md` — 无新增 P0。
 >    两条 P1 新发现已随 R197 修复（R181/R183 **自证断言假绿**；README 复现声明把不入库的

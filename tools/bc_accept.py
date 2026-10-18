@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""P0-6 重建验收探针(一次性, 走完即删 — 「探针不留残档」)。
+"""P0-6 重建验收探针(常驻化, 2026-10-18 用户裁定; 原临时件 `_p0_6_accept.py`)。
 
 用途: 三库重建完成 → 换装前, 证明 SC 修复真的落到产物上:
   1. 三个复合宏(TM·6a终结/TM·必杀SC连/TM·空连终结)在对应角色库中 Y 计数 > 0;
@@ -7,8 +7,8 @@
   3. 行数/宽度与代码派生值一致(5N+CORE_DIMS)。
 
 用法:
-  python tools/_p0_6_accept.py --where v3      # 换装前: 读 D:\\temp\\th123_bc_v3\\*.npz
-  python tools/_p0_6_accept.py --where store   # 换装后: 读 STORE/bc_<ch>_Y.npy
+  python tools/bc_accept.py --where v3      # 换装前: 读 D:\\temp\\th123_bc_v3\\*.npz
+  python tools/bc_accept.py --where store   # 换装后: 读 STORE/bc_<ch>_Y.npy
 """
 import argparse
 import io
