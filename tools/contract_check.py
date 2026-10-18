@@ -2087,6 +2087,10 @@ _BEHAVIOR_TESTS = [
      "D1(bcw=B1): BC_W_MIN 代码默认0.05(任意重启不带env也长期生效) + env=0回滚"),
     ("test_le0a_control_exemption.py",
      "LE-0a: 对照臂连续性 — 所有训练python WMI查询/清理逐处含 control 豁免(静态)"),
+    ("test_wd_zero_reject.py",
+     "H-1: wd 0.00 拒收(Δ族CPU≤0→None)+连续2次恢复门控+sidecar第3字段/审计日志"),
+    ("test_gate_evidence.py",
+     "task-18: 门禁证据命名gate_r<rev>_<commit7>_<ts>+O_EXCL一次写入不可复写"),
 ]
 # 审计#6c(2026-10-18): C15 白名单对账 — "新测试漏注册"第3次复发(21档/
 # macros_branch/R198 test_load_gate 43项从未进门槛)的永久防线:
@@ -2151,6 +2155,22 @@ _le0a_ok = (_le0a_ok and _i_ts >= 0 and 'taskkill' in _ts_seg
 chk(_le0a_ok and _le0a_seen >= 1,
     "LE-0a: 孤儿回收/前置清理查询逐处含对照臂豁免(禁误杀LE-0a)",
     "训练python查询数=%d" % _le0a_seen)
+# H-1(2026-10-19 心跳实证): wd 夜内 8 次 0.00 — Δ族累计CPU≤0(CIM旧值/抖动)被
+# clamp 成 0.0 入窗, 单次拉低 6 窗均值~6pp, 稀释75%红线。逐要素断言:
+# 拒收条件(cur<=prev_cpu→None) + 拒收计数 + 恢复门控(_recover_need=2) +
+# wd 第3字段 n_rej + 拒收审计日志。
+_fs_h1 = src("fleet_supervisor.py")
+chk("if cur <= prev_cpu:" in _fs_h1 and "_WD_ZERO_REJECT" in _fs_h1
+    and "_recover_need = 2" in _fs_h1 and "n_rej" in _fs_h1
+    and "watchdog_rejects.log" in _fs_h1,
+    "H-1: wd 0.00 拒收守卫(Δ族CPU≤0→None哨兵)+连续2次恢复门控+第3字段计数")
+# task-18(2026-10-19): 门禁证据产物一次写入不可复写 —
+# 命名 gate_r<rev>_<commit7>_<ts> + O_EXCL 独占创建(RE 重跑不再覆盖已入账证据)。
+_ge_src = src("tools/run_gate_evidence.py")
+chk("def evidence_stem(" in _ge_src
+    and "'gate_r%s_%s_%s'" in _ge_src
+    and "O_EXCL" in _ge_src and "FileExistsError" in _ge_src,
+    "task-18: 门禁证据命名含rev/commit/ts + O_EXCL一次写入(禁复写)")
 # ============ P2波锚(审计#3十九项首波, 2026-10-13) ============
 print("=== P2修复波锚(审计#3) ===")
 # 审计2026-10-16 P1-1防复发: CE-1宏层画像的生产调用形态 — begin必须

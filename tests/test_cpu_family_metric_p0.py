@@ -13,7 +13,8 @@
 2. **树外**(兄弟树=对照臂/旁路)一律不计入 —— 本次修复的核心语义;
 3. ConvertTo-Json 单元素返回**对象**而非数组时必须归一(真实 PowerShell 行为);
 4. 采样失败 = None 哨兵(看门狗拒收), 不是 0(否则假均值会触发恢复震荡);
-5. 比率 = Δ族CPU /(Δ墙钟 × 逻辑核数) ×100, 负 Δ 与越界一律 clamp。
+5. 比率 = Δ族CPU /(Δ墙钟 × 逻辑核数) ×100; 越界 clamp 100; H-1(2026-10-19):
+   零/负 Δ = 采样异常 → None 哨兵 + 拒收计数(不再 clamp 成 0.0 入窗)。
 """
 import json
 import os
@@ -83,8 +84,9 @@ ck(fs.family_cpu_seconds(root_pid=100, ps_out='') is None,
 ck(fs.family_cpu_seconds(root_pid=999, ps_out=_JSON) is None,
    '缺自身PID → None(部分表=查询不可信)')
 
-# ── 5. 比率口径 + clamp ──
+# ── 5. 比率口径 + 越界clamp + H-1 零/负Δ拒收 ──
 fs._WD_CPU_LAST.update({'ts': None, 'cpu': None, 'pct': None})
+fs._WD_ZERO_REJECT = 0
 _r1 = fs.cpu_load_pct(now=1000.0, ps_out=json.dumps([_row(100, 1, 10.0)]),
                       cores=4, root_pid=100)
 ck(_r1 is None, '首次采样无Δt → None(看门狗拒收, 不产生假均值): %r' % (_r1,))
@@ -94,7 +96,9 @@ ck(_r2 is not None and abs(_r2 - 50.0) < 1e-6,
    '比率=ΔCPU/(Δ墙钟×核数)×100 → 4s/(2s×4核)=50%%: 实测 %r' % (_r2,))
 _r3 = fs.cpu_load_pct(now=1004.0, ps_out=json.dumps([_row(100, 1, 12.0)]),
                       cores=4, root_pid=100)
-ck(_r3 == 0.0, '负Δ(进程退出) clamp 到 0(不得入负数窗口): %r' % (_r3,))
+ck(_r3 is None and fs._WD_ZERO_REJECT == 1,
+   'H-1: 负Δ(进程退出/CIM旧值) → None 哨兵 + 拒收计数(不再 clamp 成 0.0 入窗): %r'
+   % (_r3,))
 _r4 = fs.cpu_load_pct(now=1006.0, ps_out=json.dumps([_row(100, 1, 1000.0)]),
                       cores=1, root_pid=100)
 ck(_r4 == 100.0, '越界 clamp 到 100: %r' % (_r4,))

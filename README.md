@@ -49,8 +49,8 @@ D:\temp\pyenv\python.exe -X utf8 tools\contract_check.py
 
 | 项 | 状态 |
 |---|---|
-| **门禁** | `677 PASS / 0 WARN / 0 FAIL`（`tools/contract_check.py`，裸跑退出码 0；变异 211 条） |
-| 行为测试 | `tests/` 96 档，全部入 C15 白名单对账（`tests/test_*.py` 集合==白名单，缺口必红） |
+| **门禁** | `681 PASS / 0 WARN / 0 FAIL`（`tools/contract_check.py`，裸跑退出码 0；变异 214 条） |
+| 行为测试 | `tests/` 98 档，全部入 C15 白名单对账（`tests/test_*.py` 集合==白名单，缺口必红） |
 | 核心常量 | `CORE_DIMS=358`（S-2段343+JZ-1段15）；宏数 reimu 88 / marisa 95 / suika 91；`n_side` = 798/833/813 |
 | **`soku_arch`** | 已 **vendor 入库**（`soku_arch/`，30 档 283KB，见其 `VENDORED.md`）；**授权已裁**：自有代码 → 并入根 MIT（R191 用户裁定），出处/血统见该文件 |
 | 可复现项 | 代码/门禁/行为测试/宏库**齐全**；但 **`data/` 全域不入库**（`git ls-files data/`=0，见 `.gitignore`）——门禁/C15 中直读 `data/guide_tables/*.json` 的断言（如 fangyu 警戒表 `contract_check.py:2274-2294`、`tests/test_fangyu_counters_le2.py:15-27`）在**干净 clone 下会 FAIL**，须放入本地数据副本（开发机或 kit）方可全绿 |
@@ -81,7 +81,7 @@ th123_rl/
 ├── frame_events.py        帧级事件检测+反应掩码
 ├── bc_*.py / distill.py / teach.py            BC 库/蒸馏诊断/教学层
 ├── macros/                宏库包(__init__=灵梦库+共享规范化器, 20 角色各一档)
-├── tests/                 行为测试(**96 档**, 门禁 C15 白名单全量对账)
+├── tests/                 行为测试(**98 档**, 门禁 C15 白名单全量对账)
 ├── tools/                 工具(train_start/audit_all/contract_check/评估仪表…)
 ├── docs/                  文档(主规划/审查报告/设计文档/手册)
 ├── data/                  本地数据(BC 库/神谕分片, gitignore)

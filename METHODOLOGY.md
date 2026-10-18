@@ -8,9 +8,10 @@
 > 规划产物规范: **PLANNING_AGENT.md(规划智能体宪章, 2026-10-12用户令)** — 一切规划/方案必须"考察现状→详细可执行→附验收途径"三段齐备, 缺一仅得称草稿; 与本文冲突时以本文红线为准
 > 审计路由: **docs/audit_protocol.md(审计智能体入口, 2026-10-12用户令)** — 地位与 AGENTS.md 之于开发智能体同级, 审计接手第一读; 三必要条件(只读最新状态/结论按时间归档/数轮大更新后从零审查)+标准清单; bug 归档入口 docs/bugs/; 与本文冲突时以本文红线为准
 > 并行开发: **PARALLEL_WORKFLOW.md(三智能体并行约定, 2026-10-16用户批准试行)** — 单写者规则+docs/_pending_entries.md 队列; 写文件前先查写入权
-> 版本: 3.68 · 2026-10-18 · R202(**LE-0a 对照臂连续性事故修复** / supervisor 孤儿回收
-> 查询加 th123_rl_control 豁免 + 逐处扫描断言/变异/C15) |
-> 门禁 677/0/0, 变异 211
+> 版本: 3.69 · 2026-10-19 · R203(**H-1 wd 0.00 拒收守卫** / Δ族CPU≤0→None哨兵 +
+> 连续2次恢复门控 + 第3字段计数; **task-18 证据卫生**: 门禁证据一次写入 + R200 补变异 +
+> BC CE×bcw 留档 + ON prelim 修标 + 旧矩阵"映射前"标注) |
+> 门禁 681/0/0, 变异 214
 
 ---
 
@@ -1909,6 +1910,9 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     R63 口径正确拒绝伪距离(comparable=False)。报告 json 入档
     (tools/eval_matrix_quick_20261011_postR63.json)。**注意: 三角色全部
     对局均顶时判定** — 双模型侧被动不接敌, 与 B3 基线互证(见下)。
+    **[task-18 标注, 2026-10-19] 该 `eval_matrix_quick_*.json` 为"映射前"旧矩阵
+    (采集于 R201 池序→角色名修复之前, 对手 one-hot 段存在错名) — 勿引用作现行
+    对照/结论, 仅作历史读数。新矩阵须重采。**
   - **B3 观察闭环仪表化**: tools/remote_usage_report.py(330px 外弹幕
     使用分布, 零新增在线仪表 — 全离线读 episode 的 sides[2n+5]=adx/600
     + acts + CHAR_LIBS.bullet; 按文件名时间戳切窗, 坏档跳过不炸)。
@@ -2786,6 +2790,40 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     =检测随机源失效而非惩罚收敛路线)+接管者标注。mock集成测试14项
     全绿(必败检出≥80%/实际≤20%/退化作废/可复现); 真实模式待舰队空闲。
   - 门禁600/0/0。
+- 3.69 (2026-10-19 上午, **R203: H-1 wd 0.00 拒收守卫 + task-18 证据卫生**):
+  - **H-1 事故**: 夜内 `fleet_heartbeat.wd` 出现 **8 次 0.00**(13:05/17:35/20:32/…), 当时
+    主臂 7py+3游戏+对照臂全在(真实负载非0)。根因: `fleet_supervisor.cpu_load_pct` 在
+    **Δ族累计CPU≤0**(CIM 偶发旧值/进程计数抖动)时 `max(0.0,...)` → 0.0 入窗, 而
+    `CpuWatchdog.sample` 只拒收 None/负值 → 单次 0 拉低 6 窗均值 ~6pp, 可稀释 75% 红线。
+  - **H-1 修复**: ①`cpu_load_pct`: `cur <= prev_cpu` → **None 哨兵**(不产 0.0)+
+    `_WD_ZERO_REJECT` 计数; ②`CpuWatchdog.sample`: 收到 None 后 `_recover_need=2` —
+    **连续 2 次正常采样**才恢复入窗(不动 75/65/6 窗语义); ③`write_watchdog_status`
+    增第 3 字段 `n_rej`(`<ts> <pct|-> <n_rej>`, 旧读者 `split()[1]` 兼容), 拒收时 append
+    `STORE/watchdog_rejects.log`(sidecar 单行无历史, 审计可回溯)。
+  - **H-1 测试/断言**: 新增 `tests/test_wd_zero_reject.py`(14 项: 零/负Δ拒收+计数、
+    连续2次恢复门控、sidecar 3字段/旧读者兼容/拒收日志); 更新
+    `test_cpu_family_metric_p0.py` 第5节旧"负Δ clamp 0"语义为"H-1: None哨兵+计数"
+    (12 PASS); 门禁逐要素断言(拒收条件+计数+门控+第3字段+审计日志);
+    配对变异 `0.00拒收`(删拒收条件 → 断言必红)。
+  - **task-18 证据卫生**: ①**门禁证据一次写入**(`tools/run_gate_evidence.py`:
+    `gate_r<rev>_<commit7>_<ts>.txt/.exit`, O_EXCL 独占创建, 已存在则响亮拒绝 —
+    根治"固定文件名覆盖已入提交信息的证据", 本轮 R201 的 675 证据即曾被覆盖);
+    C15 `tests/test_gate_evidence.py`(10项)+门禁断言; ②**R200 两处注入补配对变异**
+    (`tools/branch_demo.py` / `tools/danger_reveal.py` 删 set_opponent → P1-6残余断言必红);
+    ③**BC CE×bcw 留档**: `D:\temp\verify_bcw_on_20261019_060758.log`(三模型
+    `_bcw=0.050`, BC rows 429411/353622/329250, bc_loss=16.85/15.49/14.18>0, PASS);
+    ④**ON prelim phase 修标**为 `ON-bcw (48min prelim, 非正式样本)`; ⑤**audit 命名空间**:
+    `docs/audit/audit_2026-10-18_w2_postR202.md` 原样 stage(不改内容, 审计重归档);
+    ⑥**旧矩阵"映射前"标注**: METHODOLOGY R63 条目对 `eval_matrix_quick_20261011_postR63.json`
+    加注"映射前(早于 R201 池序映射修复), 勿引用, 新矩阵须重采"; ⑦**遗留进程**: `gate_cpu_mon`
+    (4h 监控)已自然退出, 无残留。
+  - **门禁/数字**: `D:\temp\gate_r203_11a204c_20261019_061616.txt`(06:16:16, exit=0)
+    **681 PASS / 0 WARN / 0 FAIL**; 变异 **214**; C15 **98**(==白名单);
+    入口数字三处同步(AGENTS:61 / README:52-53,84 / HANDOVER:7-20,68,85,128,168)。
+    (规划预估计 680 为估算, 实测 681: 2 断言 + 2 C15 各贡献 1 PASS, 如实记录。)
+  - **待激活**: H-1 需 supervisor 重启生效——重启后按验收项: boot 后对照臂 2py+1 游戏存活、
+    主臂 7py+3 游戏、**连续 ≥10 拍 wd 无 0.00**(若有 `n_rej>0` 而 wd 无 0.00 即拒收生效),
+    bcw0.05/心跳/快照正常; 门禁证据后续统一用 run_gate_evidence(不再复写旧文件)。
 - 3.68 (2026-10-18 傍晚, **R202: LE-0a 对照臂连续性事故修复 — 孤儿回收豁免**):
   - **事故(实弹)**: 16:27–16:38 对照臂被误杀。根因: `fleet_supervisor.reap_orphans()`
     (supervisor boot 时按"WMI ParentProcessId 已死=孤儿"回收 `actor_worker|learner_hub|

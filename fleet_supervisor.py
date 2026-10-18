@@ -61,9 +61,16 @@ class CpuWatchdog:
         (日志实证"均值-1%"入窗) — 拒收不入窗, 防假均值错误触发恢复;
         ②恢复须**连续两个满窗**低于回入场线(原单窗即恢复, 突发负载
         下快闪: 恢复→下一窗又降容的震荡环)。
+        H-1(2026-10-19): 收到 None 哨兵(查询失败/0.00 拒收)后置
+        `_recover_need=2` — 之后**连续 2 次正常采样**才恢复入窗
+        (防拒收后首个孤立读数立刻入窗造成噪声)。
         """
         self.avg = None
         if cpu is None or cpu < 0:
+            self._recover_need = 2
+            return None, None
+        if getattr(self, '_recover_need', 0) > 0:
+            self._recover_need -= 1
             return None, None
         self.win.append(cpu)
         if len(self.win) > self.window:
@@ -175,6 +182,10 @@ def family_cpu_seconds(root_pid=None, ps_out=None):
 
 
 _WD_CPU_LAST = {'ts': None, 'cpu': None, 'pct': None}
+# H-1(2026-10-19 用户心跳实证): 夜内 wd 出现 8 次 0.00(13:05/17:35/20:32/…);
+# 根因=Δ族累计CPU≤0(CIM 偶发旧值/进程计数抖动) 被 clamp 成 0.0 入窗 →
+# 单次 0 把 6 窗均值拉低 ~6pp, 稀释 75% 红线。本计数=拒收样本数(wd 第3字段)。
+_WD_ZERO_REJECT = 0
 
 
 def cpu_load_pct(now=None, ps_out=None, cores=None, root_pid=None):
@@ -182,8 +193,11 @@ def cpu_load_pct(now=None, ps_out=None, cores=None, root_pid=None):
 
     首次调用返回 None(无 Δt), 采样失败返回 None(哨兵, CpuWatchdog
     拒收 — 见 sample() 的 cpu is None/负值语义)。
+    H-1(2026-10-19): `Δ族累计CPU ≤ 0` 视为**采样失败**(不是 0% 负载) →
+    返回 None 哨兵 + `_WD_ZERO_REJECT` 计数, 不产 0.0(防稀释红线均窗)。
     root_pid/ps_out/cores 仅测试注入(生产一律默认: 本监督器进程树)。
     """
+    global _WD_ZERO_REJECT
     now = time.time() if now is None else now
     cur = family_cpu_seconds(root_pid=root_pid, ps_out=ps_out)
     if cur is None:
@@ -192,8 +206,12 @@ def cpu_load_pct(now=None, ps_out=None, cores=None, root_pid=None):
     _WD_CPU_LAST['ts'], _WD_CPU_LAST['cpu'] = now, cur
     if prev_ts is None or now <= prev_ts:
         return None
+    if cur <= prev_cpu:
+        # 采样异常(非零负载): 拒收为 None 哨兵(写 '-'), 计数 +1, 不入窗。
+        _WD_ZERO_REJECT += 1
+        return None
     pct = (cur - prev_cpu) / ((now - prev_ts) * (cores or _LOGICAL_CORES)) * 100.0
-    pct = max(0.0, min(100.0, pct))   # 进程退出致 Δ<0 / 越界都不得入窗
+    pct = max(0.0, min(100.0, pct))   # 越界钳制(Δ>0 已保证非 0.0)
     _WD_CPU_LAST['pct'] = pct
     return pct
 
@@ -236,9 +254,11 @@ def write_heartbeat(alert=None):
 WD_STATUS = HEARTBEAT + '.wd'
 
 
-def write_watchdog_status(pct, now=None):
-    """写看门狗存活+读数 sidecar(`<ts> <pct|->`)。
-
+def write_watchdog_status(pct, now=None, n_rej=0, rejected=False):
+    """写看门狗存活+读数 sidecar(`<ts> <pct|-> <n_rej>`)。
+H-1(2026-10-19): 第 3 字段=累计拒收数(0.00 哨兵), 旧读者取 split()[1]
+    完全兼容; 发生拒收时另 append `STORE/watchdog_rejects.log`(sidecar 单行
+    覆盖无历史, 审计需可回溯)。
     动机(从零#5 P0-3): 看门狗曾是"制度写着、代码不执行"两天无人察觉。
     每次采样都留痕(含 pct=None 的失败采样) — 文件停更即证据。
     """
@@ -246,10 +266,18 @@ def write_watchdog_status(pct, now=None):
     try:
         tmp = WD_STATUS + '.tmp'
         with open(tmp, 'w', encoding='utf8') as f:
-            f.write('%.3f %s\n' % (now, '-' if pct is None else '%.2f' % pct))
+            f.write('%.3f %s %d\n' % (
+                now, '-' if pct is None else '%.2f' % pct, int(n_rej)))
         os.replace(tmp, WD_STATUS)
     except OSError:
         pass
+    if rejected:
+        try:
+            with open(os.path.join(STORE, 'watchdog_rejects.log'), 'a',
+                      encoding='utf8') as rf:
+                rf.write('%.3f rejected n_rej=%d\n' % (now, int(n_rej)))
+        except OSError:
+            pass
 
 
 def report_offline_gap():
@@ -637,8 +665,13 @@ def main():
             # _wd.sample圈在耗尽分支内, 正常运行时CPU策略从不执行
             # (红线R14两日死代码). 现每心跳(30s)采样一次.
             if _hb % HEARTBEAT_EVERY == 0:
+                _rej0 = _WD_ZERO_REJECT
                 _cpu = cpu_load_pct()          # 训练族口径(见 family_cpu_seconds)
-                write_watchdog_status(_cpu)    # 存活证据(消费方=status_dashboard)
+                # H-1(2026-10-19): 0.00 拒收计数入 wd 第3字段; 本拍发生拒收则
+                # append STORE/watchdog_rejects.log(sidecar 单行无历史)。
+                write_watchdog_status(
+                    _cpu, n_rej=_WD_ZERO_REJECT,
+                    rejected=(_cpu is None and _WD_ZERO_REJECT > _rej0))
                 # R75: 策略在CpuWatchdog(纯逻辑), 进程管理在此。
                 # 降容=可恢复暂停(非移除) — 全灭事故修正。
                 _dec, _avg = _wd.sample(_cpu, time.time())

@@ -690,6 +690,20 @@ MUTATIONS = [
      "-notmatch 'th123_rl_control' } ",
      "} ",
      "对照臂孤儿回收豁免缺失(主臂重启误杀LE-0a) → LE-0a逐处扫描断言必须红"),
+    # H-1(2026-10-19): wd 0.00 拒收守卫 — 删拒收条件 → 断言必红
+    ("fleet_supervisor.py",
+     "    if cur <= prev_cpu:",
+     "    if False:",
+     "0.00拒收守卫缺失(Δ族CPU≤0被clamp成0.0入窗, 稀释6窗均值/75%红线) → H-1断言必须红"),
+    # task-18: R200 两处注入补配对变异(branch_demo / danger_reveal)
+    ("tools/branch_demo.py",
+     "    opp_driver.set_opponent(args.char)",
+     "    pass",
+     "分支演示丢对手角色注入(B侧输入OOD) → P1-6残余生效本体断言必须红"),
+    ("tools/danger_reveal.py",
+     "        d.set_opponent(cfg['char'])",
+     "        pass",
+     "危险显影真副本丢对手角色注入(B侧输入OOD) → P1-6残余生效本体断言必须红"),
 ]
 
 
