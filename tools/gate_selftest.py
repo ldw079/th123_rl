@@ -654,6 +654,10 @@ MUTATIONS = [
      "        _rng_low = np.random.default_rng(20261018 + n_sh * 7 + int(n_low))",
      "        _rng_low = None",
      "降采样回退取前N(低信息样本偏置到最早对位槽) → P1-13断言必须红"),
+    ("train_tm.py",
+     "            except OSError as _e_load:",
+     "            except KeyError as _e_load:",
+     "池快照装载失败不捕获(FileNotFound→空权重进局崩) → P0池回退断言必须红"),
 ]
 
 

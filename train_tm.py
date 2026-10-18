@@ -1273,7 +1273,25 @@ class TMTrainer:
                 self.opp = SideDriver(c, "R")
                 self.env = self._remake_env()
             self._wire_opp_ids(c)
-            self.opp.load(m)
+            # P0(2026-10-18 实弹): 池快照**解析后到装载前被 learner 修剪**的竞态 —
+            # 实测 actor 报 FileNotFoundError(pool\...) 后驱动未装载, 下一拍即
+            # 'NoneType has no attribute T' 连环崩(R115 只覆盖"拒载→None"，
+            # 没覆盖"resolve 之后文件消失")。修: 装载失败**回退生产模型**；
+            # 再失败则保持上一驱动并跳过本轮换(绝不进局带空权重)。
+            try:
+                self.opp.load(m)
+            except OSError as _e_load:
+                from kit_config import live_model_path as _lmp
+                _fb = _lmp(c)
+                print('[opp] 池快照装载失败(%r) — 回退生产模型 %s'
+                      % (_e_load, os.path.basename(_fb)))
+                try:
+                    self.opp.load(_fb)
+                    self._cur_opp_model = _fb
+                except OSError as _e_fb:
+                    print('[opp] 生产模型也装载失败(%r) — 跳过本轮换, '
+                          '沿用上一对手' % (_e_fb,))
+                    return
             print("[opp] 轮换 %s → %s" % (old, self._opp_label()))
 
     def train(self):

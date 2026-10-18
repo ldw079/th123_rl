@@ -2234,6 +2234,13 @@ chk(src("episode_core.py").count("check_row_counts(") >= 3,
 # 原版在 vf_adam.step 之后用 self.W1v 反传价值路(旧dH1v×新W1v) — 与 torch
 # 单步计算图不等价(审计实测 conv1/2/3 梯度 cos=0.396/0.637/0.564)。
 # 权重范数差抓不到(Adam 首步 Δ 尺度过小), 故用源码锚 + 反串钉死。
+# P0(2026-10-18 实弹): 对手池快照"resolve 后到 load 前被修剪"的竞态 —
+# actor 报 FileNotFoundError 后驱动未装载 → 下一拍 NoneType.T 连环崩;
+# R115 只覆盖"拒载→None", 未覆盖"文件消失"。修=装载失败回退生产模型。
+chk("池快照装载失败" in src("train_tm.py")
+    and fn_has("train_tm.py", "_rotate_opp", "live_model_path")
+    and fn_has("train_tm.py", "_rotate_opp", "except OSError as _e_load"),
+    "P0(2026-10-18): 池快照装载失败回退生产模型(不带空权重进局)")
 # P1-13(从零#5): 低信息行降采样必须**随机**(原"取行序最前N"把保留样本
 # 系统性偏置到最早的 shard/对手槽 — 在跑库 12-15% 行的移动先验被偏置)。
 chk("_rng_low.choice(" in src("bc_build.py")
