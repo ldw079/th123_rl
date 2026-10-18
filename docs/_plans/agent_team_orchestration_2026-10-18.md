@@ -306,6 +306,15 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 20. 对照臂中断事故 + R202 热修（2026-10-18 16:27–16:39）
+
+**事故**：窗口重启（16:30:3x `train_start --mode fleet`）触发 `fleet_supervisor.reap_orphans()`——孤儿回收按"父进程已死"杀 `actor_worker|learner_hub|exploiter`，**缺 `th123_rl_control` 路径豁免** → 对照臂 learner/actor 及其游戏 21080 被连带 `/T` 杀。日志无堆栈/无正常停机打印=外部终止特征；与 10-17 16:45 同类事故同根（当时修复只落在 `train_start` 侧，supervisor 未覆盖）。
+**中断账**：起 16:27:31（control learner 最后正常写；actor 16:30:00）→ 止 16:38:10（恢复）；**gap=639s**；游戏 21080 缺失 1 台约 8.5min。恢复=绝对路径+detached+独立 store（`D:\temp\th123_models_control`），`n_out=70/updates3202`、v679、actor 出决策（Lead 复核）。
+**R202 热修（批准）**：supervisor **全部 kill 路径**加 `th123_rl_control` 豁免（不只 reap_orphans）+ 门禁"生效本体"断言 + 配对变异 + C15 静态/行为测试 → 预期 **676/211/96**（METHODOLOGY 3.68）；提交信息附中断账；commit 不 push→Lead 合并规划→push。
+**治理**：以后清理/重启禁用宽口径进程终止；`train_start --stop` 只按 main 进程树 PID 精确终止；审计#7 专列"kill 路径豁免覆盖"检查项。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
@@ -325,3 +334,4 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 | 2026-10-18 | v13 | **P2 角色自动识别打通（§16）**：th123ai ini 地址表实测无效（垃圾值）→ 弃用；改用 SokuLib `CharacterManager::characterIndex@+0x34C`（`playerIndex@+0x350`），live 4/4 命中（marisa=1/suika=9/reimu=0/对照臂 reimu=0）；task-15 采此方案（活档优先+逐候选代际守卫+probe 只读+model_stamp+决策旁车+断言/变异/C15） |
 | 2026-10-18 | v14 | **R200 完成（§18，提前门禁窗 14:23–15:00）**：门禁 671/0/0 exit=0（MUT 208、C15 93 + 白名单对账常驻断言/配对变异）；2 条串行单变异均 ✓红、0 漏网；峰值整机 67.3%、无卡顿；`635e44e` 已推送（local=origin 0/0、树干净冻结）；task-9+3 会话 JSON+audit#6b 入档（OOD 标注）；`gate_sandbox` 0 文件（Lead 复核）；下一步 B1 20:05 |
 | 2026-10-18 | v15 | **B1 提前完成 + R201 窗口（§19）**：用户令 B1 提前（15:03 起）+停训全力推自检（15:05:50 停训）；增量 20 **20/20 ✓红 0漏网**（28min、峰值67.5%、无abort、对照臂未动）；沙箱基线红根因=`TH123_HEAVY_ALLOW_DAY` 继承污染 `test_load_gate` 用例→测试隔离修复（pop 5 个负载env）+诊断落盘；门禁 **675/210/95** exit=0（Lead 实测）；窗口内容 task-10+13（bcw 代码默认 0.05）；待 2 变异红→commit(不push)→Lead 合并规划→push→不带env重启→验证→ON基线 |
+| 2026-10-18 | v16 | **R201 完成 + 对照臂事故（§20）**：`9a90322` 已推送、规划 v14/v15 合并（main=`d346500`、origin 0/0）；主臂恢复 7py+3 游戏、三 learner **bcw0.05**；**对照臂被 supervisor 孤儿回收误杀**（reap_orphans 缺 `th123_rl_control` 豁免；10-17 同类根）→ 16:38:10 恢复，gap **639s**/游戏缺失 1 台；批准 R202 热修（全部 kill 路径豁免 + 断言/变异/C15 → 676/211/96）+ 治理纪律 |
