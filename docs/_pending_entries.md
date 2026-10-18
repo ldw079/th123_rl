@@ -6,7 +6,11 @@
 
 ---
 
-1. **docs/THIRD_PARTY.md 需登记 soku_arch 的出处与授权** | 施工已按 D2=A
+1. **[已裁定 2026-10-18: soku_arch=自有代码→MIT, 施工已落 VENDORED.md+SPDX 头]**
+   **docs/THIRD_PARTY.md 仍需登记其余第三方来源** | cleista API(签名/限速)、
+   wikiwiki.jp/th123ai、CHM 攻略(引用结论)、SokuLib Action.hpp 枚举表 ——
+   逐项 `来源/许可/加工程度`; LICENSE-docs 加"CC-BY-4.0 仅覆盖原创整理"。
+   (原条目正文保留供溯源) 施工已按 D2=A
    把 `soku_arch` **包本体**(30 py / 283KB) vendor 进仓库根 `soku_arch/`,
    并写 `soku_arch/VENDORED.md` 记录来源与"授权待核"; 但**包里无任何
    LICENSE/版权头**, 按 R4 不能猜 → 需规划/用户确认:

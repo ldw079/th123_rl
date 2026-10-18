@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# 本项目自有代码(用户裁定 2026-10-18) — vendor 于本项目仓库, 见 VENDORED.md
 # -*- coding: utf-8 -*-
 """soku_arch —— 非想天则本地对战小模型架构（从零构建）。
 
