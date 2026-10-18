@@ -22,6 +22,7 @@
 | `tools/s4_acceptance_probe.py` | 工具 | S-4验收探针(3场对空→跳宏率降, 需W_gru训练后) |
 | `tools/adaptation_probe.py` | 工具 | S-8变招压力环境(规则反制者+分析模式) |
 | `tools/jz1_truth_replay.py` | 工具 | JZ-1真值回放验证(airDash/冷却/技能/破珠) |
+| `tools/bc_accept.py` | **验收工具** | 重建换装验收探针(`--where v3\|store`)：三复合SC宏Y计数>0 + S宽度=5N+CORE_DIMS + 行数；每次重建前后各跑一次(原 `_p0_6_accept.py` 常驻化, 用户 2026-10-18 裁定) |
 | `tools/migrate_s2_343.py` | 工具 | 模型CORE_DIMS迁移(330→343→358, 幂等) |
 | `tools/migrate_macros_wave.py` | 工具 | 模型宏数迁移(尾增零初始化, 幂等) |
 | `jz1_features.py` | 预制件 | JZ-1 15维A档字段(已接线feat_builder) |
@@ -30,6 +31,10 @@
 | `multi_instance_input.md` | 数据参考 | TM 通道全档 |
 | `th123ai_community_ai_analysis_2026-10-16.md` | 数据参考 | 社区AI(th123ai)实现分析(v2含wiki复查): RPM+键盘+Lua脚本/2011公平垫片先例/观察API=JZ-CE需求清单/**§7引擎语义表金矿(fflags·aflags逐位/动作值全表/obj-ID対応表)·与我方action_tables逐ID实证同源/AIManager已死** |
 | `mod_masking_runtime_dump.md` | 数据参考 | mod 遮蔽运行时验证 |
+| `game_semantics_tables.md` | 数据参考 | 引擎语义表资产（CA-6：fflags/aflags/动作值/obj-ID，wiki 第二权威源分域） |
+| `THIRD_PARTY.md` | **第三方清单** | 外部来源/许可/加工程度逐项（cleista·wikiwiki·SokuLib MIT·CHM 攻略·游戏本体）；`soku_arch/` 为自有包(见 VENDORED.md) |
+| `DATA_POLICY.md` | 边界声明 | 训练数据/模型权重/回放**不提供、不分发** |
+| `LICENSE-docs.md` | 许可 | 文档 CC BY 4.0（仅覆盖原创整理与注释，不覆盖第三方数据/结论原文） |
 | `architecture_gap_analysis.md` | 历史分析（活跃引用） | 架构差距（v2 时代, AGENTS 引用） |
 | `com_ladder_log.md` | 运行日志 | COM 阶梯爬升记录 |
 | `audit/` | 审计工件 | 自动化审计输出 |
