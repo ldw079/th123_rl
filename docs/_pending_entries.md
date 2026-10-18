@@ -7,7 +7,7 @@
 ---
 
 1. **[已裁定 2026-10-18: soku_arch=自有代码→MIT, 施工已落 VENDORED.md+SPDX 头]**
-   **docs/THIRD_PARTY.md 仍需登记其余第三方来源** | cleista API(签名/限速)、
+   **docs/THIRD_PARTY.md 已由施工起草**(2026-10-18, 待规划确认+INDEX登记) | 已含 cleista API(签名/限速)、
    wikiwiki.jp/th123ai、CHM 攻略(引用结论)、SokuLib Action.hpp 枚举表 ——
    逐项 `来源/许可/加工程度`; LICENSE-docs 加"CC-BY-4.0 仅覆盖原创整理"。
    (原条目正文保留供溯源) 施工已按 D2=A
