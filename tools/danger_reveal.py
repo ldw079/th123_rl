@@ -254,6 +254,9 @@ def run_real(cfg):
             d = SideDriver(cfg['char'], 'R', com_difficulty='hard')
         else:
             raise SystemExit('对手规格未知: %s' % spec)
+        # P1-6(审计#6残余): 对手驱动的对家=me(cfg['char']) — pool/com 两
+        # 规格的安全角色身份都已知且同源(COM=同角色), 不是猜 ID。
+        d.set_opponent(cfg['char'])
         opp_drivers.append((spec, d))
     assert len(opp_drivers) >= 2, '对手规格须≥2风格(风险②稻草人)'
     try:   # P2(从零#4): env已建 — 之后任意路径finally关连接
@@ -301,6 +304,11 @@ def _real_replica(env, me, opp_drivers, scen, setup, script_fn, branch,
 
     me.ppo.rng = np.random.default_rng(seed)               # 随机源①③
     opp_name, opp = opp_drivers[i % len(opp_drivers)]      # 随机源②
+    # P1-6(审计#6残余): 对手风格逐副本轮换 → me 的对手角色必须随**本副本
+    # 实际对家**注入(与训练侧逐局对手注入同分布); pool:<ch>→ch, com→同角色。
+    _opp_char = (opp_name.split(':', 1)[1] if opp_name.startswith('pool:')
+                 else cfg['char'])
+    me.set_opponent(_opp_char)
     me.reset_match()
     opp.reset_match()
     setup(scen)

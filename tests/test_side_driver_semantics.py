@@ -123,4 +123,39 @@ d5 = SideDriver('reimu', 'L')
 assert d5.set_opponent('nonexistent_char') is None, '未知角色应返回None'
 print('✓ 未知对位不猜(返回None)')
 
+# ---- P1-6(审计#6残余): 三处消费方注入生效(真实常量/真实宏库, 不自造布局) ----
+# 三个工具本体在独立进程里跑(需游戏), 无法在此端到端; 本段以**与其完全一致
+# 的注入口径**驱动同一个 SideDriver / CHAR_POOL_IDX 单源, 证明这些驱动样本
+# 的 core[227+池序] 非零 — 等价消费端证据(门禁另以"生效本体"断言钉调用点):
+#   attribution_probe : A 侧 opp=char_b;  对手驱动 opp=char_a
+#   branch_demo       : 镜像对局 opp=char 本身(同 deck_matchup 口径)
+#   danger_reveal     : 逐副本对手风格 pool:<ch>→ch; com→同角色
+from train_tm import TMTrainer as _TMT
+_POOL = _TMT._CHAR_POOL_IDX
+
+
+def _inject_ok(char, side, opp_char, name):
+    dd = SideDriver(char, side)
+    oid = dd.set_opponent(opp_char)
+    assert oid is not None and oid == _POOL.get(opp_char), (
+        '%s: 注入池序必须与 CHAR_POOL_IDX 同源(%r vs %r)'
+        % (name, oid, _POOL.get(opp_char)))
+    ss = dd._side_feat(own, opp, w, bul)
+    cc = 2 * dd.n_macros
+    assert ss[cc + 227 + oid] > 0.5, '%s: core[227+%d] 应=1(实际%.2f)' % (
+        name, oid, ss[cc + 227 + oid])
+    # 注: `_opp_char`/`_jz1_ids` 的名字查表(_POOL_OPP_NAME 以**游戏ID**为键,
+    # 而 _oid 是**池序**)在本测范围外有独立既有偏差, 已另行上报(W2 待裁定);
+    # 本测试只钉 task-9 的注入生效本体(one-hot + 池外位派生)。
+    assert dd.feat_builder.opp_outside_pool == (
+        0.0 if oid in (0, 1, 2) else 1.0), '%s: 池外位派生错' % name
+    print('✓ %s: core[227+%d]=1' % (name, oid))
+
+
+_inject_ok('reimu', 'L', 'sakuya', 'attribution A侧(reimu→sakuya)')
+_inject_ok('sakuya', 'R', 'reimu', 'attribution 对手驱动(sakuya→reimu)')
+_inject_ok('reimu', 'R', 'reimu', 'branch_demo 镜像(reimu→reimu)')
+_inject_ok('reimu', 'L', 'sakuya', 'danger pool:sakuya(逐副本对家)')
+_inject_ok('reimu', 'L', 'reimu', 'danger com(同角色)')
+
 print('\nSideDriver语义行为测试通过 ✓')

@@ -1,0 +1,44 @@
+{
+ "ts": "2026-10-18 12:26:50",
+ "char": "marisa",
+ "headless": false,
+ "frames": 8974,
+ "matches": [
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ]
+ ],
+ "human_wins": 3,
+ "model_wins": 0,
+ "hp0": [
+  10000,
+  10000
+ ],
+ "new_reps": [
+  {
+   "rep": "20261018_122649_001.rep",
+   "sha1_12": "c90cdcb88cd6"
+  },
+  {
+   "rep": "20261018_122649_002.rep",
+   "sha1_12": "f82d227d3707"
+  },
+  {
+   "rep": "20261018_122649_003.rep",
+   "sha1_12": "e01f89cf4aa3"
+  }
+ ],
+ "n_reps": 3,
+ "exe_md5": "DF35D1FBC7B583317ADABE8CD9F53B2E",
+ "delay_frames": 5,
+ "protocol": "RPM观察+内存写inKeys(v2)"
+}

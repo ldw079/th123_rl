@@ -168,6 +168,9 @@ def main():
         from side_driver import SideDriver
         store = os.environ.get('TH123_STORE', r'D:\temp\th123_models')
         opp_driver = SideDriver(args.char, 'R')
+        # P1-6(审计#6残余): 镜像对局 — 对手驱动的对家是同一角色
+        # (与 deck_matchup 镜像口径一致; 缺此注入=对手 one-hot 全零=OOD)
+        opp_driver.set_opponent(args.char)
         opp_driver.load(os.path.join(store,
                                      'model_ppo_%s.npz' % args.char))
         print('对手: 模型驱动(%s生产模型)' % args.char)

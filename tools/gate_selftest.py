@@ -662,6 +662,19 @@ MUTATIONS = [
      "    driver_a.set_opponent(char_b)",
      "    pass",
      "评估侧丢对手角色注入(对手one-hot全零=与训练分布不符) → P1-6断言必须红"),
+    # 审计#6 P1-6残余(2026-10-18): 三处消费方注入收紧为"生效本体"断言后的
+    # 配对变异 — 去掉归因对手驱动的注入 → 新可达断言必红(原断言查
+    # "attribution_probe 含 set_opponent" 仍绿 = 自证盲区, 本变异钉住它)。
+    ("tools/attribution_probe.py",
+     "    opp.set_opponent(char_a)",
+     "    pass",
+     "归因对手驱动缺opp_char_id注入(B侧输入OOD) → P1-6残余可达断言必须红"),
+    # 审计#6c(2026-10-18): C15白名单对账("新测试漏注册"第3次复发)的配对变异
+    # — 把白名单项改成不存在文件 → tests/ 集合≠白名单 → 对账断言必红.
+    ("tools/contract_check.py",
+     '    ("test_load_gate.py",',
+     '    ("test_load_gate_renamed_x.py",',
+     "C15白名单漏注册(tests/ 多1项未入白名单) → 白名单对账断言必须红"),
 ]
 
 

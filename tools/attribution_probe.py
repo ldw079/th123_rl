@@ -67,6 +67,9 @@ def run_delayed_matchup(char_a, char_b, port, games=60, tps=None,
     driver.load(model_path)
 
     opp = SideDriver(char_b, 'R')
+    # P1-6(审计#6残余): 对手驱动同样要注入对家角色 — 原只注入了 A 侧驱动,
+    # 对手 one-hot 段(227+池序)在 B 侧仍全零 = A/B 样本分布不对称。
+    opp.set_opponent(char_a)
     opp_model = snap_b or live_model_path(char_b, STORE_DIR)
     opp.load(opp_model)
     opp.reset_match()

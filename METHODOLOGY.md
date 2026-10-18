@@ -8,8 +8,9 @@
 > 规划产物规范: **PLANNING_AGENT.md(规划智能体宪章, 2026-10-12用户令)** — 一切规划/方案必须"考察现状→详细可执行→附验收途径"三段齐备, 缺一仅得称草稿; 与本文冲突时以本文红线为准
 > 审计路由: **docs/audit_protocol.md(审计智能体入口, 2026-10-12用户令)** — 地位与 AGENTS.md 之于开发智能体同级, 审计接手第一读; 三必要条件(只读最新状态/结论按时间归档/数轮大更新后从零审查)+标准清单; bug 归档入口 docs/bugs/; 与本文冲突时以本文红线为准
 > 并行开发: **PARALLEL_WORKFLOW.md(三智能体并行约定, 2026-10-16用户批准试行)** — 单写者规则+docs/_pending_entries.md 队列; 写文件前先查写入权
-> 版本: 3.65 · 2026-10-18 · R196-197(**交接快照入宪** / W1 接管基线 + R184 换代验收证据归档 /
-> 审计#6 两条自证断言假绿修复 + README 复现声明修正 / 增量变异 sweep 恢复) | 门禁 668/0/0, 变异 206
+> 版本: 3.66 · 2026-10-18 · R198-200(**W2 收口首段** / P-A 轻载闸门 `load_gate` 接入 +
+> C15 白名单漏注册根治 / R199 文档更正 / R200 P1-6 残余三处注入 + 审计#6b 人测通路实锤入档) |
+> 门禁 671/0/0, 变异 208
 
 ---
 
@@ -2785,6 +2786,46 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     =检测随机源失效而非惩罚收敛路线)+接管者标注。mock集成测试14项
     全绿(必败检出≥80%/实际≤20%/退化作废/可复现); 真实模式待舰队空闲。
   - 门禁600/0/0。
+- 3.66 (2026-10-18 下午, **R198-200: W2 收口首段 — P-A 轻载闸门 + C15 白名单对账根治 + P1-6 残余注入 + 审计#6b 实锤入档**):
+  - **R198 (W2-1 P-A `tools/load_gate.py`)**: 轻载闸门落地 — 单实例锁 `STORE/heavy.lock` +
+    注册表 `heavy_jobs.json` + 协作停止 `heavy.stop` + 轨迹 `heavy_runs/<ts>_<kind>.json`;
+    preflight 整机>55%/RAM<6GB/族>70% 拒绝、夜间窗 20:00-08:00 自动放行; 5s 监控整机>90%×3 窗
+    或族>75%×3 窗或 RAM<3GB → 中止自身子进程树+清沙箱+释放锁; worker cap
+    `max(1,min(req,cores//8))` 硬上限 4; 子进程 BELOW_NORMAL(0x4000); 失败闭合。
+    接入 `tools/gate_selftest_parallel.py`(默认 workers 2) + 43 项空跑自测 `tests/test_load_gate.py`
+    (锁/注册表/preflight/cap/优先级/监控中止/协作停止/轨迹/env 旁路); 自测首轮抓出 ctypes 64 位
+    HANDLE 未声明 restype/argtypes(优先级与进程CPU静默失效)与 preflight 注入时钟倒退两类真 bug。
+    **P-A 验收**: 43 自测 PASS; 白天 sweep 正确拒绝(exit 2, 窗口检查); 实机 preflight
+    整机 60-66%/族 35-48%/RAM 10.7-12.6GB → 默认 55% 会挡 B1, 由用户批准今夜 70% override。
+  - **R199 文档更正(W2-DOC)**: HANDOVER 快照 HEAD→edbc843、`docs/INDEX.md:35` THIRD_PARTY 登记核对、
+    METHODOLOGY 3.65 数字按实测更正(11:33 启动/6-20 完成)、`tools/bc_accept.py` docstring 补口径、
+    审计 task-7 报告归档。
+  - **R200 (W2-B1 残余 + C15 对账)**: ①**P1-6 残余三处消费方注入生效本体** —
+    `tools/attribution_probe.py`(B 侧对手驱动 `set_opponent(char_a)`)、`tools/branch_demo.py`
+    (`opp_driver.set_opponent(args.char)`)、`tools/danger_reveal.py`(`d.set_opponent(cfg['char'])` +
+    非现实副本逐副本 `_opp_char`)。原断言只查"文件含 set_opponent 串"(自证盲区) → 收紧为
+    "生效本体"断言(3 处调用点具名 + 非现实副本自变量) + 配对变异(去掉归因驱动注入 → 必红);
+    与 B1 的 20 条 tag 无交叉(实测)。②**C15 白名单漏注册根治(第 3 次复发)** — `_BEHAVIOR_TESTS`
+    92 项 vs `tests/test_*.py` 93 个, 漏的是 R198 新增 `test_load_gate.py`(43 项**从未在门禁执行**);
+    修复=补注册 + **永久对账断言**(`tests/test_*.py` 集合==白名单, 双向差集列出) + 配对变异
+    (白名单项改名 → 对账断言必红)。③**审计#6b 人测通路实锤入档** — `tools/human_match_v2.py:385`
+    载入的是 `model_ppo_<char>.npz` 旧档(updates 1674/1727/1710), **非 live `_fleet`**
+    (3708/4114/3528) 且未 `set_opponent`(对手 one-hot 全零) → 用户 9-0 读数 = **旧模型+OOD**,
+    不作现行策略强度/零SC 证据; 3 个会话 JSON 入档并标注该口径(rep 本体不入库); 修复立项
+    **task-15**(`CharacterManager::characterIndex @+0x34C` 实机 4/4 自动识别 P2 + 活档/回退/
+    model_stamp/决策旁车; SwrAddr.ini 的 LCHARID/RCHARID 对本 build 无效→unverified)。
+    ④**task-14 训练侧行为基线 v3**(只读 `D:\temp\behavior_deep_baseline_20261018.{json,txt}`):
+    有效攻击命中 4.5-7.6%/空挥 82-88%; 防御接触响应 0.2-2.2%/被命中前 10 帧有防 0.2-1.4%;
+    擦弹精确事件率 186-335/千帧但 TTI P50 0-2.8F(贴脸才擦); BH 连段 fates interrupted 54-76%
+    — 全部标"训练侧, 不与人测混用"。⑤**用户裁定 bcw=B1 长期开**(代码默认 `TH123_BCW_MIN=0.05`,
+    env=0 回滚), 与 task-10(`_POOL_OPP_NAME` 池序→名 20/20)合并今晚 B1 sweep 后停机窗实施。
+  - **门禁/数字**: 裸跑 `D:\temp\gate_r200.txt`(14:29:59, exit=0) **671 PASS / 0 WARN / 0 FAIL**;
+    变异 208(`gate_selftest.MUTATIONS`); 行为测试 93(`tests/test_*.py` == 白名单);
+    入口数字三处对齐(AGENTS:61 / README:52-53/84 / HANDOVER:7-8,121,161)。
+  - **变异验证(本批)**: `SELFTEST_TAGS='P1-6残余可达断言,白名单对账'` 串行单跑(基线绿守卫先过)
+    → 2红/0漏网/0未判定(`D:\temp\selftest_r200.out.log`); 桌面负载监控 `D:\temp\gate_r200_cpu*.log`。
+  - **遗留**: task-6 P-B/P-C(含 H-1 wd 族 CPU 0.00 拒收守卫)、task-15/16 窗口后; B1=20:05 增量 20
+    条(workers=1, 今夜 env70); 合并窗口(task-10+13)后 2 条新变异红验证待低载补跑(R201 待办)。
 - 3.65 (2026-10-18 午前, **R196-197: 交接快照入宪 + W1 接管基线 + 审计#6 两条自证断言修复 + R184 验收归档 + 增量 sweep 恢复**):
   - **R196 交接快照入宪**: 外部施工会话按用户裁定在 c447ef7「HANDOVER 增交接快照(暂停施工, 移交
     另一智能体)」停手; 规划 6 个文档提交 ff 合并至 **4e13aa5**(`git diff c447ef7..HEAD` 仅

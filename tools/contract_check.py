@@ -2076,7 +2076,21 @@ _BEHAVIOR_TESTS = [
     # 系列预测方案阶段0(R67): 系列位置分桶测量仪表
     ("test_series_meter_s0.py",
      "S0: 胜负解码(回合结算块)/系列位置/分桶/aux评分真前向50%构造/曲线行四桶"),
+    # CPU-H P-A(R198): 轻载闸门空跑自测(43项) — 原漏注册(审计#6c "新测试
+    # 漏注册"第3次复发) 本批补入 + 白名单对账断言永久钉死.
+    ("test_load_gate.py",
+     "CPU-H P-A: 轻载闸门(锁/注册表/preflight/worker cap/优先级/监控中止/"
+     "协作停止/轨迹/env旁路) 43 项空跑自测"),
 ]
+# 审计#6c(2026-10-18): C15 白名单对账 — "新测试漏注册"第3次复发(21档/
+# macros_branch/R198 test_load_gate 43项从未进门槛)的永久防线:
+# tests/test_*.py 集合必须等于白名单集合(双向差集为空; 差集列出前6项).
+_wl = set(t for t, _d in _BEHAVIOR_TESTS)
+_have = set(t for t in os.listdir(os.path.join(ROOT, 'tests'))
+            if t.startswith('test_') and t.endswith('.py'))
+_diff = sorted(_have - _wl) + sorted(_wl - _have)
+chk(not _diff, "C15白名单对账: tests/test_*.py 集合==白名单(禁漏注册/幽灵项)",
+    str(_diff[:6]))
 for _tname, _tdesc in _BEHAVIOR_TESTS:
     _tp = os.path.join(ROOT, 'tests', _tname)
     if not os.path.exists(_tp):
@@ -2241,6 +2255,15 @@ chk("def set_opponent" in src("side_driver.py")
     and "set_opponent(" in src("tools/deck_matchup.py")
     and "set_opponent(" in src("tools/attribution_probe.py"),
     "P1-6(从零#5): 评估侧注入对手角色(A/B双方+镜像+归因)")
+# P1-6(审计#6残余, 2026-10-18): 上一条只查"文件里出现过 set_opponent(" —
+# attribution_probe 的 driver 注入已满足它, 于是漏掉 :69 的 opp 驱动;
+# branch_demo / danger_reveal 完全未注入。收紧到**具体调用点/生效本体**
+# (配对变异见 gate_selftest.py: 去掉任一注入 → 本条必红)。
+chk("opp.set_opponent(char_a)" in src("tools/attribution_probe.py")
+    and "opp_driver.set_opponent(args.char)" in src("tools/branch_demo.py")
+    and "d.set_opponent(cfg['char'])" in src("tools/danger_reveal.py")
+    and "me.set_opponent(_opp_char)" in src("tools/danger_reveal.py"),
+    "P1-6(审计#6残余): 归因对手驱动/分支演示/危险显影三处注入生效本体")
 # P0(2026-10-18 实弹): 对手池快照"resolve 后到 load 前被修剪"的竞态 —
 # actor 报 FileNotFoundError 后驱动未装载 → 下一拍 NoneType.T 连环崩;
 # R115 只覆盖"拒载→None", 未覆盖"文件消失"。修=装载失败回退生产模型。
