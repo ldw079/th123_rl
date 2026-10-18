@@ -42,6 +42,9 @@ def run_game(char, port, my_deck, opp_deck):
     帧上限→回合比分→HP差(与F6同款口径)。"""
     da = SideDriver(char, 'L')
     db = SideDriver(char, 'R')
+    # P1-6(从零#5): 镜像对局 — 双方对手角色都是 char 自己
+    da.set_opponent(char)
+    db.set_opponent(char)
     # P1-1(从零#5): 活档(_fleet 优先), 原读单机档=静默评估旧模型
     from kit_config import live_model_path
     da.load(live_model_path(char, STORE))

@@ -2234,6 +2234,13 @@ chk(src("episode_core.py").count("check_row_counts(") >= 3,
 # 原版在 vf_adam.step 之后用 self.W1v 反传价值路(旧dH1v×新W1v) — 与 torch
 # 单步计算图不等价(审计实测 conv1/2/3 梯度 cos=0.396/0.637/0.564)。
 # 权重范数差抓不到(Adam 首步 Δ 尺度过小), 故用源码锚 + 反串钉死。
+# P1-6(从零#5): **评估侧**必须注入对手角色 — 训练侧由 train_tm 注入池序,
+# 而评估工具此前从不设 → 对手 one-hot 段全零, 评估读数与训练分布不是同一输入。
+chk("def set_opponent" in src("side_driver.py")
+    and src("tools/eval_matrix.py").count("set_opponent(") >= 2
+    and "set_opponent(" in src("tools/deck_matchup.py")
+    and "set_opponent(" in src("tools/attribution_probe.py"),
+    "P1-6(从零#5): 评估侧注入对手角色(A/B双方+镜像+归因)")
 # P0(2026-10-18 实弹): 对手池快照"resolve 后到 load 前被修剪"的竞态 —
 # actor 报 FileNotFoundError 后驱动未装载 → 下一拍 NoneType.T 连环崩;
 # R115 只覆盖"拒载→None", 未覆盖"文件消失"。修=装载失败回退生产模型。

@@ -65,6 +65,9 @@ def run_matchup(char_a, char_b, port, games=2, tps=480):
     # 双方都用SideDriver(确定性评估)
     driver_a = SideDriver(char_a, 'L')
     driver_b = SideDriver(char_b, 'R')
+    # P1-6(从零#5): 注入对手角色(否则对手 one-hot 全零, 与训练分布不符)
+    driver_a.set_opponent(char_b)
+    driver_b.set_opponent(char_a)
     # P1-1(从零#5): 读**活档**(_fleet 优先) — 原读单机档=静默评估 10-15 旧模型
     from kit_config import live_model_path
     driver_a.load(live_model_path(char_a, STORE))

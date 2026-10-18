@@ -658,6 +658,10 @@ MUTATIONS = [
      "            except OSError as _e_load:",
      "            except KeyError as _e_load:",
      "池快照装载失败不捕获(FileNotFound→空权重进局崩) → P0池回退断言必须红"),
+    ("tools/eval_matrix.py",
+     "    driver_a.set_opponent(char_b)",
+     "    pass",
+     "评估侧丢对手角色注入(对手one-hot全零=与训练分布不符) → P1-6断言必须红"),
 ]
 
 

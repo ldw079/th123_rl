@@ -60,6 +60,7 @@ def run_delayed_matchup(char_a, char_b, port, games=60, tps=None,
     env = EvalEnv(port, char_left=char_a, char_right=char_b,
                   vs_com=False, tps=tps, render=False)
     driver = SideDriver(char_a, 'L')
+    driver.set_opponent(char_b)   # P1-6(从零#5): 对手角色注入
     # P1-1(从零#5): 活档(_fleet 优先)
     from kit_config import live_model_path
     model_path = live_model_path(char_a, STORE_DIR)

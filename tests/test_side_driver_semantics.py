@@ -8,6 +8,8 @@ import time
 
 sys.stdout.reconfigure(encoding='utf8')
 import os as _os
+
+import numpy as np
 sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))   # 相对路径: 变异沙箱内解析到沙箱树
 from side_driver import SideDriver
 
@@ -83,5 +85,42 @@ own2["hand"] = bytes([200, 0] * 5) if d2.char == 'suika' else \
 m = d2._sc_usable_mask(own2)
 assert m.any(), '满手目标卡应解锁sc宏'
 print('✓ sc掩码真实门控(解锁%d个)' % int(m.sum()))
+
+# ---- P1-6(从零#5): 评估侧对手角色注入 ----
+# 训练侧由 train_tm 给 P2 驱动注入 opp_char_id; 评估工具此前从不设置 →
+# 对手 one-hot 段全零, 与训练分布不符。本测试直接**行为验证**注入生效。
+d4 = SideDriver('reimu', 'L')
+d4.load(r'D:\temp\th123_models\model_ppo_reimu.npz'
+        if __import__('os').path.exists(
+            r'D:\temp\th123_models\model_ppo_reimu.npz') else None)
+_seq = []
+_orig4 = d4.ppo.sample
+
+
+def _spy4(feat, side, mask=None, temp=1.0, bias=None, return_pred=False):
+    _seq.append(np.array(side, copy=True))
+    return (0, (0, 0.5)) if return_pred else 0
+
+
+assert d4.set_opponent('sakuya') == 11, 'sakuya应解析为池序11'
+d4.ppo.sample = _spy4
+d4.macro_queue = []
+for _ in range(4):
+    d4.macro_queue = []
+    d4.frame_input(own, opp, w, objs, bul)
+d4.ppo.sample = _orig4
+_s = _seq[-1] if _seq else None
+_core_off = 2 * d4.n_macros
+assert _s is not None and _s[_core_off + 227 + 11] > 0.5, \
+    '对手角色槽 core[227+11] 应为1(实际%.1f)' % (
+        _s[_core_off + 227 + 11] if _s is not None else -1)
+assert _s[_core_off + 227 + 0] < 0.5, '非对手槽不得误置'
+assert d4.feat_builder.opp_outside_pool == 1.0, '池外位应随id派生=1'
+print('✓ 对手角色注入生效(core[227+11]=1, 池外位=1)')
+
+# 未知角色: 不猜(保持None, 槽位全零)
+d5 = SideDriver('reimu', 'L')
+assert d5.set_opponent('nonexistent_char') is None, '未知角色应返回None'
+print('✓ 未知对位不猜(返回None)')
 
 print('\nSideDriver语义行为测试通过 ✓')

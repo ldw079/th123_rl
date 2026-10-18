@@ -187,6 +187,23 @@ class SideDriver:
                 img[by, bx] = v
         return img
 
+    def set_opponent(self, opp_char):
+        """P1-6(从零#5): 评估侧必须注入对手角色字符。
+
+        训练侧由 `train_tm` 给己方 P2 驱动注入(opp.opp_char_id=池序), 而
+        **评估工具**(eval_matrix/deck_matchup/attribution_probe/branch_demo/
+        danger_reveal)此前从不设置 → 对手角色 one-hot 段(227+池序)全零,
+        与训练分布不符 → 评估读数与训练期策略看到的输入不是同一分布。
+        返回注入的池序(未知角色返回 None, 不猜)。
+        """
+        try:
+            from train_tm import TMTrainer
+            _idx = TMTrainer._CHAR_POOL_IDX.get(opp_char)
+        except Exception:
+            _idx = None
+        self.opp_char_id = _idx
+        return _idx
+
     def _side_feat(self, own, opp, weather, bullets):
         core = self.feat_builder.build(own, opp, weather, bullets)
         core[33] = min(self._dir_frames, 62) / 62.0
