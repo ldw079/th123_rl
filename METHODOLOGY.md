@@ -8,7 +8,7 @@
 > 规划产物规范: **PLANNING_AGENT.md(规划智能体宪章, 2026-10-12用户令)** — 一切规划/方案必须"考察现状→详细可执行→附验收途径"三段齐备, 缺一仅得称草稿; 与本文冲突时以本文红线为准
 > 审计路由: **docs/audit_protocol.md(审计智能体入口, 2026-10-12用户令)** — 地位与 AGENTS.md 之于开发智能体同级, 审计接手第一读; 三必要条件(只读最新状态/结论按时间归档/数轮大更新后从零审查)+标准清单; bug 归档入口 docs/bugs/; 与本文冲突时以本文红线为准
 > 并行开发: **PARALLEL_WORKFLOW.md(三智能体并行约定, 2026-10-16用户批准试行)** — 单写者规则+docs/_pending_entries.md 队列; 写文件前先查写入权
-> 版本: 3.63 · 2026-10-18 · R190-192(P0 池快照装载竞态回退 / soku_arch=自有→MIT / **第三次全历史重写剔除 _archive**: main 9cb67db·planning ae6c39f·控制臂 8720cdd) | 门禁 667/0/0, 变异 205
+> 版本: 3.64 · 2026-10-18 · R193-195(P1-6 评估侧注入对手角色 / PR-9 THIRD_PARTY+许可限定 / 改动面增量变异 sweep 启动) | 门禁 668/0/0, 变异 206
 
 ---
 
@@ -2784,6 +2784,24 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     =检测随机源失效而非惩罚收敛路线)+接管者标注。mock集成测试14项
     全绿(必败检出≥80%/实际≤20%/退化作废/可复现); 真实模式待舰队空闲。
   - 门禁600/0/0。
+- 3.64 (2026-10-18日间, **R193-195: 评估分布对齐 + 公开化 Phase 4 + 增量 sweep**):
+  - **R193 P1-6 评估侧注入对手角色**: 训练侧 `train_tm:1011` 给 P2 驱动注入
+    `opp_char_id`(对手 one-hot 段 227+池序), 而**评估工具从不设** → 该段全零、
+    池外位恒 0 → 评估读数与训练期策略看到的输入**不是同一分布**。
+    修: `SideDriver.set_opponent()` 单点(池序走 TMTrainer._CHAR_POOL_IDX;
+    未知角色**返回 None 不猜**), 接线 eval_matrix A/B 双方 / deck_matchup 镜像 /
+    attribution_probe; 行为验证(append test_side_driver_semantics): 注入 sakuya 后
+    `core[227+11]=1`、非对手槽<0.5、`opp_outside_pool=1.0`。实测池序 1/2/11。
+  - **R194 PR-9 THIRD_PARTY 起草(Phase 4)**: 新增 docs/THIRD_PARTY.md —
+    数据来源(cleista/wikiwiki/CHM/SokuLib)、仅分析未采纳代码(th123ai/游戏本体/自mod)、
+    软件依赖、自身许可分层(代码 MIT / 文档 CC BY 4.0 / 数据不提供);
+    **SokuLib 许可实测 MIT**(GitHub API 亲验, 不猜); LICENSE-docs 加
+    "CC BY 4.0 仅覆盖原创整理"限定句。
+  - **R195 改动面增量变异 sweep 启动**: 按用户"先跑改动面增量、全量等低载窗"的裁定,
+    用 `gate_selftest_parallel.py 2` + SELFTEST_TAGS 选中本波 20 条(184-206 那段),
+    **2 workers 分离进程**(训练族 CPU 39% + 2 核 ≈ 50% < 红线 75%)。
+    基线绿守卫先跑(同 R169 的 P0-4 修); 结果落 D:\temp\sweep_incremental_r195.log。
+  - 门禁 668 PASS / 0 WARN / 0 FAIL, 变异 206 条; 提交已推 origin/main。
 - 3.63 (2026-10-18上午, **R190-192: 池快照竞态 + soku_arch 授权 + 第三次重写**):
   - **R190 P0(过夜实弹)**: 主臂 reimu actor 与对照臂 actor **双双**报
     `FileNotFoundError: fleet\pool\...` → 驱动未装载 → `NoneType.T` 连环崩
