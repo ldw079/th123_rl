@@ -2085,6 +2085,8 @@ _BEHAVIOR_TESTS = [
      "P1(审计#6): 池序→名映射20/20 + _side_feat 槽位/_opp_char/_jz1_ids 行为"),
     ("test_bcw_env.py",
      "D1(bcw=B1): BC_W_MIN 代码默认0.05(任意重启不带env也长期生效) + env=0回滚"),
+    ("test_le0a_control_exemption.py",
+     "LE-0a: 对照臂连续性 — 所有训练python WMI查询/清理逐处含 control 豁免(静态)"),
 ]
 # 审计#6c(2026-10-18): C15 白名单对账 — "新测试漏注册"第3次复发(21档/
 # macros_branch/R198 test_load_gate 43项从未进门槛)的永久防线:
@@ -2127,6 +2129,28 @@ chk("TH123_BCW_MIN" in src("ppo_gpu.py")
     and "TH123_BCW_START" in src("ppo_gpu.py")
     and "max(self.BC_W_MIN, float(m[2]))" in src("ppo_gpu.py"),
     "D1(bcw=B1): BC权重env化(TH123_BCW_MIN/START)+load下限再挂载")
+# LE-0a(2026-10-18 实弹): 对照臂连续性 — 所有"选择训练python的WMI查询"必须
+# 带 th123_rl_control 豁免。事故: supervisor.reap_orphans 无豁免, 主臂重启把
+# 手工launcher启动(父已退=孤儿)的对照臂连树杀掉(中断639s/游戏缺失~8.5min)。
+# 逐处扫描(非串存在), 并覆盖 train_start._cleanup_ps_cmd(pre_flight/stop 共用)。
+_sup_src = src("fleet_supervisor.py")
+_le0a_ok = True
+_le0a_seen = 0
+for _m in re.finditer(r'Get-CimInstance Win32_Process', _sup_src):
+    _seg = _sup_src[max(0, _m.start() - 500):_m.start() + 1500]
+    if 'actor_worker|learner_hub|exploiter' not in _seg:
+        continue
+    _le0a_seen += 1
+    if 'th123_rl_control' not in _seg:
+        _le0a_ok = False
+_ts_src = src("tools/train_start.py")
+_i_ts = _ts_src.find('def _cleanup_ps_cmd')
+_ts_seg = _ts_src[_i_ts:_i_ts + 3500] if _i_ts >= 0 else ''
+_le0a_ok = (_le0a_ok and _i_ts >= 0 and 'taskkill' in _ts_seg
+            and 'th123_rl_control' in _ts_seg)
+chk(_le0a_ok and _le0a_seen >= 1,
+    "LE-0a: 孤儿回收/前置清理查询逐处含对照臂豁免(禁误杀LE-0a)",
+    "训练python查询数=%d" % _le0a_seen)
 # ============ P2波锚(审计#3十九项首波, 2026-10-13) ============
 print("=== P2修复波锚(审计#3) ===")
 # 审计2026-10-16 P1-1防复发: CE-1宏层画像的生产调用形态 — begin必须

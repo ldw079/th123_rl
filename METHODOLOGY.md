@@ -8,9 +8,9 @@
 > 规划产物规范: **PLANNING_AGENT.md(规划智能体宪章, 2026-10-12用户令)** — 一切规划/方案必须"考察现状→详细可执行→附验收途径"三段齐备, 缺一仅得称草稿; 与本文冲突时以本文红线为准
 > 审计路由: **docs/audit_protocol.md(审计智能体入口, 2026-10-12用户令)** — 地位与 AGENTS.md 之于开发智能体同级, 审计接手第一读; 三必要条件(只读最新状态/结论按时间归档/数轮大更新后从零审查)+标准清单; bug 归档入口 docs/bugs/; 与本文冲突时以本文红线为准
 > 并行开发: **PARALLEL_WORKFLOW.md(三智能体并行约定, 2026-10-16用户批准试行)** — 单写者规则+docs/_pending_entries.md 队列; 写文件前先查写入权
-> 版本: 3.67 · 2026-10-18 · R201(**W2 合并窗** / task-10 池序映射 20/20 + task-13 bcw=B1
-> 代码默认 0.05(env=0 回滚) + 2 断言/2 C15/2 变异已验红 + B1 增量 20 完成) |
-> 门禁 675/0/0, 变异 210
+> 版本: 3.68 · 2026-10-18 · R202(**LE-0a 对照臂连续性事故修复** / supervisor 孤儿回收
+> 查询加 th123_rl_control 豁免 + 逐处扫描断言/变异/C15) |
+> 门禁 677/0/0, 变异 211
 
 ---
 
@@ -2786,6 +2786,35 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     =检测随机源失效而非惩罚收敛路线)+接管者标注。mock集成测试14项
     全绿(必败检出≥80%/实际≤20%/退化作废/可复现); 真实模式待舰队空闲。
   - 门禁600/0/0。
+- 3.68 (2026-10-18 傍晚, **R202: LE-0a 对照臂连续性事故修复 — 孤儿回收豁免**):
+  - **事故(实弹)**: 16:27–16:38 对照臂被误杀。根因: `fleet_supervisor.reap_orphans()`
+    (supervisor boot 时按"WMI ParentProcessId 已死=孤儿"回收 `actor_worker|learner_hub|
+    exploiter` python 并 `_kill_tree /T`)**无 `th123_rl_control` 路径豁免**; 对照臂由手工
+    launcher 启动(父进程早已退出=孤儿) → 主臂重启(`train_start --mode fleet`, 16:30:3x)
+    boot supervisor 时把对照臂 learner/actor 连树杀掉, 游戏 21080 随之断。
+    `train_start._cleanup_ps_cmd` 早含豁免(train_start 侧修复), 但 supervisor 侧漏。
+  - **kill 路径清单(复核)**: `_kill_tree`(fleet_supervisor:373) 只作用自有 Popen 子
+    (:424 reap_orphans / :475/:485 停机重启 / :644 降容), 无外部 PID 来源;
+    唯一外部查询入口=`reap_orphans` WMI 查询; `train_start._cleanup_ps_cmd` 已含豁免;
+    `launcher.py`/`audit_all.py` 无直接 taskkill。
+  - **修复**: reap_orphans 查询加 `-and $_.CommandLine -notmatch 'th123_rl_control'`
+    (兼容路径斜杠方向; 游戏侧按父进程判定, 对照臂游戏父=其 actor 不入杀集 → 免疫);
+    其余 kill 路径不改(避免扩大改动)。
+  - **测试三件套**: ①门禁"生效本体"断言: 逐处扫描 supervisor 内所有"选择训练 python 的
+    WMI 查询", 每处须含 `th123_rl_control`, 并覆盖 `train_start._cleanup_ps_cmd`;
+    ②配对变异: 删 supervisor 豁免子句 → 断言必红(tag=`孤儿回收豁免`); ③C15 静态测试
+    `tests/test_le0a_control_exemption.py`(8 项: 查询逐处/负匹配语义/train_start/
+    ParentProcessId 锚; 只读不 kill)。
+  - **中断账(审计#7 用)**: 对照臂最后正常 learner 16:27:31(actor 16:30:00) → 恢复
+    16:38:10(learner)/16:38:15(actor), **gap=639s**; 游戏 21080 缺失 16:30:00→16:38:2x
+    **(1 个, ~8.5min)**; 恢复按 LE-0a 规程(绝对路径/detached/独立 store/新 r201 日志),
+    验证 n_out=70/updates3202/v679 正常。
+  - **门禁/数字**: `D:\temp\gate_r202.txt`(16:46:13, exit=0) **677 PASS / 0 WARN / 0 FAIL**;
+    变异 **211**; C15 **96**(==白名单); 入口数字三处同步(AGENTS:61 / README:52-53,84 /
+    HANDOVER:7-12,61,78,121,161)。注: 规划侧预估 676 为+1 PASS 少算(断言与 C15 各+1),
+    实测 677 已如实记录。
+  - **纪律**: 以后任何"清理/重启"禁用宽口径进程终止; `train_start --stop` 只按 main
+    进程树 PID 精确终止; 新增终止路径必须带 `th123_rl_control` 豁免并过上述断言。
 - 3.67 (2026-10-18 傍晚, **R201: W2 合并窗 — 池序映射修复 + bcw=B1 代码默认 0.05 + B1 增量 20 完成**):
   - **B1 增量 20(停训期, 2 workers)**: 用户批准停 main fleet(对照臂不动)全力推自检; 20/20 变异 ✓红,
     0漏网/0未判定, 墙钟 28min, 轨迹 `heavy_runs/20261018_153920_sweep.json`(final/ok, duration 1829.7s);

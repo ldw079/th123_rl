@@ -684,6 +684,12 @@ MUTATIONS = [
      "        BC_W_MIN = float(os.environ.get('TH123_BCW_MIN', '0.05'))",
      "        BC_W_MIN = 0.0",
      "BC权重下限env失效(长期bcw回退0) → bcw env断言必须红"),
+    # LE-0a(2026-10-18 实弹): 对照臂连续性 — 删孤儿回收豁免子句 →
+    # "逐处扫描训练python WMI查询"断言必红(原事故: 主臂重启误杀LE-0a 639s)
+    ("fleet_supervisor.py",
+     "-notmatch 'th123_rl_control' } ",
+     "} ",
+     "对照臂孤儿回收豁免缺失(主臂重启误杀LE-0a) → LE-0a逐处扫描断言必须红"),
 ]
 
 

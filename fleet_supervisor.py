@@ -399,12 +399,17 @@ def reap_orphans():
     """R61f(F3/D5): 启动时回收孤儿 — 上次supervisor被强杀时其子进程
     (actor_worker/learner_hub)可能残留(占游戏实例+learner双写者由
     R61e单实例锁兜底)。按WMI ParentProcessId判定: 父进程已死=孤儿。
-    R63(P1-5): 改整树终结(taskkill /T) — 否则游戏子进程残留占端口。"""
+    R63(P1-5): 改整树终结(taskkill /T) — 否则游戏子进程残留占端口。
+    LE-0a(2026-10-18 实弹): 本查询曾无 `th123_rl_control` 豁免 → 主臂重启的
+    supervisor boot 把手工 launcher 启动(父已退=孤儿)的对照臂 learner/actor
+    连树杀掉(对照臂中断639s/游戏21080缺失~8.5min); 修复=查询内排除 control
+    worktree 路径; 游戏侧仍按父进程判定(对照臂游戏父=其 actor, 不入杀集→免疫)。"""
     out = subprocess.run(
         ['powershell', '-NoProfile', '-Command',
          "Get-CimInstance Win32_Process -Filter \"Name like 'python%'\" "
          "| Where-Object { $_.CommandLine -match "
-         "'actor_worker|learner_hub|exploiter' } "
+         "'actor_worker|learner_hub|exploiter' -and $_.CommandLine "
+         "-notmatch 'th123_rl_control' } "
          "| ForEach-Object { '{0}|{1}' -f $_.ProcessId, $_.ParentProcessId }"],
         capture_output=True, text=True, timeout=30)
     live = {os.getpid()}   # P1-D belt-and-braces: 本进程入存活集 —
