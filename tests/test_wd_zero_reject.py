@@ -94,8 +94,10 @@ try:
     fs.write_watchdog_status(33.25, now=1790000000.0, n_rej=2)
     line = io.open(fs.WD_STATUS, encoding='utf8').read().strip()
     parts = line.split()
-    ck(len(parts) == 3 and parts[1] == '33.25' and parts[2] == '2',
-       'D1 sidecar 3 字段: ts pct n_rej')
+    # A1/A2(2026-10-19): wd 扩为 ts family n_rej machine aux → 前 3 字段语义
+    # 不变(old readers split()[1]); 此处断言 >=3 且字段位置不变.
+    ck(len(parts) >= 3 and parts[1] == '33.25' and parts[2] == '2',
+       'D1 sidecar 前3字段: ts pct n_rej (A1/A2 后 5 字段)')
     ck(parts[1] == '33.25', 'D2 旧读者 split()[1] 仍是百分比')
     fs.write_watchdog_status(None, now=1790000030.0, n_rej=3, rejected=True)
     parts = io.open(fs.WD_STATUS, encoding='utf8').read().split()

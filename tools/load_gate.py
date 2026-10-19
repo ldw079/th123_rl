@@ -855,6 +855,20 @@ def acquire(kind, workers=1, store=None, allow_day=False, log=None,
     return h
 
 
+def guard_tool(kind, workers=1, allow_day=True):
+    """重型工具统一入口: acquire → HeavyHandle | None(拒绝).
+
+    P-C(2026-10-19): bc_build/eval_matrix/audit_all 必须经此; 调用方
+    `atexit.register(h.release)` 或最后显式 release. 拒绝返回 None.
+    """
+    h = acquire(kind, workers=workers, allow_day=allow_day)
+    if h is None:
+        print('[load_gate] !! 闸门拒绝: kind=%s (见上方原因; 夜间窗或 --allow-day)'
+              % kind)
+        return None
+    return h
+
+
 def _atexit_guard():
     """兜底: 进程退出时释放本 pid 持有的锁/注册项(防stale锁)."""
     try:

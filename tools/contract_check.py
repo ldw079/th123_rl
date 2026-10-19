@@ -2097,6 +2097,10 @@ _BEHAVIOR_TESTS = [
      "task-21: 空间24维/env开关382-358/归一化范围/旧前缀等价"),
     ("test_space_reward_v1.py",
      "task-21: Phase1 空间奖励 env/默认值/触发边界"),
+    ("test_health_l0.py",
+     "A1/A2: wd5字段/整机/旁路口径/L3告警不杀fleet/工具闸门接入"),
+    ("test_behavior_deep_report.py",
+     "task-16: 三表函数/JSON结构(main)"),
 ]
 # 审计#6c(2026-10-18): C15 白名单对账 — "新测试漏注册"第3次复发(21档/
 # macros_branch/R198 test_load_gate 43项从未进门槛)的永久防线:
@@ -2218,6 +2222,29 @@ chk("bc_meta zero-fill v2" in _bc21 and "def _bc_pad_S(" in _bc21
     and "行级零填充到" in src("tools/train_start.py")
     and "行级零填充到" in src("learner_hub.py"),
     "task-21: BC env=1 允许旧宽(训练+点火+learner 三处 zero-fill v2)")
+# A1/A2(CPU-H P-B/P-C, 2026-10-19 用户裁定): L0 整机/旁路口径 + wd 扩字段 +
+# L3 告警(不杀 fleet) + 重型工具经闸门.
+_fs12 = src("fleet_supervisor.py")
+chk("def machine_cpu_pct(" in _fs12 and "def aux_cpu_pct(" in _fs12
+    and "'%.3f %s %d %s %s\\n'" in _fs12,
+    "A1/A2: wd 扩 `ts family n_rej machine aux`(旧读者 split()[1] 兼容)")
+chk("def l3_check(" in _fs12 and "machine_alert" in _fs12
+    and "heavy.stop" in _fs12 and _fs12.count("_kill_tree") >= 1,
+    "A1/A2: L3 machine_alert+heavy.stop; 不杀 fleet")
+_dash = src("tools/status_dashboard.py")
+chk("整机" in _dash and "旁路" in _dash and "parts[3]" in _dash,
+    "A1/A2: dashboard 三口径(族/整机/旁路)")
+chk("def guard_tool(" in src("tools/load_gate.py")
+    and "guard_tool(" in src("bc_build.py")
+    and "guard_tool(" in src("tools/eval_matrix.py")
+    and "guard_tool(" in src("tools/audit_all.py"),
+    "A1/A2 P-C: 重型工具(bc_build/eval_matrix/audit_all)经 load_gate")
+# task-16(2026-10-19): behavior_deep_report 三表工具入库(路径经 kit_config).
+_bdr = src('tools/behavior_deep_report.py')
+chk('def frame_tables(' in _bdr and 'def bh_table(' in _bdr
+    and 'def parse_actor_games(' in _bdr
+    and 'from kit_config import STORE_DIR as STORE' in _bdr,
+    'task-16: behavior_deep_report 三表工具入库(kit_config 路径)')
 # ============ P2波锚(审计#3十九项首波, 2026-10-13) ============
 print("=== P2修复波锚(审计#3) ===")
 # 审计2026-10-16 P1-1防复发: CE-1宏层画像的生产调用形态 — begin必须

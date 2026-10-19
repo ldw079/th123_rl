@@ -36,6 +36,16 @@ def sec(t):
 
 
 def main():
+    try:
+        from load_gate import guard_tool
+        _gate_h = guard_tool('audit_all')
+    except ImportError:
+        _gate_h = None
+    else:
+        if _gate_h is None:
+            return 1
+        import atexit
+        atexit.register(_gate_h.release)
     ap = argparse.ArgumentParser()
     ap.add_argument('--chars', default='reimu,marisa,suika')
     ap.add_argument('--quick', action='store_true',

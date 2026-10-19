@@ -8,9 +8,9 @@
 > 规划产物规范: **PLANNING_AGENT.md(规划智能体宪章, 2026-10-12用户令)** — 一切规划/方案必须"考察现状→详细可执行→附验收途径"三段齐备, 缺一仅得称草稿; 与本文冲突时以本文红线为准
 > 审计路由: **docs/audit_protocol.md(审计智能体入口, 2026-10-12用户令)** — 地位与 AGENTS.md 之于开发智能体同级, 审计接手第一读; 三必要条件(只读最新状态/结论按时间归档/数轮大更新后从零审查)+标准清单; bug 归档入口 docs/bugs/; 与本文冲突时以本文红线为准
 > 并行开发: **PARALLEL_WORKFLOW.md(三智能体并行约定, 2026-10-16用户批准试行)** — 单写者规则+docs/_pending_entries.md 队列; 写文件前先查写入权
-> 版本: 3.71 · 2026-10-19 · R205(**task-21 v1 空间 24 维 + Phase1 空间奖励** /
-> CORE_DIMS 358→382(TH123_FEAT_SPACE 回滚) + 旧前缀等价 + BC 行级 zero-fill |
-> 门禁 688/2/0, 变异 220
+> 版本: 3.72 · 2026-10-19 · R206(**A1/A2 CPU-H P-B/P-C + task-16 入库** /
+> wd 5 字段(旧读者兼容)+L3 machine_alert/dashboard 三口径/load_gate 三工具 + behavior_deep_report |
+> 门禁 695/2/0, 变异 223
 
 ---
 
@@ -2789,6 +2789,29 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     =检测随机源失效而非惩罚收敛路线)+接管者标注。mock集成测试14项
     全绿(必败检出≥80%/实际≤20%/退化作废/可复现); 真实模式待舰队空闲。
   - 门禁600/0/0。
+- 3.72 (2026-10-19 晚, **R206: A1/A2(CPU-H P-B/P-C) + task-16 behavior_deep_report 入库**):
+  - **A1/A2 L0/L3**: `fleet_supervisor` 新增 `machine_cpu_pct`(ctypes GetSystemTimes, None 哨兵) +
+    `aux_cpu_pct`(非族 python, 排除对照臂; Δ/Δ墙钟/核数); `fleet_heartbeat.wd` 扩为
+    **`ts family n_rej machine aux`**(前 3 字段语义不变 → 旧读者 `split()[1]` 兼容);
+    L3: machine>85 连续3窗 或 >95 连续2窗 → `fleet_heartbeat.machine_alert`(JSON reason/值) +
+    存在 heavy_jobs 时写 `heavy.stop`; **绝不杀 fleet**; env `TH123_L3_WATCH=0` 可关。
+  - **dashboard**: 看门狗行三口径「族 · 整机 · 旁路」, machine>85 标 warn, 容错 4/5 字段。
+  - **P-C**: `load_gate.guard_tool(kind)` + `bc_build/eval_matrix/audit_all` 入口接入
+    (ImportError 回退原逻辑; 闸门拒绝=退出1)。
+  - **task-16**: `tools/behavior_deep_report.py` 入库(路径经 kit_config: TH123_STORE/
+    TH123_ACTOR_DIR/TH123_DEEP_OUT_*; 三表: 有效攻击性/防御擦弹时机/连段完成度; main 写 JSON+MD);
+    C15 `tests/test_behavior_deep_report.py`(合成工件 6 PASS)。
+  - **测试/门禁**: C15 `test_health_l0.py`(wd 5 字段/整机 0-100/族树与对照臂排除/aux 公式/L3 阈值/
+    不杀 fleet 源码锚/dashboard 三口径/三工具闸门接入, 18 PASS); `test_wd_zero_reject` 兼容 wd 5 字段;
+    断言 5 条(wd 扩字段兼容、L3 不改 fleet、dashboard 三口径、P-C 接入、task-16 入库) + 变异 3 条
+    (wd 删 machine/aux、L3 阈值 85→99、task-16 三表函数禁用)。
+  - **门禁**: `D:\temp\gate_r206_cc479a9_20261019_205315.txt`(20:53, exit=0) 原始末行
+    `==== 契约门禁: 695 PASS / 2 WARN / 0 FAIL ====`; 变异 **223**; C15 **103**(==白名单);
+    WARN2 = BC 过渡期如实告警(已知, 低载窗重建)。
+  - **窗口**: 停 main(对照臂排除) → apply(HEAD=cc479a9 守卫) → 单测 → 门禁 → 变异 3/3 红 →
+    commit(不 push) → 重启 → 验收(wd 5 字段、machine/aux 有值、machine_alert 不在位、
+    主臂/对照臂、≥10 拍 wd 无 0.00)。回滚: `TH123_L3_WATCH=0` 关 L3/`TH123_LOAD_GATE=0` 旁路闸门;
+    `git checkout -- .` + `git clean -fd` 仅限本次新增 3 文件。
 - 3.71 (2026-10-19 晚, **R205: task-21 v1 空间 24 维(2D 绝对+相对) + Phase1 空间奖励**):
   - **来源**: 用户 3 条观察(主动性不足/逃压迂回少/板边频繁后撤) → task-19 诊断(ON vs PRE) →
     task-21 敏感性(3 角色, 各 136 决策态): 消融 `wall_dist` top1 改变 reimu **1.47%**/marisa

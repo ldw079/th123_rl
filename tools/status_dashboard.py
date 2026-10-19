@@ -221,12 +221,24 @@ def get_watchdog_status():
         parts = io.open(p, encoding='utf8').read().split()
         ts = float(parts[0])
         pct = parts[1] if len(parts) > 1 else '-'
+        # A1/A2(2026-10-19): wd 扩为 `ts family n_rej machine aux`;
+        # 旧读者仍取 split()[1](族口径),新读者容错解析整机/旁路。
+        machine = parts[3] if len(parts) > 3 else '-'
+        aux = parts[4] if len(parts) > 4 else '-'
     except (OSError, ValueError, IndexError):
         return '无采样记录(未跑新版/未到首个心跳)', 'warn'
     age = int(time.time() - ts)
     ok = 'good' if age < 180 else 'warn'
-    return ('最后采样 %ds 前 · 训练族CPU %s'
-            % (age, pct + '%' if pct != '-' else '查询失败')), ok
+    try:
+        if float(machine) > 85.0:
+            ok = 'warn'
+    except (TypeError, ValueError):
+        pass
+    return ('最后采样 %ds 前 · 族CPU %s · 整机 %s · 旁路 %s'
+            % (age,
+               pct + '%' if pct != '-' else '查询失败',
+               machine + '%' if machine != '-' else 'n/a',
+               aux + '%' if aux != '-' else 'n/a')), ok
 
 
 # ── 主函数 ──────────────────────────────────────────────

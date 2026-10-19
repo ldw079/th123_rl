@@ -733,6 +733,20 @@ MUTATIONS = [
      "R_SPACE_EDGE = float(os.environ.get('TH123_REW_SPACE_EDGE', '0.0015'))",
      "R_SPACE_EDGE = float(os.environ.get('TH123_REW_SPACE_EDGE', '0.0'))",
      "space_rew: 板边罚默认值被归零 → task-21 奖励默认值断言必须红"),
+    # A1/A2(2026-10-19): 变异 ①wd 3字段(删 machine/aux); ②L3 阈值改 99
+    ("fleet_supervisor.py",
+     "            f.write('%.3f %s %d %s %s\\n' % (",
+     "            f.write('%.3f %s %d\\n' % (",
+     "a12: wd 丢失 machine/aux 扩展字段(旧读者兼容面) → 断言必须红"),
+    ("fleet_supervisor.py",
+     "    if machine > 85.0 and (family is None or family < CPU_RED_LINE):",
+     "    if machine > 99.0 and (family is None or family < CPU_RED_LINE):",
+     "a12: L3 阈值被改 99(告警失效) → 断言必须红"),
+    # task-16(2026-10-19): 三表函数禁用 → 入库断言必红
+    ('tools/behavior_deep_report.py',
+     'def frame_tables(',
+     'def _disabled_frame_tables(',
+     'task-16 三表函数被禁用 → 入库断言必须红'),
 ]
 
 

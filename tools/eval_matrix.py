@@ -294,6 +294,16 @@ def analyze(matrix, chars):
 
 
 def main():
+    try:
+        from load_gate import guard_tool
+        _gate_h = guard_tool('eval_matrix')
+    except ImportError:
+        _gate_h = None
+    else:
+        if _gate_h is None:
+            return 1
+        import atexit
+        atexit.register(_gate_h.release)
     ap = argparse.ArgumentParser()
     ap.add_argument('--chars', type=int, default=3)
     ap.add_argument('--games', type=int, default=2)

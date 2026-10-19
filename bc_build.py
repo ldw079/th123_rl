@@ -516,6 +516,16 @@ def _shard_meta_probe(sp):
 
 
 def main(suffix=''):
+    try:
+        from load_gate import guard_tool
+        _gate_h = guard_tool('bc_build')
+    except ImportError:
+        _gate_h = None
+    else:
+        if _gate_h is None:
+            return 1
+        import atexit
+        atexit.register(_gate_h.release)
     """suffix: 输出文件名后缀(--suffix _v3 → bc_reimu_v3.npz) —
     A/B窗口期不动在用库, 新版并行落盘, 验收后换装.
     --char CID: 只建该角色(0/1/9) — 三进程并行加速用(输出文件按

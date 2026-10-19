@@ -254,7 +254,184 @@ def write_heartbeat(alert=None):
 WD_STATUS = HEARTBEAT + '.wd'
 
 
-def write_watchdog_status(pct, now=None, n_rej=0, rejected=False):
+
+
+import ctypes  # noqa: E402
+
+# ======== A1/A2(CPU-H P-B, 2026-10-19): 整机/旁路口径 + L3 告警 ========
+# L0: machine=整机CPU(ctypes GetSystemTimes, 不引新依赖); aux=非族 python.exe
+# (排除对照臂); 采样失败=None 哨兵(不产 0).
+_MACHINE_LAST = {'idle': None, 'total': None}
+_AUX_LAST = {'ts': None, 'cpu': None}
+L3_WATCH = os.environ.get('TH123_L3_WATCH', '1') != '0'
+MACHINE_ALERT = HEARTBEAT + '.machine_alert'
+_L3_STATE = {'m_hi': 0, 'm_crit': 0, 'last_alert': 0.0}
+
+
+class _FILETIME2(ctypes.Structure):
+    _fields_ = [('dwLowDateTime', ctypes.c_uint32),
+                ('dwHighDateTime', ctypes.c_uint32)]
+
+
+def _ft2i(ft):
+    return (int(ft.dwHighDateTime) << 32) | int(ft.dwLowDateTime)
+
+
+def machine_cpu_pct():
+    """整机CPU%%(GetSystemTimes Δ: 100*(1-Δidle/Δtotal)); 首拍/失败=None."""
+    try:
+        k32 = ctypes.windll.kernel32
+        idle, kern, user = _FILETIME2(), _FILETIME2(), _FILETIME2()
+        if not k32.GetSystemTimes(ctypes.byref(idle), ctypes.byref(kern),
+                                  ctypes.byref(user)):
+            return None
+        i, t = _ft2i(idle), _ft2i(kern) + _ft2i(user)
+    except Exception:
+        return None
+    pi, pt = _MACHINE_LAST['idle'], _MACHINE_LAST['total']
+    _MACHINE_LAST['idle'], _MACHINE_LAST['total'] = i, t
+    if pi is None or t <= pt:
+        return None
+    pct = 100.0 * (1.0 - (i - pi) / float(t - pt))
+    return max(0.0, min(100.0, pct))
+
+
+def _wd_proc_rows_ext(ps_out=None):
+    """(pid, ppid, cpu_s, cmdline) — python.exe/th123.exe 全表(aux 口径用)."""
+    if ps_out is None:
+        try:
+            out = subprocess.run(
+                ['powershell', '-NoProfile', '-Command',
+                 "Get-CimInstance Win32_Process -Filter \"Name='python.exe' OR "
+                 "Name='th123.exe'\" | Select-Object ProcessId,"
+                 "ParentProcessId,KernelModeTime,UserModeTime,CommandLine | "
+                 "ConvertTo-Json -Compress"],
+                capture_output=True, text=True, timeout=25)
+        except Exception:
+            return None
+        ps_out = out.stdout
+    txt = (ps_out or '').strip()
+    if not txt:
+        return []
+    try:
+        data = json.loads(txt)
+    except ValueError:
+        return None
+    if isinstance(data, dict):
+        data = [data]
+    rows = []
+    for d in data:
+        if not isinstance(d, dict):
+            continue
+        try:
+            cpu = (float(d.get('KernelModeTime') or 0)
+                   + float(d.get('UserModeTime') or 0)) / 1e7
+            rows.append((int(d['ProcessId']), int(d['ParentProcessId']), cpu,
+                         d.get('CommandLine') or ''))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return rows
+
+
+def _family_pids_from_rows(rows, root):
+    kids = {}
+    for pid, ppid, _c, _cmd in rows:
+        kids.setdefault(ppid, []).append(pid)
+    seen, stack = set(), [root]
+    while stack:
+        p = stack.pop()
+        if p in seen:
+            continue
+        seen.add(p)
+        stack.extend(kids.get(p, []))
+    return seen
+
+
+def aux_cpu_pct(now=None, rows=None):
+    """旁路CPU%%(非训练族、非对照臂 python.exe 累计CPU Δ/Δ墙钟/核数)."""
+    now = time.time() if now is None else now
+    rows = _wd_proc_rows_ext() if rows is None else rows
+    if rows is None:
+        return None
+    fam = _family_pids_from_rows(rows, os.getpid())
+    aux = 0.0
+    for pid, ppid, cpu, cmd in rows:
+        if pid in fam:
+            continue
+        if 'th123_rl_control' in (cmd or ''):
+            continue
+        aux += cpu
+    pts, pcpu = _AUX_LAST['ts'], _AUX_LAST['cpu']
+    _AUX_LAST['ts'], _AUX_LAST['cpu'] = now, aux
+    if pts is None or now <= pts:
+        return None
+    pct = (aux - pcpu) / ((now - pts) * _LOGICAL_CORES) * 100.0
+    return max(0.0, min(100.0, pct))
+
+
+def _write_machine_alert(reason, machine, family, aux, top=None):
+    rec = {'ts': time.strftime('%Y-%m-%d %H:%M:%S'), 'reason': reason,
+           'machine_pct': machine, 'family_pct': family, 'aux_pct': aux,
+           'top_aux': top or []}
+    try:
+        tmp = MACHINE_ALERT + '.tmp'
+        with open(tmp, 'w', encoding='utf8') as f:
+            json.dump(rec, f, ensure_ascii=False)
+        os.replace(tmp, MACHINE_ALERT)
+    except OSError:
+        pass
+    if os.path.exists(os.path.join(STORE, 'heavy_jobs.json')):
+        try:
+            sp = os.path.join(STORE, 'heavy.stop')
+            tmp = sp + '.tmp'
+            with open(tmp, 'w', encoding='utf8') as f:
+                json.dump({'reason': 'machine_alert: %s' % reason,
+                           'ts': time.time(), 'source': 'supervisor-l3'}, f)
+            os.replace(tmp, sp)
+        except OSError:
+            pass
+    return rec
+
+
+def l3_check(machine, family, now=None):
+    """L3: machine>85 连续3窗 且 family<75 → 告警; >95 连续2窗 → 立即告警.
+
+    只写 machine_alert + heavy.stop(注册重任务), **绝不杀 fleet**。
+    返回 'alert'|'critical'|None。
+    """
+    now = time.time() if now is None else now
+    if machine is None:
+        return None
+    if machine > 95.0:
+        _L3_STATE['m_crit'] += 1
+    else:
+        _L3_STATE['m_crit'] = 0
+    if machine > 85.0 and (family is None or family < CPU_RED_LINE):
+        _L3_STATE['m_hi'] += 1
+    else:
+        _L3_STATE['m_hi'] = 0
+    dec = None
+    if _L3_STATE['m_crit'] >= 2:
+        dec = 'critical'
+    elif _L3_STATE['m_hi'] >= 3:
+        dec = 'alert'
+    if dec is None:
+        return None
+    if now - _L3_STATE['last_alert'] < 600:
+        return dec
+    _L3_STATE['last_alert'] = now
+    reason = ('machine>95%% x2 (%.1f%%)' if dec == 'critical'
+              else 'machine>85%% x3 (%.1f%%)') % machine
+    _write_machine_alert(reason, machine, family, None)
+    log('!!ALERT!! L3 旁路看门狗: %s — 已写 %s%s (不杀 fleet)'
+        % (reason, os.path.basename(MACHINE_ALERT),
+           ', heavy.stop' if os.path.exists(
+               os.path.join(STORE, 'heavy.stop')) else ''))
+    return dec
+
+
+def write_watchdog_status(pct, now=None, n_rej=0, rejected=False,
+                        machine=None, aux=None):
     """写看门狗存活+读数 sidecar(`<ts> <pct|-> <n_rej>`)。
 H-1(2026-10-19): 第 3 字段=累计拒收数(0.00 哨兵), 旧读者取 split()[1]
     完全兼容; 发生拒收时另 append `STORE/watchdog_rejects.log`(sidecar 单行
@@ -266,8 +443,10 @@ H-1(2026-10-19): 第 3 字段=累计拒收数(0.00 哨兵), 旧读者取 split()
     try:
         tmp = WD_STATUS + '.tmp'
         with open(tmp, 'w', encoding='utf8') as f:
-            f.write('%.3f %s %d\n' % (
-                now, '-' if pct is None else '%.2f' % pct, int(n_rej)))
+            f.write('%.3f %s %d %s %s\n' % (
+                now, '-' if pct is None else '%.2f' % pct, int(n_rej),
+                '-' if machine is None else '%.2f' % machine,
+                '-' if aux is None else '%.2f' % aux))
         os.replace(tmp, WD_STATUS)
     except OSError:
         pass
@@ -669,9 +848,14 @@ def main():
                 _cpu = cpu_load_pct()          # 训练族口径(见 family_cpu_seconds)
                 # H-1(2026-10-19): 0.00 拒收计数入 wd 第3字段; 本拍发生拒收则
                 # append STORE/watchdog_rejects.log(sidecar 单行无历史)。
+                _mach = machine_cpu_pct()
+                _auxc = aux_cpu_pct()
                 write_watchdog_status(
                     _cpu, n_rej=_WD_ZERO_REJECT,
-                    rejected=(_cpu is None and _WD_ZERO_REJECT > _rej0))
+                    rejected=(_cpu is None and _WD_ZERO_REJECT > _rej0),
+                    machine=_mach, aux=_auxc)
+                if L3_WATCH:
+                    l3_check(_mach, _cpu)
                 # R75: 策略在CpuWatchdog(纯逻辑), 进程管理在此。
                 # 降容=可恢复暂停(非移除) — 全灭事故修正。
                 _dec, _avg = _wd.sample(_cpu, time.time())
