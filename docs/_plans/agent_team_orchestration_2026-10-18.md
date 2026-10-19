@@ -356,6 +356,16 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 24. 空间特征 v1 用户裁定与窗口（2026-10-19 10:40）
+
+**用户裁定（三问）**：①特征方案=**Tier-A+Tier-B 共 24 维**（CORE_DIMS 358→**382**；`n_side=5N+382`）；②**同时上 Phase1 空间/逃生奖励**（R-b 板边惩罚/脱离、R-c 受压逃逸成功/多样性/跳越）；③迁移窗口=**今天 17:00 前后（bcw 48h 评估后）**。
+**计划（施工已交）**：`D:\temp\scratch\space_feat_v1_plan.md`；补丁应用脚本 `apply_space_v1.py`；迁移 `tools/migrate_feat_space_v1.py`；`TH123_FEAT_SPACE`/`TH123_REW_SPACE` 双开关回滚；BC X 行级零填充+`bc_meta zero-fill v2`；保守档奖励（edge 0.0015/escape 0.03/survive 0.02/div 0.01/cross 0.05）。
+**干跑证据**：旧前缀等价 max|Δ| 3.6e-15/1.8e-15/1.8e-15（新维=0）；新维=1 时 Δ=0.058/0.091/0.069（接线）；特征测试 env=1 18 PASS/env=0 4 PASS；奖励 11 PASS；gate 干跑 env=0 **690/0/0**（MUT 220）；迁移副本 798→822/833→857/813→837。
+**Lead 窗口批准条件**：停 main→应用→**旧 episode 移入 `episodes_legacy_space/`**→迁移三模型（备份 `*_pre_space_v1.npz`）→单测→门禁 env=1（期望 690/0/0）→5 变异红（可并行；不足则 3+2 注明）→commit 不 push→带双 env 重启→验收（对照臂 boot 存活、≥10 拍 wd 无 0.00、新维范围、旧前缀等价、BC pad 标记）→回报；回滚验证 env=0；窗口目标 ≤35min；bcw 结论若回滚则同窗带 `TH123_BCW_MIN=0`。
+**风险**：特征+奖励同窗归因混（留 env ablation）；BC 零填充偏差；特殊 object 语义 unverified；y 上界 600 unverified。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
