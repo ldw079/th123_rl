@@ -704,6 +704,11 @@ MUTATIONS = [
      "        d.set_opponent(cfg['char'])",
      "        pass",
      "危险显影真副本丢对手角色注入(B侧输入OOD) → P1-6残余生效本体断言必须红"),
+    # task-15(2026-10-19): 人测通路 — 删 P1 set_opponent 注入 → 断言必红
+    ("tools/human_match_v2.py",
+     "    driver.set_opponent(p1c)",
+     "    pass",
+     "人测通路丢P1对手注入(OOD回归) → task-15人测通路断言必须红"),
 ]
 
 

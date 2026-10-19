@@ -8,10 +8,9 @@
 > 规划产物规范: **PLANNING_AGENT.md(规划智能体宪章, 2026-10-12用户令)** — 一切规划/方案必须"考察现状→详细可执行→附验收途径"三段齐备, 缺一仅得称草稿; 与本文冲突时以本文红线为准
 > 审计路由: **docs/audit_protocol.md(审计智能体入口, 2026-10-12用户令)** — 地位与 AGENTS.md 之于开发智能体同级, 审计接手第一读; 三必要条件(只读最新状态/结论按时间归档/数轮大更新后从零审查)+标准清单; bug 归档入口 docs/bugs/; 与本文冲突时以本文红线为准
 > 并行开发: **PARALLEL_WORKFLOW.md(三智能体并行约定, 2026-10-16用户批准试行)** — 单写者规则+docs/_pending_entries.md 队列; 写文件前先查写入权
-> 版本: 3.69 · 2026-10-19 · R203(**H-1 wd 0.00 拒收守卫** / Δ族CPU≤0→None哨兵 +
-> 连续2次恢复门控 + 第3字段计数; **task-18 证据卫生**: 门禁证据一次写入 + R200 补变异 +
-> BC CE×bcw 留档 + ON prelim 修标 + 旧矩阵"映射前"标注) |
-> 门禁 681/0/0, 变异 214
+> 版本: 3.70 · 2026-10-19 · R204(**task-15 人测通路修正** / 0x34C 角色自动识别 +
+> 活档链(代际守卫) + set_opponent(P1) 修 OOD + `--probe-chars` 只读 |
+> 门禁 683/0/0, 变异 215
 
 ---
 
@@ -2790,6 +2789,34 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     =检测随机源失效而非惩罚收敛路线)+接管者标注。mock集成测试14项
     全绿(必败检出≥80%/实际≤20%/退化作废/可复现); 真实模式待舰队空闲。
   - 门禁600/0/0。
+- 3.70 (2026-10-19 上午, **R204: task-15 人测通路修正 — 0x34C 角色自动识别 + 活档 + 修 OOD**):
+  - **背景(审计#6b)**: `human_match_v2.py` 载 `model_ppo_<char>.npz` 旧档(非 live `_fleet`)
+    且未 `set_opponent` → 用户 9-0 读数=旧模型+OOD, 作废; 且新需求="自动检测 P2 角色并加载
+    对应模型"。
+  - **检测(实机验证)**: `CharacterManager::characterIndex @+0x34C(u8)` / `playerIndex @+0x350(u8)`,
+    经既有 `BM_P=0x8985E4` + `LCHAROFS/RCHAROFS=0x0C/0x10` 读取; `CHAR_LIBS[name].id` 逆映射
+    (20/20, 未知→None 不猜)。**live 4/4**(只读训练游戏): 21020 L=suika/R=reimu、21000
+    L=reimu/R=marisa、21010 L=marisa/R=marisa、21087(对照臂) L=reimu/R=iku; playerIdx L=0/R=1。
+    `th123ai/SwrAddr.ini` 的 LCHARID/RCHARID 0x6E6FF0/0x6E7010 对本 build **无效(unverified,
+    弃用)** — 该裁定与验证写入 `docs/game_semantics_tables.md §9`。
+  - **实现(`tools/human_match_v2.py`)**: `Observer.char_ids()`; `map_char_id()`(id→名, 20/20);
+    `resolve_model()` = `live_model_path(_fleet优先)→fleet/pool seed→model_ppo`，逐候选过
+    `_ckpt_guard`(n_out==宏数、n_side==5N+CORE_DIMS; 旧代/坏档记原因跳过)，全不兼容 →
+    SystemExit 列候选(**禁静默加载/自动迁移**, R115); P1 角色 → `driver.set_opponent(p1)` 修 OOD;
+    `--char` 默认 `auto`(显式不一致 WARN 以检测为准); `--probe-chars`/`--detect-only` 只读
+    (不写输入/不载模型/不改配置; scene!=5 明确提示); 会话 JSON 增
+    `detected{p1_char,p2_char,raw_ids,source}` + `model_path/model_source/model_stamp`。
+  - **测试/防复发**: C15 `tests/test_humanmatch_detect.py`(14项: map 20/20+未知拒绝/旧代守卫/
+    resolve 回退顺序/全缺 SystemExit/model_stamp/probe 只读顺序/CLI); 门禁"生效本体"断言
+    (0x34C+0x350+char_ids+resolve_model+live_model_path+set_opponent(p1c)+probe) +
+    配对变异(`人测通路`, 删 set_opponent → 必红)。
+  - **门禁/数字**: `D:\temp\gate_r204_b0c5d22_20261019_091506.txt`(09:15:06, exit=0)
+    **683 PASS / 0 WARN / 0 FAIL**; 变异 **215**; C15 **99**(==白名单);
+    入口数字三处同步(AGENTS:61 / README:52-53,84 / HANDOVER:7,16-18,72,89,132,172)。
+  - **待办**: 用户实机跑 `--probe-chars` 比对两侧 id/名(2-3min, 只读) → 1–2 局复测
+    (自动检测+活载+set_opponent; 会话 JSON 带 detected/model_stamp) → 现行模型有效读数简报;
+    决策旁车 `{frame,macro_id,masked,value}` 与 "未知 id 拒绝/probe 只读" 等 C15 已覆盖大部分,
+    decision log 仍待补(Lead 允许后补)。
 - 3.69 (2026-10-19 上午, **R203: H-1 wd 0.00 拒收守卫 + task-18 证据卫生**):
   - **H-1 事故**: 夜内 `fleet_heartbeat.wd` 出现 **8 次 0.00**(13:05/17:35/20:32/…), 当时
     主臂 7py+3游戏+对照臂全在(真实负载非0)。根因: `fleet_supervisor.cpu_load_pct` 在

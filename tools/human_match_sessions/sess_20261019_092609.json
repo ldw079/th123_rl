@@ -1,0 +1,101 @@
+{
+ "ts": "2026-10-19 09:26:09",
+ "char": "reimu",
+ "headless": false,
+ "detected": {
+  "p1_char": "alice",
+  "p2_char": "reimu",
+  "raw_ids": {
+   "L": {
+    "char_id": 3,
+    "player_idx": 0,
+    "char": "alice"
+   },
+   "R": {
+    "char_id": 0,
+    "player_idx": 1,
+    "char": "reimu"
+   }
+  },
+  "source": "CharacterManager::characterIndex @+0x34C/+0x350"
+ },
+ "model_path": "model_ppo_reimu_fleet.npz",
+ "model_source": "live_model_path",
+ "model_stamp": {
+  "path": "model_ppo_reimu_fleet.npz",
+  "mtime": "2026-10-19 09:12:09",
+  "mtime_ts": 1792372329,
+  "bytes": 2917244
+ },
+ "frames": 19567,
+ "matches": [
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ],
+  [
+   2,
+   0
+  ]
+ ],
+ "human_wins": 7,
+ "model_wins": 0,
+ "hp0": [
+  10000,
+  10000
+ ],
+ "new_reps": [
+  {
+   "rep": "20261019_092609_001.rep",
+   "sha1_12": "1ed5ad235888"
+  },
+  {
+   "rep": "20261019_092609_002.rep",
+   "sha1_12": "abd12a37ed37"
+  },
+  {
+   "rep": "20261019_092609_003.rep",
+   "sha1_12": "16c644517b2d"
+  },
+  {
+   "rep": "20261019_092609_004.rep",
+   "sha1_12": "7a8d329bcb92"
+  },
+  {
+   "rep": "20261019_092609_005.rep",
+   "sha1_12": "78c02f3c3d95"
+  },
+  {
+   "rep": "20261019_092609_006.rep",
+   "sha1_12": "e3f2a2789b56"
+  },
+  {
+   "rep": "20261019_092609_007.rep",
+   "sha1_12": "c7722008bba1"
+  }
+ ],
+ "n_reps": 7,
+ "exe_md5": "DF35D1FBC7B583317ADABE8CD9F53B2E",
+ "delay_frames": 5,
+ "protocol": "RPM观察+内存写inKeys(v2)"
+}

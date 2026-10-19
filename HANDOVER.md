@@ -4,7 +4,7 @@
 
 > **2026-10-18 交接快照（R170-R195 收口；另一智能体接手时先读这段）**
 >
-> **门禁**: 681 PASS / 0 WARN / 0 FAIL（裸跑看退出码，勿用管道吞码）；变异 **214** 条；行为测试 98 档。
+> **门禁**: 683 PASS / 0 WARN / 0 FAIL（裸跑看退出码，勿用管道吞码）；变异 **215** 条；行为测试 99 档。
 > **W1 验收门禁**: `D:\temp\gate_r197_final.txt`（12:12:51, exit=0, 原始末行 `668 PASS / 0 WARN / 0 FAIL`）。
 > **R200 门禁**: `D:\temp\gate_r200.txt`（14:29:59, exit=0, 原始末行 `671 PASS / 0 WARN / 0 FAIL`；
 > 本批补注册 `test_load_gate.py` C15(43 项)+白名单对账断言/变异, 变异 208, C15 93）。
@@ -17,6 +17,9 @@
 > `681 PASS / 0 WARN / 0 FAIL`；H-1 wd 0.00 拒收守卫 + task-18 证据卫生: 门禁证据一次写入
 > (`tools/run_gate_evidence.py`)、R200 两处补配对变异、BC CE×bcw 留档、ON prelim 修标、
 > 旧矩阵"映射前"标注；变异 214 / C15 98）。
+> **R204 门禁**: `D:\temp\gate_r204_b0c5d22_20261019_091506.txt`（09:15:06, exit=0, 原始末行
+> `683 PASS / 0 WARN / 0 FAIL`；task-15 人测通路修正: 0x34C 角色自动识别 + 活档链(代际守卫) +
+> set_opponent(P1) 修 OOD + `--probe-chars` 只读；变异 215 / C15 99）。
 > **仓库**: HEAD=`edbc843`=`origin/main`（已推送）= R197 `a6dcbf0` + 规划文档 4 提交 ff 合并
 > （生产内容与 a6dcbf0 相同）；三 worktree: 主仓 / `D:\temp\th123_rl_control`(330 代对照臂栈, detached)
 > / `D:\temp\th123_rl_planning`；2026-10-18 做了**第三次全历史重写**（剔除 `_archive`），新哈希
@@ -69,7 +72,7 @@
 >    → 重活白天不跑；夜间窗由 **W2-1 CPU-H**（`tools/load_gate.py` 整机/内存/族 preflight +
 >    5s 监控 + 协作停止）闸门约束；用户可感知的卡顿=事故。
 
-**当前栈速览(2026-10-18 R195)**: CORE_DIMS=**358**(S-2段343+JZ-1段15); 并行开发必读 `PARALLEL_WORKFLOW.md`(写入权+队列); 门禁**681/0/0**;
+**当前栈速览(2026-10-18 R195)**: CORE_DIMS=**358**(S-2段343+JZ-1段15); 并行开发必读 `PARALLEL_WORKFLOW.md`(写入权+队列); 门禁**683/0/0**;
 宏数reimu88/marisa95/suika91(蓄力cleista真值+系统卡+DD+HJC);
 S-4 GRU序列记忆全链就绪(阶段2a); BH方案v4执行中: **BH-3.1/3.2/3.3
 感知修复✅** / **BH-1 行为健康仪表盘✅**(bh旁车+CE-0.1帧日志开关+
@@ -86,7 +89,7 @@ tools/bh41_measure.py) / **BH-4.2 对位语料采集✅完成**(51/51对×14-15�
 四子项+S-6[untech门+段位表+matcher语境+762对位分片+I列]; 重建实弹
 抓出bc_build两处对位兼容bug[LIBS键/池位]已修76cc402; 完成→bc_swap_v3
 →fleet重启)。
-CE离线件全谱就绪(R131-139); 观察期继续。门禁**681/0/0**(2026-10-19 06:16 裸跑实测); 帧日志需
+CE离线件全谱就绪(R131-139); 观察期继续。门禁**683/0/0**(2026-10-19 09:15 裸跑实测); 帧日志需
 TH123_FRAME_LOG=1。关键数据: cleista/(API全量+守备段位134档)+
 guard_height.json+matchup_combo_prior.json+move_displacement_*.json。
 > 读完本文即可开始工作; 细节按需查阅引用文档。历史版见 git log。
@@ -129,7 +132,7 @@ guard_height.json+matchup_combo_prior.json+move_displacement_*.json。
 | `soku_client2.py` | TCP锁步协议客户端 | 协议变更 |
 | `tools/human_match_v2.py` | **人测runner**(RPM观察+内存写行动) | 人测流程变更 |
 | `tools/eval_matrix.py` | 评估矩阵(四口径+vs_Human+被动仪表) | 评估变更 |
-| `tools/contract_check.py` | **门禁**(681断言/0 WARN, 0 FAIL 才可提交) | 新增断言+配对变异 |
+| `tools/contract_check.py` | **门禁**(683断言/0 WARN, 0 FAIL 才可提交) | 新增断言+配对变异 |
 | `tools/gate_selftest.py` | 变异自检(沙箱逐条变异→门禁必红) | 新增变异 |
 | `portmap.py` | 端口段划分(20800-21299) | 端口变更 |
 | `series_manager.py` | BO15系列赛管理(阶段1, flag门控) | 系列赛启用时 |
@@ -169,7 +172,7 @@ tail -5 D:\temp\th123_models\fleet_supervision.log
 
 ```bash
 D:\temp\pyenv\python.exe tools/contract_check.py
-# 必须 exit 0 —— 2026-10-19 06:16 实测 681 PASS / 0 WARN / 0 FAIL(gate_r203_11a204c_20261019_061616 原始末行)
+# 必须 exit 0 —— 2026-10-19 09:15 实测 683 PASS / 0 WARN / 0 FAIL(gate_r204_b0c5d22_20261019_091506 原始末行)
 ```
 
 **纪律**: 裸跑(不pipe)+检查退出码. `| tail` 会吞退出码(f4668e1事故).

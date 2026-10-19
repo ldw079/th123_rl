@@ -164,3 +164,31 @@ CE-2 维持行为特征降级版(CE-0裁定). 対応表留档作远期mod扩包�
 | 3(重) | 10 | 10 | 高延迟(反应慢人类模拟) |
 
 社区脚本的典型用法: 精确控距/目押用低delay, 新手模拟用高delay.
+
+## 9. 角色识别 (CharacterManager::characterIndex) — task-15, 2026-10-19
+
+人测工具需要**自动识别 P1(人)/P2(模型) 角色**以加载对应活档并修对手 OOD。
+经实机验证的有效路径（SokuLib 源码 + 本项目既有基址链）：
+
+| 项 | 值 | 说明 |
+|---|---|---|
+| 基址 | `BM_P = 0x8985E4` | battle 对象 |
+| 两侧 CharacterManager | `LCHAROFS=0x0C` / `RCHAROFS=0x10` | 既有链，train_tm/side_driver 同源 |
+| **characterIndex** | **CharacterManager + 0x34C (u8)** | SokuLib `CharacterManager.hpp`；game char id |
+| **playerIndex** | **CharacterManager + 0x350 (u8)** | 0=左/P1, 1=右/P2 |
+| 逆映射 | `CHAR_LIBS[name]['id'] → name` (20角色) | 未知 id → None（响亮拒绝，不猜） |
+
+**Live 验证（2026-10-19, 只读）**: 训练游戏 4/4 命中 —
+`21020 L=suika(9)/R=reimu(0)`、`21000 L=reimu(0)/R=marisa(1)`、
+`21010 L=marisa(1)/R=marisa(1)`、`21087(对照臂) L=reimu(0)/R=iku(13)`；
+`playerIdx` 全部 L=0 / R=1。工具 `--probe-chars` 可随时回归比对。
+
+**已弃用（unverified）**: `th123ai/SwrAddr.ini` 的
+`SWR_ADDR_LCHARID=0x006E6FF0` / `SWR_ADDR_RCHARID=0x006E7010` —
+对本 build 实测为垃圾值（1958774015/3506373482），`0x6ECE7C` 非 scene；
+**不得再用**，本表以 0x34C/0x350 为唯一路径。
+
+消费方: `tools/human_match_v2.py`（`Observer.char_ids()` /
+`map_char_id` / `resolve_model` 活档链 / `set_opponent(p1)` /
+`--probe-chars`/`--detect-only`），会话 JSON 记 `detected{...}` +
+`model_path/model_source/model_stamp`。

@@ -52,6 +52,93 @@ EXE_MD5 = 'DF35D1FBC7B583317ADABE8CD9F53B2E'   # exe哈希守卫(版本漂移即
 W_ACT, W_DISP, W_CNT = 0x8971C0, 0x8971C4, 0x8971CC   # SokuAddresses实证
 WEATHER_SEIRAN, WEATHER_AURORA, WEATHER_CLEAR = 11, 19, 0
 
+# task-15(2026-10-19): SokuLib CharacterManager::characterIndex @+0x34C(u8) /
+# playerIndex @+0x350(u8) — 实机 4/4 验证(21010 marisa/21028 suika/21006 reimu/
+# 21080 对照臂 reimu; playerIdx L=0/R=1)。旧 SwrAddr.ini 的 LCHARID/RCHARID
+# 0x6E6FF0/0x6E7010 对本 build 无效(垃圾值), 弃用。
+CHARMGR_CHAR_IDX = 0x34C
+CHARMGR_PLAYER_IDX = 0x350
+_CHAR_BY_ID = None
+
+
+def _char_by_id():
+    """game char id → 角色名(单一事实源=CHAR_LIBS, 20/20; 不在表内=None)。"""
+    global _CHAR_BY_ID
+    if _CHAR_BY_ID is None:
+        from train_tm import CHAR_LIBS
+        _CHAR_BY_ID = {int(l['id']): n for n, l in CHAR_LIBS.items()}
+    return _CHAR_BY_ID
+
+
+def map_char_id(cid):
+    """角色 game id → 名; 未知/越界返回 None(不猜)。"""
+    if cid is None:
+        return None
+    try:
+        cid = int(cid)
+    except (TypeError, ValueError):
+        return None
+    if not (0 <= cid < 20):
+        return None
+    return _char_by_id().get(cid)
+
+
+def _ckpt_guard(path, char):
+    """代际/维度守卫(只读 npz 头, 不构造网络): → (ok, why)。
+
+    R115/迁移教训: 回退池里可能是旧代(330/343/316 维或旧宏数) — 不兼容必须
+    响亮拒绝, 禁止静默 load 或自动迁移。
+    """
+    import numpy as np
+    from feat_builder import FeatureBuilder
+    from train_tm import CHAR_LIBS
+    want_out = len(CHAR_LIBS[char]['macros'])
+    want_side = 5 * want_out + FeatureBuilder.CORE_DIMS
+    try:
+        d = np.load(path)
+        n_out = int(d['W2'].shape[1])
+        n_side = int(d['W_side'].shape[0])
+    except Exception as e:                     # 坏档/缺键/非npz
+        return False, '不可读(%r)' % (e,)
+    if n_out != want_out:
+        return False, 'n_out=%d≠代码%d(旧宏数代)' % (n_out, want_out)
+    if n_side != want_side:
+        return False, 'n_side=%d≠派生%d(旧CORE_DIMS代)' % (n_side, want_side)
+    return True, 'ok'
+
+
+def resolve_model(char, store=None):
+    """P2 模型载入链: live(_fleet优先)→fleet/pool seed→model_ppo。
+
+    逐候选过 `_ckpt_guard`; 全部不可用 → SystemExit 列出候选+原因
+    (提示 --char 或重建/迁移)。返回 (path, source, stamp, tried)。
+    """
+    import glob as _g
+    from kit_config import STORE_DIR as _def, live_model_path, model_stamp
+    st = store or _def
+    cands = []
+    live = live_model_path(char, st)
+    if live and os.path.exists(live):
+        cands.append((live, 'live_model_path'))
+    seeds = sorted(_g.glob(os.path.join(st, 'fleet', 'pool', char,
+                                        'seed_*.npz')),
+                   key=os.path.getmtime)
+    if seeds:
+        cands.append((seeds[-1], 'pool_seed'))
+    p2 = os.path.join(st, 'model_ppo_%s.npz' % char)
+    if os.path.exists(p2):
+        cands.append((p2, 'model_ppo'))
+    tried = []
+    for path, src in cands:
+        ok, why = _ckpt_guard(path, char)
+        if ok:
+            return path, src, model_stamp(path), tried
+        tried.append({'path': path, 'source': src, 'why': why})
+    raise SystemExit(
+        '[hmv2] 无代际兼容模型: char=%s 候选=%s — 请 --char 指定或重建/迁移'
+        '(R115: 禁静默加载/自动迁移)' % (char, json.dumps(tried,
+                                                   ensure_ascii=False)))
+
 
 def keys_u16(d):
     """协议输入dict → BattleKeys u16。
@@ -259,6 +346,31 @@ class Observer:
             return None
         return self.buf.pop(0)
 
+    def char_ids(self, bm=None):
+        """→ {'L':{char_id,player_idx,char}, 'R':{...}} | None(非战斗/不可读)。
+
+        task-15(2026-10-19): 读 CharacterManager::characterIndex @+0x34C 与
+        playerIndex @+0x350; L=P1(人) / R=P2(模型)。实机 4/4 验证。
+        未知 char_id → char=None(消费方必须响亮拒绝, 不猜)。
+        """
+        bm = self.u32(BM_P) if bm is None else bm
+        if not 0x10000 < bm < 0x80000000:
+            return None
+        out = {}
+        for off, side in ((0x0C, 'L'), (0x10, 'R')):
+            cm = self.u32(bm + off)
+            if not 0x10000 < cm < 0x80000000:
+                return None
+            cc = self.rd(cm + CHARMGR_CHAR_IDX, 1)
+            pi = self.rd(cm + CHARMGR_PLAYER_IDX, 1)
+            if not cc or not pi:
+                return None
+            cid = int(cc[0])
+            out[side] = {'char_id': cid,
+                         'player_idx': int(pi[0]),
+                         'char': map_char_id(cid)}
+        return out
+
 
 class Actor:
     """内存写行动: P2 KeymapManager(经battle链解析)。"""
@@ -378,38 +490,41 @@ def headless_cleanup(pid, bak):
         pass
 
 
-def run(char, headless, seconds=90):
+def run(char, headless, seconds=90, probe=False, detect_only=False):
+    """task-15(2026-10-19): P2 角色自动检测 + 活档加载 + set_opponent.
+
+    char='auto' 时由 CharacterManager::characterIndex(@+0x34C) 读 P2 角色 →
+    resolve_model(live→pool seed→model_ppo, 代际守卫) → SideDriver(p2) +
+    set_opponent(p1)。probe/detect_only = 只读(不写输入/不载模型/不改配置)。
+    """
     from side_driver import SideDriver
     from kit_config import STORE_DIR   # K2: 四层回落(不绕过kit_config)
-    driver = SideDriver(char, 'R')
-    driver.load(os.path.join(STORE_DIR, 'model_ppo_%s.npz' % char))
-    driver.reset_match()
-    print('[hmv2] 模型加载: %s' % char, flush=True)
-
     bak = None
+    pid = None
+    # 1) 找游戏 / 无头boot
     if headless:
         pid, bak = headless_boot()
         print('[hmv2] 无头boot PID=%d' % pid, flush=True)
     else:
-        # 正式模式: SokuAIOfflinePlayer冻结输入路径(实证) — 会话级
-        # 禁用+结束复原; 原版无mod时跳过(可迁移化: 收件机 vanilla game)
-        import shutil
-        ml = os.path.join(GAME, 'ModLoaderSettings.json')
-        bak = ml + '.bak_hmv2'
-        if os.path.exists(ml):
-            shutil.copy2(ml, bak)
-            d = json.load(open(ml, encoding='utf8'))
-            key = 'modules/SokuAIOfflinePlayer/SokuAIOfflinePlayer.dll'
-            if key in d.get('modules', {}):
-                d['modules'][key]['enabled'] = False
-                json.dump(d, open(ml, 'w', encoding='utf8'),
-                          ensure_ascii=False)
-                print('[hmv2] 已禁SokuAIOfflinePlayer(结束自动复原)',
-                      flush=True)
+        if not (probe or detect_only):
+            # 正式模式: 禁 SokuAIOfflinePlayer 冻结输入路径(会话级,结束复原)
+            import shutil
+            ml = os.path.join(GAME, 'ModLoaderSettings.json')
+            bak = ml + '.bak_hmv2'
+            if os.path.exists(ml):
+                shutil.copy2(ml, bak)
+                d = json.load(open(ml, encoding='utf8'))
+                key = 'modules/SokuAIOfflinePlayer/SokuAIOfflinePlayer.dll'
+                if key in d.get('modules', {}):
+                    d['modules'][key]['enabled'] = False
+                    json.dump(d, open(ml, 'w', encoding='utf8'),
+                              ensure_ascii=False)
+                    print('[hmv2] 已禁SokuAIOfflinePlayer(结束自动复原)',
+                          flush=True)
+                else:
+                    bak = None
             else:
-                bak = None   # 无此mod, 不需要备份
-        else:
-            bak = None   # 原版无mod, 跳过
+                bak = None
         print('[hmv2] 请启动原版游戏, VS PLAYER, P2=RL-AI, '
               '进对局后自动接管', flush=True)
         pid = find_game()
@@ -425,14 +540,60 @@ def run(char, headless, seconds=90):
             print('[hmv2] 180s无游戏进程 — 退出', flush=True)
             return 1
     obs = Observer(pid)
+    # 2) 等 battle — probe/detect/auto 都需 scene==5 才能读角色
     t0 = time.time()
     while time.time() - t0 < 300 and obs.scene() != 5:
         time.sleep(0.5)
-    if obs.scene() != 5:
-        print('[hmv2] 300s未进战斗 scene=%d' % obs.scene(), flush=True)
+    sc = obs.scene()
+    if sc != 5:
+        print('[hmv2] 非战斗(scene=%d)，无字符可读 — 请进对局(VS PLAYER/'
+              'P2=RL-AI)后重试' % sc, flush=True)
+        if headless:
+            headless_cleanup(pid, bak)
+        return 2 if (probe or detect_only) else 1
+    # 3) 自动检测 P1/P2 角色(CharacterManager::characterIndex @+0x34C)
+    ids = obs.char_ids()
+    if ids is None:
+        print('[hmv2] 自动角色检测失败: scene=%s raw_ids=None 原因='
+              'charMgr链不可读(invalid bm/cm/charIdx) — 请用 --char '
+              '<reimu|marisa|suika> 显式指定(或先跑 --probe-chars 比对)'
+              % sc, flush=True)
         if headless:
             headless_cleanup(pid, bak)
         return 1
+    p1c = ids['L']['char']
+    p2c = ids['R']['char']
+    print('[hmv2] 检测: L(人)=%s raw=%s | R(模型)=%s raw=%s'
+          % (p1c, ids['L'], p2c, ids['R']), flush=True)
+    if probe or detect_only:
+        print('[hmv2] PROBE ' + json.dumps(
+            {'scene': sc, 'ids': ids,
+             'map': 'CHAR_LIBS[name].id -> name',
+             'source': 'CharacterManager::characterIndex @+0x34C/+0x350'},
+            ensure_ascii=False), flush=True)
+        if headless:
+            headless_cleanup(pid, bak)
+        return 0
+    if p1c is None or p2c is None:
+        raise SystemExit(
+            '[hmv2] 角色 id 未知(不猜): raw_ids=%r — 请确认游戏内角色或'
+            '扩展 CHAR_LIBS' % (ids,))
+    if char not in ('auto', None) and char != p2c:
+        print('[hmv2] !! WARN: 显式 --char=%s 与检测 P2=%s 不一致 — '
+              '以检测为准(R6 地面真相)' % (char, p2c), flush=True)
+    # 4) 活档加载链(代际守卫) + set_opponent(P1) 修 OOD
+    path, src, stamp, tried = resolve_model(p2c, STORE_DIR)
+    driver = SideDriver(p2c, 'R')
+    driver.load(path)
+    driver.set_opponent(p1c)
+    driver.reset_match()
+    print('[hmv2] P1=%s P2=%s model=%s source=%s mtime=%s'
+          % (p1c, p2c, os.path.basename(path), src,
+             (stamp or {}).get('mtime', '?')), flush=True)
+    if tried:
+        print('[hmv2] 跳过旧代候选: %s'
+              % json.dumps(tried, ensure_ascii=False), flush=True)
+    char = p2c
     actor = Actor(obs)
     # 锚定阶段优雅等待: VS COM时P2无KeyManager(manager=0) — 观察模式
     # (锚定数据也入session), VS PLAYER进场后自动接管
@@ -555,6 +716,13 @@ def run(char, headless, seconds=90):
         # session JSON
         sess = {'ts': time.strftime('%Y-%m-%d %H:%M:%S'),
                 'char': char, 'headless': headless,
+                'detected': {'p1_char': p1c, 'p2_char': p2c,
+                             'raw_ids': ids,
+                             'source': 'CharacterManager::characterIndex '
+                                       '@+0x34C/+0x350'},
+                'model_path': os.path.basename(path),
+                'model_source': src,
+                'model_stamp': stamp,
                 'frames': n, 'matches': matches,
                 'human_wins': human_w, 'model_wins': model_w,
                 'hp0': hp0, 'new_reps': new_reps,
@@ -579,12 +747,20 @@ def run(char, headless, seconds=90):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--char', default='suika')
+    ap.add_argument('--char', default='auto',
+                    help='模型角色(auto=按 P2 CharacterManager 自动检测; '
+                         '显式值兼容但以检测为准)')
     ap.add_argument('--headless', action='store_true')
+    ap.add_argument('--probe-chars', action='store_true',
+                    help='只读探测: 打印 scene + L/R 原始 char_id/player_idx/'
+                         '映射; 不写输入/不载模型/不改配置')
+    ap.add_argument('--detect-only', action='store_true',
+                    help='只检测并打印角色后退出(同 probe, 语义别名)')
     ap.add_argument('--seconds', type=int, default=0,
                     help='会话时长秒; 0=无限(默认, 打到手动停)')
     a = ap.parse_args()
-    rc = run(a.char, a.headless, a.seconds)
+    rc = run(a.char, a.headless, a.seconds,
+             probe=a.probe_chars, detect_only=a.detect_only)
     sys.stdout.flush()
     os._exit(rc)
 

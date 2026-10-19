@@ -2091,6 +2091,8 @@ _BEHAVIOR_TESTS = [
      "H-1: wd 0.00 拒收(Δ族CPU≤0→None)+连续2次恢复门控+sidecar第3字段/审计日志"),
     ("test_gate_evidence.py",
      "task-18: 门禁证据命名gate_r<rev>_<commit7>_<ts>+O_EXCL一次写入不可复写"),
+    ("test_humanmatch_detect.py",
+     "task-15: 0x34C角色识别20/20+未知拒绝+活档链回退/全缺拒绝+probe只读"),
 ]
 # 审计#6c(2026-10-18): C15 白名单对账 — "新测试漏注册"第3次复发(21档/
 # macros_branch/R198 test_load_gate 43项从未进门槛)的永久防线:
@@ -2171,6 +2173,17 @@ chk("def evidence_stem(" in _ge_src
     and "'gate_r%s_%s_%s'" in _ge_src
     and "O_EXCL" in _ge_src and "FileExistsError" in _ge_src,
     "task-18: 门禁证据命名含rev/commit/ts + O_EXCL一次写入(禁复写)")
+# task-15(2026-10-19): 人测通路修正 — 0x34C 角色自动识别 + 活档链 +
+# set_opponent(P1) 修 OOD(审计#6b 旧模型+OOD) + probe 只读。逐要素(检测偏移/
+# 映射函数/活档链/注入点/probe CLI) —— 任一缺失=人测读数不可信。
+_hm_src = src("tools/human_match_v2.py")
+chk("CHARMGR_CHAR_IDX = 0x34C" in _hm_src
+    and "CHARMGR_PLAYER_IDX = 0x350" in _hm_src
+    and "def char_ids(" in _hm_src and "def map_char_id(" in _hm_src
+    and "def resolve_model(" in _hm_src and "live_model_path" in _hm_src
+    and "driver.set_opponent(p1c)" in _hm_src and "model_stamp" in _hm_src
+    and "--probe-chars" in _hm_src and "PROBE " in _hm_src,
+    "task-15: 人测通路(0x34C识别+活档链+set_opponent(P1)+probe只读)生效本体")
 # ============ P2波锚(审计#3十九项首波, 2026-10-13) ============
 print("=== P2修复波锚(审计#3) ===")
 # 审计2026-10-16 P1-1防复发: CE-1宏层画像的生产调用形态 — begin必须
