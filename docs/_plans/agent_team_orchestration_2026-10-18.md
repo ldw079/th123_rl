@@ -338,6 +338,16 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 22. 首次有效人测基线（2026-10-19 09:26，task-15 修复后）
+
+**数据**：`tools/human_match_sessions/sess_20261019_092609.json`（随下批提交入库）；日志 `D:\temp\hmv2_live.log`。
+**有效性**：detected **P1=alice / P2=reimu**（+0x34C/0x350，与用户实际选择一致）；`model_path=model_ppo_reimu_fleet.npz`、`model_source=live_model_path`、meta **updates=4186**、**bcw=0.05**；`set_opponent(alice)` 已生效（OOD 修复）；7 rep 归档（sha1 在 JSON）。
+**结果**：系列 **人 7–0 模型**（7 局全 2:0）；**19567 帧 ≈5.3min**（均 2795 帧/局≈45s/局）。
+**判读**：①不得与旧 9 局（旧模型+OOD）比较；②bcw ON 仅 ~6h、池序修复半天 → 不作"bcw 无效"结论；③本组数据作为**今后对比的可信基线**（每次会话带 model_stamp 入库）；④用户观察（攻击性低/防御擦弹无时机/连段无改善）继续成立。
+**下一步**：task-15 收尾（门禁/变异/C15，decision log 可选）→ 之后任意时点可复测（换 P2 角色可验证自动加载）；48h 做 bcw 正式评估。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
