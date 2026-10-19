@@ -709,6 +709,30 @@ MUTATIONS = [
      "    driver.set_opponent(p1c)",
      "    pass",
      "人测通路丢P1对手注入(OOD回归) → task-15人测通路断言必须红"),
+    # task-21 v1(2026-10-19): 空间特征/奖励 5 条配对变异
+    ("feat_builder.py",
+     "            s[o + 23] = float(np.clip(_ocd / 120.0, 0, 1))",
+     "            s[o + 23] = 0.0",
+     "space_feat: 敌方贴角深度维缺失 → task-21逐要素断言必须红"),
+    ("feat_builder.py",
+     "            s[o + 0] = float(np.clip(_my / _Y1, 0, 1))",
+     "            s[o + 0] = float(np.clip(_my / 100.0, 0, 1))",
+     "space_feat: my_y 归一化公式错(/100) → task-21归一化断言必须红"),
+    ("feat_builder.py",
+     "    CORE_DIMS = 382 if FEAT_SPACE else 358",
+     "    CORE_DIMS = 382",
+     "space_feat: env 回滚分支缺失(TH123_FEAT_SPACE=0 失效) → 断言必须红"),
+    ("train_tm.py",
+     "                _sp_r = space_reward_step(self, left, right,\n"
+     "                                          d_take, _fev)\n"
+     "                if _sp_r:",
+     "                _sp_r = 0.0\n"
+     "                if _sp_r:",
+     "space_rew: 奖励调用点缺失 → task-21 奖励断言必须红"),
+    ("train_tm.py",
+     "R_SPACE_EDGE = float(os.environ.get('TH123_REW_SPACE_EDGE', '0.0015'))",
+     "R_SPACE_EDGE = float(os.environ.get('TH123_REW_SPACE_EDGE', '0.0'))",
+     "space_rew: 板边罚默认值被归零 → task-21 奖励默认值断言必须红"),
 ]
 
 

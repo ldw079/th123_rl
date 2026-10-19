@@ -151,6 +151,17 @@ def load_bc_bank(char, n_side):
         return None
     X, S, Y, I = bank
     if S.shape[1] != n_side:
+        # task-21 v1(2026-10-19): env=1 时允许磁盘旧宽(5N+358), 采样行级零填充
+        # (_bc_pad_S 同语义) 到 5N+382; 其余不符仍跳过.
+        from feat_builder import FeatureBuilder as _FB
+        _N = (S.shape[1] - _FB.LEGACY_CORE) // 5
+        if (_FB.FEAT_SPACE and _N > 0
+                and S.shape[1] == 5 * _N + _FB.LEGACY_CORE
+                and n_side == 5 * _N + _FB.CORE_DIMS):
+            print('[learner] BC库宽度 %d→行级零填充到%d '
+                  '(zero-fill v2, 允许; 下批低载重建)'
+                  % (S.shape[1], n_side))
+            return (X, S, Y, I, _N)
         print('[learner] BC库宽度不符(%d≠%d) — 跳过' % (
             S.shape[1], n_side))
         return None
@@ -337,6 +348,10 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
     # 与单实例trainer的temp=self.ppo._temp同构)
     # R57(2.2): BC锚每update重采样(原终身固定64行 → bcw过拟合到定点)
     bc_use = None
+    _bc_pad_n = None
+    if bc_bank is not None and len(bc_bank) > 4:
+        _bc_pad_n = bc_bank[4]
+        bc_bank = bc_bank[:4]
     if bc_bank is not None:
         n_bc = len(bc_bank[2])
         m = min(64, n_bc)
@@ -357,6 +372,17 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
                       bc_bank[2][_bidx])
         else:
             bc_use = bc_bank[:3]
+    if bc_use is not None and _bc_pad_n is not None:
+        _ins = 2 * _bc_pad_n + 358
+        from feat_builder import FeatureBuilder as _FB2
+        _gap = _FB2.CORE_DIMS - _FB2.LEGACY_CORE
+        _Sb = bc_use[1]
+        bc_use = (bc_use[0],
+                  np.concatenate([_Sb[:, :_ins],
+                                  np.zeros((_Sb.shape[0], _gap),
+                                           dtype=_Sb.dtype),
+                                  _Sb[:, _ins:]], axis=1),
+                  bc_use[2])
     stats = gpu_tr.update(
         feats, acts, rews, sides, ep_lens,
         ep_terms=ep_terms, masks=masks, bc_targets=bc_t,

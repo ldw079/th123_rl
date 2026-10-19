@@ -321,7 +321,66 @@ GAMMA_POT = 0.999   # R61c(B5): 势函数γ(Ng式r'=γΦ(s')−Φ(s); 原γ=1)
 # R61z: 空中被动惩罚 — 空中>30帧且非攻击/非受击态 → 微负/帧
 # (跳跃逃逸的"零惩罚盲区"修复; 攻击中/受击中空中不罚)
 R_AIR_PASSIVE = 0.003
-AIR_PASSIVE_GRACE = 30   # 宽限帧数(跳跃弧线的合法滞空)
+AIR_PASSIVE_GRACE = 30
+
+# ---- task-21 Phase1 空间/逃生子集(2026-10-19; env TH123_REW_SPACE) ----
+REW_SPACE = os.environ.get('TH123_REW_SPACE', '1') != '0'
+R_SPACE_EDGE = float(os.environ.get('TH123_REW_SPACE_EDGE', '0.0015'))
+R_SPACE_ESCAPE = float(os.environ.get('TH123_REW_SPACE_ESCAPE', '0.03'))
+R_SPACE_SURVIVE = float(os.environ.get('TH123_REW_SPACE_SURVIVE', '0.02'))
+R_SPACE_DIV = float(os.environ.get('TH123_REW_SPACE_DIV', '0.01'))
+R_SPACE_CROSS = float(os.environ.get('TH123_REW_SPACE_CROSS', '0.05'))
+SPACE_EDGE_X0 = 120.0
+SPACE_EDGE_X1 = 1160.0
+
+
+def space_reward_reset(self):
+    self._sp = {'prev_edge': False, 'events': [], 'hit': 0}
+
+
+def space_reward_step(self, left, right, d_take, fev):
+    """Phase1 R-b/R-c: 板边微罚/脱离 + 受压逃逸成功/跳越(小奖, env 可关)."""
+    if not REW_SPACE:
+        return 0.0
+    st = getattr(self, '_sp', None)
+    if st is None:
+        space_reward_reset(self)
+        st = self._sp
+    mx = float(left['position.x'])
+    ox = float(right['position.x'])
+    edge = (mx < SPACE_EDGE_X0) or (mx > SPACE_EDGE_X1)
+    r = 0.0
+    if edge:
+        r -= R_SPACE_EDGE
+    if st['prev_edge'] and not edge:
+        r += R_SPACE_ESCAPE
+    st['prev_edge'] = edge
+    if d_take > 0:
+        st['hit'] += 1
+    if fev == frame_events.E_OPP_STARTUP:
+        st['events'].append({'t': getattr(self, '_sp_t', 0),
+                             'hit0': st['hit'],
+                             'side0': (ox > mx),
+                             'up': False, 'done': False})
+    t = getattr(self, '_sp_t', 0)
+    keep = []
+    for ev in st['events']:
+        if left.get('airBorne'):
+            ev['up'] = True
+        if ev['side0'] != (ox > mx):
+            ev['crossed'] = ev.get('crossed') or True
+        if (not ev['done']) and (t - ev['t']) >= 30:
+            if st['hit'] == ev['hit0']:
+                r += R_SPACE_SURVIVE
+            if ev.get('up') and ev.get('crossed'):
+                r += R_SPACE_CROSS
+            ev['done'] = True
+        if ev['done'] and (t - ev['t']) > 31:
+            continue
+        keep.append(ev)
+    st['events'] = keep
+    return r
+   # 宽限帧数(跳跃弧线的合法滞空)
 
 
 def air_passive_exempt(left):
@@ -436,6 +495,20 @@ class TMTrainer:
         from ppo import PPOTrainer
         self.char = char
         self.slot = slot
+        _fsp = os.environ.get('TH123_FEAT_SPACE', '1')
+        print('[feat_space] feat_space=%s CORE_DIMS=%d n_side=%d' % (
+            _fsp, FeatureBuilder.CORE_DIMS,
+            5 * len(CHAR_LIBS[char]['macros']) + FeatureBuilder.CORE_DIMS))
+        print('[rew_space] %s edge=%s escape=%s survive=%s div=%s cross=%s' % (
+            'ON' if REW_SPACE else 'OFF', R_SPACE_EDGE, R_SPACE_ESCAPE,
+            R_SPACE_SURVIVE, R_SPACE_DIV, R_SPACE_CROSS))
+        _fsp = os.environ.get('TH123_FEAT_SPACE', '1')
+        print('[feat_space] feat_space=%s CORE_DIMS=%d n_side=%d' % (
+            _fsp, FeatureBuilder.CORE_DIMS,
+            5 * len(CHAR_LIBS[char]['macros']) + FeatureBuilder.CORE_DIMS))
+        print('[rew_space] %s edge=%s escape=%s survive=%s div=%s cross=%s' % (
+            'ON' if REW_SPACE else 'OFF', R_SPACE_EDGE, R_SPACE_ESCAPE,
+            R_SPACE_SURVIVE, R_SPACE_DIV, R_SPACE_CROSS))
         self.render = render
         self.suffix = suffix
         self._deck_rng = _rnd.Random(hash(char) & 0xFFFF)  # R47: deck采样
@@ -845,11 +918,24 @@ class TMTrainer:
             X, S, Y, I = load_bank_seq(self.char, self.suffix,
                                        store=STORE_DIR)
             self._bc_X, self._bc_S, self._bc_Y, self._bc_I = X, S, Y, I
-            # R37(审查2026-10-02): 宽度守卫 — BC库停留旧布局时
-            # 静默载入会导致update时广播爆炸(已烧一次前向)。
-            assert S.shape[1] == self.n_side, \
-                ("BC库宽度%d≠n_side%d — BC库与当前宏库/CORE_DIMS"
-                 "不一致, 需重跑repad脚本" % (S.shape[1], self.n_side))
+            # R37 宽度守卫 + task-21 v1: 旧 358 宽 BC 库允许"行级零填充"
+            # (新 24 维插在 core 尾部 2N+358), 避免全库重写/重建.
+            self._bc_pad = None
+            if S.shape[1] != self.n_side:
+                from feat_builder import FeatureBuilder as _FB
+                _N = (S.shape[1] - _FB.LEGACY_CORE) // 5
+                if (_FB.FEAT_SPACE and _N > 0
+                        and S.shape[1] == 5 * _N + _FB.LEGACY_CORE
+                        and self.n_side == 5 * _N + _FB.CORE_DIMS):
+                    self._bc_pad = (2 * _N + _FB.LEGACY_CORE,
+                                    _FB.CORE_DIMS - _FB.LEGACY_CORE)
+                    print('[BC] bc_meta zero-fill v2: 旧宽%d→%d '
+                          '(新24维=0, 未观测; 行级填充)' % (S.shape[1],
+                                                       self.n_side))
+                else:
+                    assert False, \
+                        ("BC库宽度%d≠n_side%d — 不一致, 需重建/迁移BC库"
+                         % (S.shape[1], self.n_side))
             # R39(第十轮P3-10): X宽校验 — 旧视觉布局(≠14400)的BC文件
             # 会"健康"载入后在每次update里_trunk reshape崩、被worker
             # except吞掉 → 零学习且无可见错误
@@ -909,11 +995,24 @@ class TMTrainer:
             if widx is not None:
                 if _inj is not None:
                     widx = np.concatenate([widx, _inj])
-                return (X[widx], self._bc_S[widx], self._bc_Y[widx])
+                return (X[widx], self._bc_pad_S(self._bc_S[widx]),
+                        self._bc_Y[widx])
         idx = np.random.randint(0, len(X), size=min(k, len(X)))
         if _inj is not None:
             idx[:len(_inj)] = _inj
-        return (X[idx], self._bc_S[idx], self._bc_Y[idx])
+        return (X[idx], self._bc_pad_S(self._bc_S[idx]),
+                self._bc_Y[idx])
+
+    def _bc_pad_S(self, Sb):
+        """task-21 v1: BC 行级零填充(旧 358 库 → 382; 新 24 维插 core 尾部)."""
+        _p = getattr(self, '_bc_pad', None)
+        if not _p:
+            return Sb
+        _ins, _gap = _p
+        return np.concatenate(
+            [Sb[:, :_ins],
+             np.zeros((Sb.shape[0], _gap), dtype=Sb.dtype),
+             Sb[:, _ins:]], axis=1)
 
     def _make_env(self, port, lane=None):
         """按模式建环境: 对手模式=EvalEnv(VS_PLAYER+胜者记录), 否则VS_COM。
@@ -1629,6 +1728,13 @@ class TMTrainer:
             self._prev_pot = _pot
             d_deal = max(0, hp_r_prev - right["hp"])
             d_take = max(0, hp_l_prev - left["hp"])
+            # task-21 Phase1 空间奖励(env TH123_REW_SPACE; 小奖)
+            if REW_SPACE:
+                self._sp_t = getattr(self, "_sp_t", 0) + 1
+                _sp_r = space_reward_step(self, left, right,
+                                          d_take, _fev)
+                if _sp_r:
+                    seg_rew += _sp_r
             # S-1接线(2026-10-14): 宏执行中的punish证据逐帧入账
             # (对手攻击态=300-598; blocked=我方入GUARD_STUN族)
             self.feat_builder.punish.frame(

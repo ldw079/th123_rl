@@ -103,7 +103,12 @@ def fair_weather_id(weather):
 class FeatureBuilder:
     """每次决策调用build(); 每帧调用track_bullets()更新弹速。"""
 
-    CORE_DIMS = 358  # JZ-1(2026-10-15): 343+15(A档字段段[343..357])
+    # task-21 v1(2026-10-19): TH123_FEAT_SPACE=1(默认)→382(=358+24);
+    # =0→回滚358(旧模型/旧BC可用; env/档不符由 ppo load 响亮拒绝).
+    import os as _os
+    FEAT_SPACE = _os.environ.get("TH123_FEAT_SPACE", "1") != "0"
+    CORE_DIMS = 382 if FEAT_SPACE else 358
+    LEGACY_CORE = 358  # JZ-1(2026-10-15): 343+15(A档字段段[343..357])
     #                # S-2(合并终版方案2026-10-14): 330+13(变招6+心理4
     #                # +风格2+K5池外1)
     #                # R61t(F5): 308+8扩展one-hot(20角色全覆盖)
@@ -945,6 +950,76 @@ class FeatureBuilder:
         o2 = fill_jz1(s, 343, left, right,
                       self._jz1_cd_my, self._jz1_cd_opp, 0, 0)
         o = 343 + o2
+
+        # === 15. task-21 v1 空间 24 维(2026-10-19; env TH123_FEAT_SPACE) ===
+        # k0 my_y|1 左墙距|2 右墙距|3 天花板距|4 地面距|5-8 四角(LB,RB,LT,RT)|
+        # k9 opp_dist|10 opp_sin|11 opp_cos|12 obj存在|13-15 obj dx/dy/dist|
+        # k16 角内朝向×对手方位|17-20 弹2 dx/dy/dist/tti|21 上方走廊净空|
+        # k22 对手相对墙位|23 敌方贴角深度
+        if self.CORE_DIMS > self.LEGACY_CORE:
+            _mx = float(left["position.x"])
+            _my = float(left["position.y"])
+            _ox = float(right["position.x"])
+            _oy = float(right["position.y"])
+            _X0, _X1, _Y1 = 40.0, 1240.0, 600.0
+            _dx = _ox - _mx
+            _dy = _my - _oy
+            _ad = float(np.hypot(_dx, _dy))
+            _in_left = _mx < 120
+            _in_right = _mx > 1120
+            s[o + 0] = float(np.clip(_my / _Y1, 0, 1))
+            s[o + 1] = float(np.clip((_mx - _X0) / 600.0, 0, 1))
+            s[o + 2] = float(np.clip((_X1 - _mx) / 600.0, 0, 1))
+            s[o + 3] = float(np.clip((_Y1 - _my) / _Y1, 0, 1))
+            s[o + 4] = float(np.clip(_my / _Y1, 0, 1))
+            _vtop = _my > 500
+            s[o + 5] = 1.0 if (_in_left and not _vtop) else 0.0
+            s[o + 6] = 1.0 if (_in_right and not _vtop) else 0.0
+            s[o + 7] = 1.0 if (_in_left and _vtop) else 0.0
+            s[o + 8] = 1.0 if (_in_right and _vtop) else 0.0
+            s[o + 9] = float(np.clip(_ad / 800.0, 0, 1))
+            s[o + 10] = float(np.clip(_dx / (_ad + 1e-6), -1, 1))
+            s[o + 11] = float(np.clip(_dy / (_ad + 1e-6), -1, 1))
+            _slow = [b for b in (bullets or [])
+                     if (b[3] * b[3] + b[4] * b[4]) ** 0.5 < 0.5]
+            if _slow:
+                _b = min(_slow, key=lambda bb: (bb[1] - _mx) ** 2
+                         + (bb[2] - _my) ** 2)
+                _odx = float(_b[1]) - _mx
+                _ody = float(_b[2]) - _my
+                _odd = float(np.hypot(_odx, _ody))
+                s[o + 12] = 1.0
+                s[o + 13] = float(np.clip(_odx / 600.0, -1, 1))
+                s[o + 14] = float(np.clip(_ody / 600.0, -1, 1))
+                s[o + 15] = float(np.clip(_odd / 800.0, 0, 1))
+            _inw = 1.0 if _in_left else (-1.0 if _in_right else 0.0)
+            s[o + 16] = _inw * (1.0 if _dx > 0 else (-1.0 if _dx < 0 else 0.0))
+            _bs = sorted([b for b in (bullets or [])[:20]],
+                         key=lambda bb: (bb[1] - _mx) ** 2
+                         + (bb[2] - _my) ** 2)
+            if len(_bs) > 1:
+                _bb = _bs[1]
+                _bdxx = float(_bb[1]) - _mx
+                _bdyy = float(_bb[2]) - _my
+                _bdd = float(np.hypot(_bdxx, _bdyy))
+                s[o + 17] = float(np.clip(_bdxx / 600.0, -1, 1))
+                s[o + 18] = float(np.clip(_bdyy / 600.0, -1, 1))
+                s[o + 19] = float(np.clip(_bdd / 800.0, 0, 1))
+                _spd = (float(_bb[3]) ** 2 + float(_bb[4]) ** 2) ** 0.5
+                _t2 = (_bdd / _spd / GAME_FPS) if _spd > 1e-6 else 1.0
+                s[o + 20] = float(np.clip(_t2, 0, 1))
+            _clear = 1.0
+            for _bb in (bullets or [])[:20]:
+                if (abs(float(_bb[1]) - _mx) < 120
+                        and 0 < (float(_bb[2]) - _my) < 250):
+                    _clear = 0.0
+                    break
+            s[o + 21] = _clear
+            s[o + 22] = float(np.clip(
+                min(min(_ox - _X0, _X1 - _ox) / 600.0, 1.0), 0, 1))
+            _ocd = 120.0 - min(min(_ox - _X0, _X1 - _ox), 120.0)
+            s[o + 23] = float(np.clip(_ocd / 120.0, 0, 1))
+            o += 24
 
         assert o <= self.CORE_DIMS, (o, self.CORE_DIMS)
 

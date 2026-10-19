@@ -127,11 +127,11 @@ chk(feat_builder.FeatureBuilder.CORE_DIMS >= 343,
 # feat_builder尾部fill_jz1(s, 343, ...)写[343..343+15), CORE_DIMS
 # 必须==343+jz1宽(单源: N_DIMS=15)
 import jz1_features as _jz1
-chk(feat_builder.FeatureBuilder.CORE_DIMS
-    == 343 + _jz1.N_DIMS,
-    "CORE_DIMS==343+JZ-1段账本(358; 段账本锚替代区间界)",
-    "got %r != %d" % (feat_builder.FeatureBuilder.CORE_DIMS,
-                      343 + _jz1.N_DIMS))
+_core_exp = ((343 + _jz1.N_DIMS) + (24 if getattr(
+    feat_builder.FeatureBuilder, 'FEAT_SPACE', True) else 0))
+chk(feat_builder.FeatureBuilder.CORE_DIMS == _core_exp,
+    "CORE_DIMS==343+JZ-1段账本(+task-21 空间24; env开关)",
+    "got %r != %d" % (feat_builder.FeatureBuilder.CORE_DIMS, _core_exp))
 chk(opp_model.OpponentModel.N_FEATS == 75,
     "opp_model.N_FEATS==75(基础27+历史40+资源8)",
     "got %r" % opp_model.OpponentModel.N_FEATS)
@@ -2093,6 +2093,10 @@ _BEHAVIOR_TESTS = [
      "task-18: 门禁证据命名gate_r<rev>_<commit7>_<ts>+O_EXCL一次写入不可复写"),
     ("test_humanmatch_detect.py",
      "task-15: 0x34C角色识别20/20+未知拒绝+活档链回退/全缺拒绝+probe只读"),
+    ("test_space_feat_v1.py",
+     "task-21: 空间24维/env开关382-358/归一化范围/旧前缀等价"),
+    ("test_space_reward_v1.py",
+     "task-21: Phase1 空间奖励 env/默认值/触发边界"),
 ]
 # 审计#6c(2026-10-18): C15 白名单对账 — "新测试漏注册"第3次复发(21档/
 # macros_branch/R198 test_load_gate 43项从未进门槛)的永久防线:
@@ -2184,6 +2188,36 @@ chk("CHARMGR_CHAR_IDX = 0x34C" in _hm_src
     and "driver.set_opponent(p1c)" in _hm_src and "model_stamp" in _hm_src
     and "--probe-chars" in _hm_src and "PROBE " in _hm_src,
     "task-15: 人测通路(0x34C识别+活档链+set_opponent(P1)+probe只读)生效本体")
+# task-21 v1(2026-10-19 用户批): 空间 24 维(2D 绝对+相对) + Phase1 空间奖励.
+# 逐要素: env 开关/CORE_DIMS、24 维写点、归一化公式、奖励 env/默认值/调用点.
+_fb21 = src("feat_builder.py")
+chk("TH123_FEAT_SPACE" in _fb21
+    and "CORE_DIMS = 382 if FEAT_SPACE else 358" in _fb21,
+    "task-21: FEAT_SPACE env 开关(382/回滚358)")
+chk("task-21 v1 空间 24 维" in _fb21
+    and "if self.CORE_DIMS > self.LEGACY_CORE:" in _fb21
+    and _fb21.count("s[o + 23] = float(np.clip(_ocd / 120.0, 0, 1))") == 1,
+    "task-21: 24 维写点存在(0..23 全写)")
+chk("s[o + 0] = float(np.clip(_my / _Y1, 0, 1))" in _fb21
+    and "s[o + 9] = float(np.clip(_ad / 800.0, 0, 1))" in _fb21
+    and "s[o + 20] = float(np.clip(_t2, 0, 1))" in _fb21,
+    "task-21: 归一化公式(my_y/opp_dist/弹2TTI)")
+_tm21 = src("train_tm.py")
+chk("REW_SPACE = os.environ.get('TH123_REW_SPACE', '1') != '0'" in _tm21
+    and "R_SPACE_EDGE = float(os.environ.get('TH123_REW_SPACE_EDGE'" in _tm21
+    and "space_reward_step(self, left, right," in _tm21
+    and "_sp_r = space_reward_step(self, left, right," in _tm21,
+    "task-21: 奖励 env/默认值/调用点(space_reward_step)")
+_bc21 = src("train_tm.py")
+# env=1 时**允许磁盘旧宽 BC 库**(5N+358)+行级零填充, 不要求磁盘 5N+382;
+# 新宽直通亦允许. 钉"旧宽分支+pad 标记+concatenate(非 np.insert)".
+chk("bc_meta zero-fill v2" in _bc21 and "def _bc_pad_S(" in _bc21
+    and "if S.shape[1] != self.n_side:" in _bc21
+    and "self._bc_pad = (2 * _N" in _bc21
+    and "Sb[:, :_ins]" in _bc21 and "np.concatenate(" in _bc21
+    and "行级零填充到" in src("tools/train_start.py")
+    and "行级零填充到" in src("learner_hub.py"),
+    "task-21: BC env=1 允许旧宽(训练+点火+learner 三处 zero-fill v2)")
 # ============ P2波锚(审计#3十九项首波, 2026-10-13) ============
 print("=== P2修复波锚(审计#3) ===")
 # 审计2026-10-16 P1-1防复发: CE-1宏层画像的生产调用形态 — begin必须

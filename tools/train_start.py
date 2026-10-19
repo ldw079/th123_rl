@@ -111,10 +111,20 @@ def pre_flight():
                 continue
             _w = _np.load(_sp, mmap_mode='r').shape[1]
             _exp = 5 * len(_CL[_ch]['macros']) + _FB.CORE_DIMS
+            _exp_old = (5 * len(_CL[_ch]['macros'])
+                        + getattr(_FB, 'LEGACY_CORE', 358))
             if _w != _exp:
-                print('[前置] !!FAIL BC库宽度 %s S=%d≠派生%d — '
-                      '代际未换装, 拒点火(防连环崩减员)' % (_ch, _w, _exp))
-                _bc_ok = False
+                # task-21 v1(2026-10-19): env=1 且磁盘旧宽(5N+358) 时, 训练侧
+                # 行级零填充(_bc_pad_S / bc_meta zero-fill v2)接管 → 允许点火,
+                # 打印允许行; 其余宽度不符仍拒(防连环崩减员)。
+                if getattr(_FB, 'FEAT_SPACE', False) and _w == _exp_old:
+                    print('[前置] BC库宽度 %s S=%d→行级零填充到%d '
+                          '(zero-fill v2, 允许; 下批低载重建)' % (_ch, _w, _exp))
+                else:
+                    print('[前置] !!FAIL BC库宽度 %s S=%d≠派生%d — '
+                          '代际未换装, 拒点火(防连环崩减员)'
+                          % (_ch, _w, _exp))
+                    _bc_ok = False
         if _bc_ok:
             print('[前置] BC库宽度×3 OK(=5N+CORE_DIMS)')
     except Exception as _e:
