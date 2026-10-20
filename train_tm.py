@@ -331,6 +331,15 @@ R_SPACE_SURVIVE = float(os.environ.get('TH123_REW_SPACE_SURVIVE', '0.02'))
 R_SPACE_DIV = float(os.environ.get('TH123_REW_SPACE_DIV', '0.01'))
 R_SPACE_CROSS = float(os.environ.get('TH123_REW_SPACE_CROSS', '0.05'))
 SPACE_EDGE_X0 = 120.0
+# task-20 Phase1 进攻类奖励(R-a 惩罚窗命中结算 / R-d 空挥再平衡 / R-e 窗口攻击bias)
+try:
+    import atk_v1 as _atk_v1
+except Exception:      # control/旧worktree 无该模块时=旧行为
+    _atk_v1 = None
+try:
+    import game_gates as _dd_gate
+except Exception:
+    _dd_gate = None
 SPACE_EDGE_X1 = 1160.0
 
 
@@ -502,6 +511,10 @@ class TMTrainer:
         print('[rew_space] %s edge=%s escape=%s survive=%s div=%s cross=%s' % (
             'ON' if REW_SPACE else 'OFF', R_SPACE_EDGE, R_SPACE_ESCAPE,
             R_SPACE_SURVIVE, R_SPACE_DIV, R_SPACE_CROSS))
+        if _atk_v1 is not None:
+            print(_atk_v1.startup_line())
+        if _dd_gate is not None:
+            print(_dd_gate.startup_line())
         _fsp = os.environ.get('TH123_FEAT_SPACE', '1')
         print('[feat_space] feat_space=%s CORE_DIMS=%d n_side=%d' % (
             _fsp, FeatureBuilder.CORE_DIMS,
@@ -1735,6 +1748,15 @@ class TMTrainer:
                                           d_take, _fev)
                 if _sp_r:
                     seg_rew += _sp_r
+            # task-20 R-a: 惩罚窗命中结算(成功才结算)
+            if _atk_v1 is not None:
+                _atk_r = _atk_v1.step(
+                    self, left, right, d_take, d_deal,
+                    getattr(self, '_sp_t', 0))
+                if _atk_r:
+                    seg_rew += _atk_r
+                    rew_mix['atk_punish'] = rew_mix.get(
+                        'atk_punish', 0.0) + _atk_r
             # S-1接线(2026-10-14): 宏执行中的punish证据逐帧入账
             # (对手攻击态=300-598; blocked=我方入GUARD_STUN族)
             self.feat_builder.punish.frame(
@@ -1951,6 +1973,11 @@ class TMTrainer:
                                 and _end_mask.any() else
                                 _ev_mask if _ev_mask is not None
                                 and _ev_mask.any() else self.base_mask)
+                    # task-28(2026-10-19): DD(回避结界)仅正防态(150-167)可用
+                    if _dd_gate is not None:
+                        mask = _dd_gate.dd_gate(
+                            mask, [m[0] for m in self.macros],
+                            left.get("action", 0))
                     # v2配额探索: 新宏(计数<150)12%探针覆盖 + 乐观先验
                     # R50(体检A4): 原子宏配额延长 — 零初始化迁移的logit
                     # 需要梯度才能>0, 但150次配额跑完后策略层不选零logit宏
@@ -1991,6 +2018,18 @@ class TMTrainer:
                             _gru_slice(side, self.n_macros),
                             getattr(self, '_gru_h', None))
                         _gru_repr = self._ppo_act.opp_gru.repr16(self._gru_h)
+                        if _atk_v1 is not None:
+                            from my_punish_tracker import classify as _atk_cls
+                            _ab = _atk_v1.bias_for(
+                                self, getattr(self._ppo_act, '_updates', 0),
+                                mask, self.n_macros, _atk_cls,
+                                [m[0] for m in self.macros])
+                            if _ab is not None:
+                                if nbias is None:
+                                    nbias = np.zeros(
+                                        self.n_macros, dtype=np.float32)
+                                nbias = nbias + np.asarray(
+                                    _ab, dtype=np.float32)
                         mid, _pred = self._ppo_act.sample(
                             feat, side, mask=mask, bias=nbias,
                             return_pred=True, gru_repr=_gru_repr)
@@ -2088,6 +2127,14 @@ class TMTrainer:
                             # 灵力感知加重: 起手时灵力不足仍选攻击宏 → ×2
                             _mult = 2.0 if (dec_spirit is not None
                                             and dec_spirit < LOW_SPIRIT_PEN) else 1.0
+                            if _atk_v1 is not None:
+                                _wm = _atk_v1.whiff_mult(
+                                    dec_dx, dec_win, dec_cls,
+                                    dec_cls == 'BULLET')
+                                _mult = _mult * _wm
+                                rew_mix['atk_whiff_scale'] = rew_mix.get(
+                                    'atk_whiff_scale', 0.0) + (
+                                        W_WHIFF * wc * (_wm - 1.0))
                             seg_rew -= W_WHIFF * wc * _mult
                             rew_mix["whiff"] -= W_WHIFF * wc * _mult
                     # R14-P0J: 本区间奖励记给上一个动作(a_{k-1})
@@ -2114,6 +2161,7 @@ class TMTrainer:
                         self._fl_decisions.append((frames, int(mid)))
                     dec_name = self.macros[mid][0]
                     dec_dmg, dec_guarded = 0.0, False
+                    dec_dx, dec_win, dec_cls = None, False, None
                     dec_spirit = left["spirit"]   # R17: 起手灵力(空挥加重判据)
                     # S-2接线(2026-10-14): 决策落子 — 上宏结算/新宏开始/
                     # 类别序列/预测回写(S-1/S-3/S-5源, 维330-339)
@@ -2136,6 +2184,18 @@ class TMTrainer:
                     # 基准树诊断数据(标准树11列+S-7B风格2列: pc1/pc2 —
                     # 消费方按下标取0-10, 尾部追加向后兼容)
                     dx = abs(right["position.x"] - left["position.x"])
+                    dec_dx = dx
+                    if _atk_v1 is not None:
+                        _ast = getattr(self, '_atk', None)
+                        dec_win = bool(_ast and _ast.get('in_window'))
+                        dec_cls = _dcls
+                        _atk_v1.on_decision(self, dec_name, dx, _clsfy)
+                        rew_mix['window_attempts'] = _ast['attempts']
+                        rew_mix['window_hits'] = _ast['hits']
+                        rew_mix['window_whiffs'] = _ast['whiffs']
+                        if _ast.get('u0') is None:
+                            _ast['u0'] = int(getattr(
+                                self._ppo_act, '_updates', 0))
                     distill_rows.append([
                         dx, left["spirit"] / 1000.0, 1.0 if dx < 130 else 0.0,
                         mid, left["frameCount"],

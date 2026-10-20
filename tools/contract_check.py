@@ -2101,6 +2101,10 @@ _BEHAVIOR_TESTS = [
      "A1/A2: wd5字段/整机/旁路口径/L3告警不杀fleet/工具闸门接入"),
     ("test_behavior_deep_report.py",
      "task-16: 三表函数/JSON结构(main)"),
+    ("test_rew_atk_v1.py",
+     "task-20: 惩罚窗/空挥再平衡/窗口bias/成功才结算/红线①bias入stored"),
+    ("test_dd_gate.py",
+     "task-28: DD 仅正防门控(正/负例+env回滚)"),
 ]
 # 审计#6c(2026-10-18): C15 白名单对账 — "新测试漏注册"第3次复发(21档/
 # macros_branch/R198 test_load_gate 43项从未进门槛)的永久防线:
@@ -2245,6 +2249,32 @@ chk('def frame_tables(' in _bdr and 'def bh_table(' in _bdr
     and 'def parse_actor_games(' in _bdr
     and 'from kit_config import STORE_DIR as STORE' in _bdr,
     'task-16: behavior_deep_report 三表工具入库(kit_config 路径)')
+# task-20(2026-10-19): 进攻类奖励 R-a/R-d/R-e(默认开, env 可关).
+_atk = src('atk_v1.py')
+_tt = src('train_tm.py')
+chk('REW_ATK = os.environ.get(\'TH123_REW_ATK\', \'1\')' in _atk
+    and 'def window_active(' in _atk and 'def step(' in _atk
+    and 'def bias_for(' in _atk and 'def whiff_mult(' in _atk
+    and 'BIAS_DECAY = int(os.environ.get(\'TH123_REW_ATK_BIAS_DECAY\', '
+        '\'800\')' in _atk,
+    'task-20: atk_v1 模块/env 默认(总开关+窗口/空挥/bias 函数)')
+chk('import atk_v1 as _atk_v1' in _tt
+    and '_atk_v1.step(' in _tt
+    and '_atk_v1.bias_for(' in _tt
+    and '_atk_v1.whiff_mult(' in _tt
+    and 'startup_line()' in _tt,
+    'task-20: train_tm 接线(逐帧step/决策bias/空挥乘子/启动打印)')
+chk('r += R_PUNISH' in _atk
+    and 'if in_window:' in _atk and 'return 1.0' in _atk,
+    'task-20: 成功才结算(R-a)+窗口内空挥不加重(R-d)')
+# task-28(2026-10-19): DD(回避结界)仅正防态可用 — 掩码门控.
+_gg = src('game_gates.py')
+_tt_dd = src('train_tm.py')
+chk('DD_GUARD_ONLY = os.environ.get(\'TH123_DD_GUARD_ONLY\', \'1\')' in _gg
+    and 'def is_guard_action(' in _gg and 'def dd_gate(' in _gg
+    and 'm[i] = False' in _gg
+    and '_dd_gate.dd_gate(' in _tt_dd,
+    'task-28: DD 仅正防门控(150-167)+train_tm 接线')
 # ============ P2波锚(审计#3十九项首波, 2026-10-13) ============
 print("=== P2修复波锚(审计#3) ===")
 # 审计2026-10-16 P1-1防复发: CE-1宏层画像的生产调用形态 — begin必须

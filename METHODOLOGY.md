@@ -8,9 +8,9 @@
 > 规划产物规范: **PLANNING_AGENT.md(规划智能体宪章, 2026-10-12用户令)** — 一切规划/方案必须"考察现状→详细可执行→附验收途径"三段齐备, 缺一仅得称草稿; 与本文冲突时以本文红线为准
 > 审计路由: **docs/audit_protocol.md(审计智能体入口, 2026-10-12用户令)** — 地位与 AGENTS.md 之于开发智能体同级, 审计接手第一读; 三必要条件(只读最新状态/结论按时间归档/数轮大更新后从零审查)+标准清单; bug 归档入口 docs/bugs/; 与本文冲突时以本文红线为准
 > 并行开发: **PARALLEL_WORKFLOW.md(三智能体并行约定, 2026-10-16用户批准试行)** — 单写者规则+docs/_pending_entries.md 队列; 写文件前先查写入权
-> 版本: 3.72 · 2026-10-19 · R206(**A1/A2 CPU-H P-B/P-C + task-16 入库** /
+> 版本: 3.73 · 2026-10-20 · R209(**task-20 进攻奖励 + task-28 DD 正防门控** /**A1/A2 CPU-H P-B/P-C + task-16 入库** /
 > wd 5 字段(旧读者兼容)+L3 machine_alert/dashboard 三口径/load_gate 三工具 + behavior_deep_report |
-> 门禁 695/2/0, 变异 223
+> 门禁 701/2/0, 变异 226
 
 ---
 
@@ -2789,6 +2789,30 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     =检测随机源失效而非惩罚收敛路线)+接管者标注。mock集成测试14项
     全绿(必败检出≥80%/实际≤20%/退化作废/可复现); 真实模式待舰队空闲。
   - 门禁600/0/0。
+- 3.73 (2026-10-20 上午, **R209: task-20 进攻类奖励 + task-28 DD(回避结界)仅正防门控**):
+  - **task-20**: R-a 惩罚窗内起手+命中才结算(+0.10, 同窗一次, 超时算空挥); R-d 空挥按距离/
+    窗口再平衡(窗口内×1.0/非窗口近距×1.2/远距射击×0.5/远距近战×1.2); R-e 窗口攻击宏 logit
+    bias(0.2, TH123_REW_ATK_BIAS_DECAY=800upd≈35h 线性衰减, 可选 HOURS=24), 仅窗口+攻击+未掩码,
+    并入 actor 采样 nbias → 同步进入 _pi_forward/_fleet_logp_rec stored_logp(红线①, 测试 ≤1e-6);
+    env TH123_REW_ATK* 全可关.
+  - **task-28**: 帧日志实证(正防 44/47=93.6% 触发; 非防 571 次 0 触发 → 宏在正防有效, 缺陷=
+    非防态也可选, 执行成 dash/flight); game_gates.dd_gate 在 mask 兜底后对 结界*/空结界* 门控,
+    仅 own action∈150-167 unmask; TH123_DD_GUARD_ONLY 默认1(0=旧行为 A/B); 启动打印 [dd_gate].
+    BC 标签语义不变; 旧 mask 非防态学"结界"标签=错配噪声 → 修复后下降.
+  - **测试/门禁**: C15 test_rew_atk_v1.py(30 PASS, 含红线① stored 概率==softmax(log p+b/temp)
+    1e-6 + actor rec_logp 源码锚) + test_dd_gate.py(14 PASS); 断言4 + 变异3(合并
+    SELFTEST_TAGS='task-20,task-28' → 3/3 红, 0漏网); 门禁 D:\temp\gate_r209_42da35f_20261020_095631.txt(10:00, exit=0)
+    **701 PASS / 2 WARN / 0 FAIL**; 变异 **226**; C15 **105**.
+    首跑 gate_r209_42da35f_20261020_095206.txt 有 test_gpu_onestep 7P/2F 瞬态; 单跑 9P/0F + 重跑全绿 → 判 flake(留痕;
+    若再发即上报).
+  - **窗口**: 停 main 09:51:47(对照臂排除+PID二核) → apply(逐文件哈希与 payload 一致) → 单测
+    30/14/14 → 门禁 701/2W/0 → 变异 3/3 红 → commit(不 push) → 重启
+    TH123_FEAT_SPACE=1 TH123_REW_SPACE=1 TH123_FRAME_LOG=1 → 验收([rew_atk]/[dd_gate]/wd5字段/
+    对照臂/≥10拍无0.00/无 machine_alert).
+  - **回滚**: TH123_REW_ATK=0 + TH123_DD_GUARD_ONLY=0 即旧行为; 失败恢复 commit 前档.
+  - **诊断(短窗, 附)**: D:\temp\behavior_diag_R205_12h_20261020.md — 主机 01:44-09:42 休眠,
+    有效 ~2.5h+唤醒后 ~10min; 攻击 1.6/1.6/2.1%、空挥 82.8/83.2/71.9%、防御A 1.8/3.6/6.2%、
+    挂角 wall_air_share 34.2/25.1/42.4%(前 26.5/27.6/37.5, n小) → 未见改善信号, 非因果.
 - 3.72 (2026-10-19 晚, **R206: A1/A2(CPU-H P-B/P-C) + task-16 behavior_deep_report 入库**):
   - **A1/A2 L0/L3**: `fleet_supervisor` 新增 `machine_cpu_pct`(ctypes GetSystemTimes, None 哨兵) +
     `aux_cpu_pct`(非族 python, 排除对照臂; Δ/Δ墙钟/核数); `fleet_heartbeat.wd` 扩为

@@ -29,6 +29,8 @@ FILES = [
          "opp_model.py",
          "standard_tree.py",
          "train_tm.py",
+         "atk_v1.py",
+         "game_gates.py",
          "tm_env.py",
          "outer_loop.py",
          "side_driver.py",
@@ -747,6 +749,21 @@ MUTATIONS = [
      'def frame_tables(',
      'def _disabled_frame_tables(',
      'task-16 三表函数被禁用 → 入库断言必须红'),
+    # task-20(2026-10-19): 命中结算删除 → 断言必红
+    ('atk_v1.py',
+     'r += R_PUNISH',
+     'r += 0.0',
+     'task-20: 命中结算被去掉(R-a失效) → 断言必须红'),
+    # task-20: 窗口内空挥不加重被破坏 → 断言必红
+    ('atk_v1.py',
+     '    if in_window:\n        return 1.0',
+     '    if in_window:\n        return 1.2',
+     'task-20: 窗口内空挥不加重被破坏(R-d回归) → 断言必须红'),
+    # task-28(2026-10-19): DD 门控失效 → 断言必红
+    ('game_gates.py',
+     'm[i] = False',
+     'm[i] = True',
+     'task-28: DD 门控失效(非防态可再选) → 断言必须红'),
 ]
 
 
