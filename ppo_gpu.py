@@ -37,6 +37,14 @@ except ImportError:
 
 # 与ppo.py共享的架构常量(R54对齐)
 CONV_H, CONV_W = 60, 80
+# Gen-1(2026-10-19): 决策历史记忆/值头去动作条件化 env 门控
+try:
+    from mem_v1 import (MEM_DECISIONS as _MEM_N, VAL_DEACT as _VAL_DEACT,
+                        MEM_IN as _MEM_IN, MEM_HID as _MEM_HID,
+                        MEM_OUT as _MEM_OUT)
+except Exception:
+    _MEM_N, _VAL_DEACT = 0, False
+    _MEM_IN, _MEM_HID, _MEM_OUT = 27, 32, 64
 CONV1_F, CONV2_F, CONV3_F = 32, 64, 64
 TRUNK_FLAT = CONV3_F * 5 * 8         # 2560
 HIDDEN = 128
@@ -86,10 +94,12 @@ if HAS_TORCH:
     class PPONet(nn.Module):
         """完整网络: trunk + 策略头 + 侧通路 + 对手子网 + 值头 + 预测头。
         权重名与numpy版逐字一致(直接映射到W1/W2/...键)。"""
-        def __init__(self, n_side, n_out):
+        def __init__(self, n_side, n_out, mem_dim=0):
             super().__init__()
             self.n_side = n_side
             self.n_out = n_out
+            self.mem_dim = int(mem_dim or 0)
+            self.val_deact = bool(_VAL_DEACT)
             self.opp_off = 2 * n_out + OPP_CORE_OFF  # R54: 正确偏移
 
             self.trunk = Trunk()
@@ -101,6 +111,18 @@ if HAS_TORCH:
             # 侧通路
             self.W_side = nn.Linear(n_side, n_out, bias=False)
             self.Ws1 = nn.Linear(n_side, SIDE_H, bias=False)
+            if self.mem_dim > 0:
+                # Gen-1: 历史分支(不进值头; 输出零初始化=迁移后起点等价);
+                # 加性 W_mem(不扩 Ws1) → env=0 可直接读迁移后档回滚.
+                self.mem_fc1 = nn.Linear(_MEM_IN, _MEM_HID, bias=False)
+                self.mem_b1 = nn.Parameter(torch.zeros(_MEM_HID))
+                self.mem_fc2 = nn.Linear(_MEM_HID, _MEM_OUT, bias=False)
+                self.mem_b2 = nn.Parameter(torch.zeros(_MEM_OUT))
+                self.W_mem = nn.Linear(_MEM_OUT, n_out, bias=False)
+                with torch.no_grad():
+                    nn.init.normal_(self.mem_fc1.weight, std=0.01)
+                    self.mem_fc2.weight.zero_()   # 零输出=等价起步
+                    self.W_mem.weight.zero_()     # 迁移起点 logits 等价
             self.bs1 = nn.Parameter(torch.zeros(SIDE_H))
             self.Ws2 = nn.Linear(SIDE_H, n_out, bias=False)
             self.bs2 = nn.Parameter(torch.zeros(n_out))
@@ -133,26 +155,24 @@ if HAS_TORCH:
             with torch.no_grad():
                 self.W_gru.weight.zero_()   # 零初始化=位等价
 
-            # CE-4(2026-10-15): 一步位置前向头 — trunk+side→隐32→4维
-            # (adx'/own_corner'/opp_corner'/air'); MSE辅助损失λ=0.05
-            _fin = TRUNK_FLAT + n_side
-            self.Wf1 = nn.Linear(_fin, 32, bias=False)
-            self.bf1 = nn.Parameter(torch.zeros(32))
-            self.Wf2 = nn.Linear(32, 4, bias=False)
-            self.bf2 = nn.Parameter(torch.zeros(4))
-            with torch.no_grad():
-                nn.init.normal_(self.Wf1.weight, std=1.0 / (_fin ** 0.5))
-                nn.init.normal_(self.Wf2.weight,
-                                std=0.01 / (32 ** 0.5))  # 小初始化
 
-        def forward(self, X, S, temp=1.0, mask=None, gru_reprs=None):
+        def forward(self, X, S, temp=1.0, mask=None, gru_reprs=None,
+                    H=None):
             """X:(B,3,60,80) S:(B,n_side) → logits, value, opp_pred。
-            gru_reprs: (B,16) S-4阶段2a — learner按局重放的detached表征。"""
+            gru_reprs: (B,16) S-4阶段2a — learner按局重放的detached表征。
+            Gen-1: H:(B,27) 决策历史输入(env=0/mem_dim=0 时忽略)."""
             B = X.shape[0]
             t = self.trunk(X)
             h = F.relu(self.W1(t) + self.b1)
             z = self.W2(h) + self.b2
             z = z + self.W_side(S)
+            if self.mem_dim > 0:
+                _H = (H if H is not None
+                      else torch.zeros((B, _MEM_IN), device=S.device,
+                                       dtype=S.dtype))
+                _mo = F.relu(self.mem_fc2(
+                    F.relu(self.mem_fc1(_H) + self.mem_b1)) + self.mem_b2)
+                z = z + self.W_mem(_mo)
             z = z + self.Ws2(F.relu(self.Ws1(S) + self.bs1)) + self.bs2
             # 对手子网(R54: 正确切片偏移)
             So = S[:, self.opp_off:self.opp_off + OPP_DIM]
@@ -169,17 +189,22 @@ if HAS_TORCH:
                 z = z + torch.where(mask, 0.0, -1e9)
             logits = z / temp
             # 值头 (W3v是1-D向量: (B,128)@(128,)→(B,))
-            vin = torch.cat([t, S, oh], dim=1)
+            # Gen-1: TH123_VAL_DEACT=1 屏蔽 side 前 2N 上一动作 one-hot
+            if self.val_deact:
+                _Sv = S.clone()
+                _Sv[:, :2 * self.n_out] = 0.0
+            else:
+                _Sv = S
+            vin = torch.cat([t, _Sv, oh], dim=1)
             h1v = F.relu(self.W1v(vin) + self.b1v)
             h2v = F.relu(self.W2v(h1v) + self.b2v)
             v = h2v @ self.W3v + self.b3v
             # 预测头
             q_in = torch.cat([t, oh], dim=1)
             q = self.Wq2(F.relu(self.Wq1(q_in) + self.bq1)) + self.bq2
-            # CE-4: 一步位置前向头(独立计算, 不影响主策略路径)
-            fwd_in = torch.cat([t, S], dim=1)
-            fwd_h = F.relu(self.Wf1(fwd_in) + self.bf1)
-            fwd_pred = self.Wf2(fwd_h) + self.bf2
+            # Gen-1(2026-10-20): Wf1/Wf2 死重已删除(未进 loss); 保持4元组返回面,
+            # fwd_pred=零(旧调用方兼容, 无梯度/无参数).
+            fwd_pred = torch.zeros((B, 4), device=S.device, dtype=S.dtype)
             return logits, v.squeeze(-1), q, fwd_pred
 
 
@@ -205,12 +230,14 @@ if HAS_TORCH:
         TARGET_KL = 0.03
         AUX_W = 0.15
 
-        def __init__(self, n_side=None, n_out=None):
+        def __init__(self, n_side=None, n_out=None, mem_dim=None):
             if not HAS_TORCH:
                 raise RuntimeError("PyTorch未安装: pip install torch")
             self.n_side = n_side
             self.n_out = n_out
-            self.net = PPONet(n_side, n_out).to(DEVICE)
+            self.mem_dim = (_MEM_N if mem_dim is None else int(mem_dim))
+            self.net = PPONet(n_side, n_out,
+                              mem_dim=self.mem_dim).to(DEVICE)
             self.pi_opt = torch.optim.Adam(
                 [p for n, p in self.net.named_parameters()
                  if not n.startswith(('W1v', 'b1v', 'W2v', 'b2v',
@@ -301,6 +328,21 @@ if HAS_TORCH:
             Mt = torch.from_numpy(
                 np.asarray(masks).astype(bool)).to(DEVICE) \
                 if masks is not None else None
+            # Gen-1: 决策历史输入(可选; (N,8,3) int8 → (N,27) f32, 后3维全局段暂零)
+            _hist = kw.get('hist')
+            if _hist is not None and self.net.mem_dim > 0:
+                _ha = np.asarray(_hist)
+                if _ha.ndim == 3:
+                    _ha = _ha.reshape(_ha.shape[0], -1)
+                if _ha.shape[1] == 24:
+                    _ha = np.concatenate(
+                        [_ha, np.zeros((_ha.shape[0], 3), np.float32)],
+                        axis=1)
+                Ht = torch.from_numpy(_ha.astype(np.float32)).to(DEVICE)
+                assert Ht.shape[0] == N, ('hist行数%d≠N%d'
+                                         % (Ht.shape[0], N))
+            else:
+                Ht = None
 
             # R55: 保存CPU副本(回放池用 — 避免GPU→CPU来回)
             X_cpu = np.asarray(feats).astype(np.uint8)
@@ -314,7 +356,8 @@ if HAS_TORCH:
                  .to(DEVICE) if gru_reprs is not None else None)
 
             with torch.no_grad():
-                logits, V, _, _ = self.net(X, S, temp, Mt, gru_reprs=G)
+                logits, V, _, _ = self.net(X, S, temp, Mt,
+                                         gru_reprs=G, H=Ht)
                 logp = F.log_softmax(logits, dim=1)
                 # R56(fleet红线①): 采样时记录的logp优先 — ratio=π_new/
                 # π_snapshot为真重要性比(陈旧快照经clip正确处理); 无记录
@@ -707,11 +750,14 @@ if HAS_TORCH:
                 pi_out['grub_hh'] = sd_g['gru_cell.bias_hh'].cpu().numpy()
                 pi_out['gruW_proj'] = sd_g['gru_W_proj.weight'].cpu().numpy()  # (16,24)同形直拷
                 pi_out['W_gru'] = sd_g['W_gru.weight'].cpu().numpy().T
-                # CE-4: 前向头(numpy键; Linear权重torch(out,in)→numpy需.T)
-                pi_out['Wf1'] = sd_g['Wf1.weight'].cpu().numpy().T
-                pi_out['bf1'] = sd_g['bf1'].cpu().numpy()
-                pi_out['Wf2'] = sd_g['Wf2.weight'].cpu().numpy().T
-                pi_out['bf2'] = sd_g['bf2'].cpu().numpy()
+            if self.net.mem_dim > 0:
+                _sd = self.net.state_dict()
+                pi_out['mem_fc1'] = _sd['mem_fc1.weight'].cpu().numpy().T
+                pi_out['mem_b1'] = _sd['mem_b1'].cpu().numpy()
+                pi_out['mem_fc2'] = _sd['mem_fc2.weight'].cpu().numpy().T
+                pi_out['mem_b2'] = _sd['mem_b2'].cpu().numpy()
+                pi_out['W_mem'] = _sd['W_mem.weight'].cpu().numpy().T
+                pi_out['mem_dim'] = np.array([self.net.mem_dim], dtype=np.int64)
             _V_KEYS = {'W1v', 'b1v', 'W2v', 'b2v', 'W3v', 'b3v'}
             for tname, nname, in_ch in _CONV_MAP:
                 r = _to_np(tname, nname, in_ch)
@@ -807,10 +853,6 @@ if HAS_TORCH:
                 sd['gru_cell.bias_hh'] = _cur['gru_cell.bias_hh'].data.clone()
                 sd['gru_W_proj.weight'] = _cur['gru_W_proj.weight'].data.clone()
                 sd['W_gru.weight'] = _cur['W_gru.weight'].data.clone()
-                sd['Wf1.weight'] = _cur['Wf1.weight'].data.clone()
-                sd['bf1'] = _cur['bf1'].data.clone()
-                sd['Wf2.weight'] = _cur['Wf2.weight'].data.clone()
-                sd['bf2'] = _cur['bf2'].data.clone()
             if 'gruW_ih' in merged:
                 sd['gru_cell.weight_ih'] = torch.from_numpy(merged['gruW_ih'])
                 sd['gru_cell.weight_hh'] = torch.from_numpy(merged['gruW_hh'])
@@ -819,16 +861,26 @@ if HAS_TORCH:
                 sd['gru_W_proj.weight'] = torch.from_numpy(
                     merged['gruW_proj'])   # (16,24)同形
                 sd['W_gru.weight'] = torch.from_numpy(merged['W_gru'].T)
-                if 'Wf1' in merged:
-                    sd['Wf1.weight'] = torch.from_numpy(merged['Wf1'].T)
-                    sd['bf1'] = torch.from_numpy(merged['bf1'])
-                    sd['Wf2.weight'] = torch.from_numpy(merged['Wf2'].T)
-                    sd['bf2'] = torch.from_numpy(merged['bf2'])
             # R63(P1-5): 可选参数(旧代际档合法缺失 — 与numpy版load同哲学:
             # 侧非线性头Ws1/Ws2与对手子网络Wo1/Wo2/W_opp/Wq1/Wq2在早期档
             # 中不存在, 缺失时保持"零输出起步"的init值, 不算腐坏)。
             _OPTIONAL = ('Ws1', 'bs1', 'Ws2', 'bs2', 'Wo1', 'bo1', 'Wo2',
                          'bo2', 'W_opp', 'Wq1', 'bq1', 'Wq2', 'bq2')
+            if self.net.mem_dim > 0:
+                _mk = ('mem_fc1', 'mem_b1', 'mem_fc2', 'mem_b2', 'W_mem')
+                _miss_m = [k for k in _mk if k not in merged]
+                if _miss_m:
+                    raise ValueError(
+                        '[GPU load] TH123_MEM_DECISIONS=%d 但文件缺记忆分支键'
+                        ' %s — 需先迁移(tools/migrate_p1gen1.py)'
+                        % (self.net.mem_dim, _miss_m))
+                sd['mem_fc1.weight'] = torch.from_numpy(merged['mem_fc1'].T)
+                sd['mem_b1'] = torch.from_numpy(merged['mem_b1'])
+                sd['mem_fc2.weight'] = torch.from_numpy(merged['mem_fc2'].T)
+                sd['mem_b2'] = torch.from_numpy(merged['mem_b2'])
+                sd['W_mem.weight'] = torch.from_numpy(merged['W_mem'].T)
+            elif 'mem_dim' in merged:
+                print('[mem] gate=0 (rollback): 忽略文件内记忆分支键')
             _missing = []
             for nname, tname, in_ch in _CONV_MAP:
                 r = _from_np(nname, tname, in_ch)

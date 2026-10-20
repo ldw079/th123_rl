@@ -26,6 +26,13 @@ import numpy as np
 EP_KEYS = ("feats", "sides", "acts", "rews", "masks", "bc_targets",
            "opp_next", "logps", "ep_terms", "distill", "meta")
 EP_SCHEMA = 2   # R63: v1→v2 增contract块(尺寸/布局指纹); 旧v1文件拒收
+# Gen-1(2026-10-20): schema v3 = v2 + 可选 hist (N,8,3) int8 决策历史
+# (env TH123_MEM_DECISIONS>0 时写; 旧 v2 读入 hist=None, learner 补零)
+try:
+    from mem_v1 import MEM_DECISIONS as _MEM_DEC
+except Exception:
+    _MEM_DEC = 0
+EP_SCHEMA_MEM = 3
 # feats      (N,14400) uint8   视觉特征(3帧: 今帧+2差分)
 # sides      (N,n_side) f32    侧向量(宏one-hot×2+core+射程/untech块)
 # acts       (N,) i64          实际执行宏ID(最终动作 — 含探针/价值引导重选)
@@ -263,7 +270,15 @@ def save_episode_npz(ep_dir, char, actor_id, ep_idx, arrays, meta_str):
     tmp = os.path.join(ep_dir, fname + ".tmp.npz")
     dst = os.path.join(ep_dir, fname)
     data["meta"] = np.array(meta_str)
-    data["schema"] = np.array(EP_SCHEMA)
+    _hist = data.get("hist")
+    if _MEM_DEC > 0 and _hist is not None:
+        if tuple(getattr(_hist, "shape", ())) != (
+                int(data["acts"].shape[0]), 8, 3):
+            raise EpisodeContractError(
+                "hist形状%s≠(N,8,3)" % (getattr(_hist, "shape", None),))
+        data["schema"] = np.array(EP_SCHEMA_MEM)
+    else:
+        data["schema"] = np.array(EP_SCHEMA)
     np.savez(tmp, **data)
     os.replace(tmp, dst)
     return dst
@@ -288,11 +303,13 @@ def load_episode_npz(path, expect_contract=None):
         if _miss:
             raise EpisodeContractError("episode缺键%s: %s"
                                        % (_miss, os.path.basename(path)))
-        if "schema" in d.files and int(d["schema"]) != EP_SCHEMA:
+        _sch = int(d["schema"]) if "schema" in d.files else -1
+        if _sch not in (EP_SCHEMA, EP_SCHEMA_MEM):
             raise EpisodeContractError(
-                "episode schema v%d≠当前v%d — 格式已演化(旧v1无contract块), "
+                "episode schema v%d∉{%d,%d} — 格式已演化(旧v1无contract块), "
                 "该文件由旧代码产出, 需重新采集"
-                % (int(d["schema"]), EP_SCHEMA))
+                % (_sch, EP_SCHEMA, EP_SCHEMA_MEM))
+        arrays["hist"] = (d["hist"] if "hist" in d.files else None)
         meta = json.loads(str(d["meta"]))
         _c = meta.get("contract")
         if not isinstance(_c, dict):

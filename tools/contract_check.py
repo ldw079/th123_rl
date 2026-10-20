@@ -2107,6 +2107,8 @@ _BEHAVIOR_TESTS = [
      "task-28: DD 仅正防门控(正/负例+env回滚)"),
     ("test_act_mask_v1.py",
      "task-29/30: 统一 mask 层(地空/不可动/DD 150-157)"),
+    ("test_p1gen1_v1.py",
+     "Gen-1: mem编码/ep v3 hist/迁移等价/env=0/批k4 env"),
 ]
 # 审计#6c(2026-10-18): C15 白名单对账 — "新测试漏注册"第3次复发(21档/
 # macros_branch/R198 test_load_gate 43项从未进门槛)的永久防线:
@@ -2289,6 +2291,32 @@ chk('ACT_MASK = os.environ.get(\'TH123_ACT_MASK\', \'1\')' in _gg
     and 'IMMOBILE_GATE = os.environ.get(\'TH123_IMMOBILE_GATE\', \'1\')' in _gg
     and '    if not ACT_MASK:' in _gg,
     'task-29/30: env 三开关 + env=0 逐位回滚分支')
+# Gen-1(2026-10-20): 决策历史记忆 v1 + W_mem + ep v3 + 批环境.
+_mv = src('mem_v1.py')
+_pg = src('ppo_gpu.py')
+_ep = src('episode_core.py')
+_lh = src('learner_hub.py')
+_aw = src('actor_worker.py')
+chk('MEM_DECISIONS = int(os.environ.get(\'TH123_MEM_DECISIONS\', \'0\'))' in _mv
+    and 'def hist_step(' in _mv and 'HIST_DIM = MEM_N * MEM_BYTES' in _mv
+    and 'def window_hist(' in _mv
+    and 'window_hist(self._mem_steps)' in _tt
+    and 'import mem_v1 as _mem_v1' in _tt
+    and 'if (_mem_v1 is not None and _mem_v1.MEM_DECISIONS > 0):' in _tt
+    and "_pre_env['TH123_MEM_DECISIONS'] = '0'" in src('tools/train_start.py'),
+    'Gen-1: mem_v1(hist编码/默认0) + train_tm 接线')
+chk('self.W_mem = nn.Linear(_MEM_OUT, n_out, bias=False)' in _pg
+    and 'self.W_mem.weight.zero_()' in _pg
+    and 'z = z + self.W_mem(_mo)' in _pg
+    and "kw.get('hist')" in _pg,
+    'Gen-1: W_mem(零初始化, 只进策略头) + update hist 入口')
+chk('self.Wf1 = nn.Linear' not in _pg and 'self.Wf2 = nn.Linear' not in _pg
+    and 'fwd_pred = torch.zeros((B, 4)' in _pg,
+    'Gen-1: Wf1/Wf2 死重删除(fwd_pred零兼容)')
+chk('EP_SCHEMA_MEM = 3' in _ep and 'hist' in _ep
+    and "arrays['hist']" in _aw and 'hist=hist_all' in _lh
+    and 'TH123_BATCH_MIN_GAMES' in _lh and 'TH123_K4_URGENCY' in src('feat_builder.py'),
+    'Gen-1: ep schema v3 hist(写/读/补零) + 批env + k4 env')
 # ============ P2波锚(审计#3十九项首波, 2026-10-13) ============
 print("=== P2修复波锚(审计#3) ===")
 # 审计2026-10-16 P1-1防复发: CE-1宏层画像的生产调用形态 — begin必须

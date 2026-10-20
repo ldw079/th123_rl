@@ -29,6 +29,7 @@ FILES = [
          "opp_model.py",
          "standard_tree.py",
          "train_tm.py",
+         "mem_v1.py",
          "atk_v1.py",
          "game_gates.py",
          "tm_env.py",
@@ -774,6 +775,21 @@ MUTATIONS = [
      'GUARD_STUN_LO, GUARD_STUN_HI = 150, 157',
      'GUARD_STUN_LO, GUARD_STUN_HI = 150, 167',
      'task-30: DD 门控放宽(158/159-166 漏放) → 断言必须红'),
+    # Gen-1(2026-10-20): mem 默认翻为8(env默认0失效) → 断言必红
+    ('mem_v1.py',
+     "MEM_DECISIONS = int(os.environ.get('TH123_MEM_DECISIONS', '0'))",
+     "MEM_DECISIONS = int(os.environ.get('TH123_MEM_DECISIONS', '8'))",
+     'Gen-1: mem 默认翻8(env默认0失效) → 断言必须红'),
+    # Gen-1: W_mem 零初始化被破坏 → 断言必红
+    ('ppo_gpu.py',
+     'self.W_mem.weight.zero_()',
+     'self.W_mem.weight.fill_(1.0)',
+     'Gen-1: W_mem 零初始化被破坏 → 断言必须红'),
+    # Gen-1: hist env 门失效(无条件累积) → 断言必红
+    ('train_tm.py',
+     'if (_mem_v1 is not None and _mem_v1.MEM_DECISIONS > 0):',
+     'if False:',
+     'Gen-1: hist env 门失效 → 断言必须红'),
 ]
 
 

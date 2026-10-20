@@ -4,7 +4,7 @@
 
 > **2026-10-18 交接快照（R170-R195 收口；另一智能体接手时先读这段）**
 >
-> **门禁**: 704 PASS / 2 WARN / 0 FAIL（裸跑看退出码，勿用管道吞码）；变异 **228** 条；行为测试 106 档。
+> **门禁**: 709 PASS / 2 WARN / 0 FAIL（裸跑看退出码，勿用管道吞码）；变异 **231** 条；行为测试 107 档。
 > **W1 验收门禁**: `D:\temp\gate_r197_final.txt`（12:12:51, exit=0, 原始末行 `668 PASS / 0 WARN / 0 FAIL`）。
 > **R200 门禁**: `D:\temp\gate_r200.txt`（14:29:59, exit=0, 原始末行 `671 PASS / 0 WARN / 0 FAIL`；
 > 本批补注册 `test_load_gate.py` C15(43 项)+白名单对账断言/变异, 变异 208, C15 93）。
@@ -24,6 +24,10 @@
 > task-21 v1 空间 24 维(CORE_DIMS 358→382, TH123_FEAT_SPACE 回滚) + Phase1 空间奖励
 > (TH123_REW_SPACE 保守档) + 旧前缀等价 3.6e-15 + BC 行级 zero-fill v2；变异 220 / C15 101；
 > 用户裁定 bcw 保留 0.05（评估数据归档））。
+> **R211 门禁**: `D:\temp\gate_r213_9bd5e42_20261020_190802.txt`（19:08, exit=0, 原始末行 `709 PASS / 2 WARN / 0 FAIL`）；
+> Gen-1 修复版: hist **8 拍环形缓冲**(`window_hist` 左零填充 → 每决策 (8,3), episode hist (N,8,3))
+> + 预检强制 MEM=0(协议与记忆代际无关) + 加性 W_mem/env=0 回滚 + Wf 死重删除；
+> 本窗仅 `TH123_MEM_DECISIONS=8`（**批放大 B(2局+120s) 延后下一窗**）；变异 231 / C15 107）。
 > **R210 门禁**: `D:\temp\gate_r211_92bcb08_20261020_141259.txt`（14:12, exit=0, 原始末行 `704 PASS / 2 WARN / 0 FAIL`）；
 > task-29/30 执行层统一 mask 层: 地空门控(受身 both/后跳·白楼剑·铜钱 ground/命令技分地空) +
 > 不可动门控(action-id 硬直集 50-78/150-167/倒地; 158·159-166 全 mask) + DD 收窄 150-157;
@@ -88,7 +92,7 @@
 >    → 重活白天不跑；夜间窗由 **W2-1 CPU-H**（`tools/load_gate.py` 整机/内存/族 preflight +
 >    5s 监控 + 协作停止）闸门约束；用户可感知的卡顿=事故。
 
-**当前栈速览(2026-10-18 R195)**: CORE_DIMS=**358**(S-2段343+JZ-1段15); 并行开发必读 `PARALLEL_WORKFLOW.md`(写入权+队列); 门禁**704/2/0**;
+**当前栈速览(2026-10-18 R195)**: CORE_DIMS=**358**(S-2段343+JZ-1段15); 并行开发必读 `PARALLEL_WORKFLOW.md`(写入权+队列); 门禁**709/2/0**;
 宏数reimu88/marisa95/suika91(蓄力cleista真值+系统卡+DD+HJC);
 S-4 GRU序列记忆全链就绪(阶段2a); BH方案v4执行中: **BH-3.1/3.2/3.3
 感知修复✅** / **BH-1 行为健康仪表盘✅**(bh旁车+CE-0.1帧日志开关+
@@ -105,7 +109,7 @@ tools/bh41_measure.py) / **BH-4.2 对位语料采集✅完成**(51/51对×14-15�
 四子项+S-6[untech门+段位表+matcher语境+762对位分片+I列]; 重建实弹
 抓出bc_build两处对位兼容bug[LIBS键/池位]已修76cc402; 完成→bc_swap_v3
 →fleet重启)。
-CE离线件全谱就绪(R131-139); 观察期继续。门禁**704/2/0**(2026-10-20 14:12 裸跑实测); 帧日志需
+CE离线件全谱就绪(R131-139); 观察期继续。门禁**709/2/0**(2026-10-21 19:08 裸跑实测); 帧日志需
 TH123_FRAME_LOG=1。关键数据: cleista/(API全量+守备段位134档)+
 guard_height.json+matchup_combo_prior.json+move_displacement_*.json。
 > 读完本文即可开始工作; 细节按需查阅引用文档。历史版见 git log。
@@ -188,7 +192,7 @@ tail -5 D:\temp\th123_models\fleet_supervision.log
 
 ```bash
 D:\temp\pyenv\python.exe tools/contract_check.py
-# 必须 exit 0 —— 2026-10-20 14:12 实测 704 PASS / 2 WARN / 0 FAIL(gate_r211_92bcb08_20261020_141259.txt 原始末行)
+# 必须 exit 0 —— 2026-10-21 19:08 实测 709 PASS / 2 WARN / 0 FAIL(gate_r213_9bd5e42_20261020_190802.txt 原始末行)
 ```
 
 **纪律**: 裸跑(不pipe)+检查退出码. `| tail` 会吞退出码(f4668e1事故).

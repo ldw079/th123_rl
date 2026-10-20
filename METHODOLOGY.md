@@ -8,9 +8,9 @@
 > 规划产物规范: **PLANNING_AGENT.md(规划智能体宪章, 2026-10-12用户令)** — 一切规划/方案必须"考察现状→详细可执行→附验收途径"三段齐备, 缺一仅得称草稿; 与本文冲突时以本文红线为准
 > 审计路由: **docs/audit_protocol.md(审计智能体入口, 2026-10-12用户令)** — 地位与 AGENTS.md 之于开发智能体同级, 审计接手第一读; 三必要条件(只读最新状态/结论按时间归档/数轮大更新后从零审查)+标准清单; bug 归档入口 docs/bugs/; 与本文冲突时以本文红线为准
 > 并行开发: **PARALLEL_WORKFLOW.md(三智能体并行约定, 2026-10-16用户批准试行)** — 单写者规则+docs/_pending_entries.md 队列; 写文件前先查写入权
-> 版本: 3.74 · 2026-10-20 · R210(**执行层统一 mask 层 task-29/30** /**task-20 进攻奖励 + task-28 DD 正防门控** /**A1/A2 CPU-H P-B/P-C + task-16 入库** /
+> 版本: 3.75 · 2026-10-21 · R211(**Gen-1 架构升级第一批·修复版** /**执行层统一 mask 层 task-29/30** /**task-20 进攻奖励 + task-28 DD 正防门控** /**A1/A2 CPU-H P-B/P-C + task-16 入库** /
 > wd 5 字段(旧读者兼容)+L3 machine_alert/dashboard 三口径/load_gate 三工具 + behavior_deep_report |
-> 门禁 704/2/0, 变异 228
+> 门禁 709/2/0, 变异 231
 
 ---
 
@@ -2789,6 +2789,29 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     =检测随机源失效而非惩罚收敛路线)+接管者标注。mock集成测试14项
     全绿(必败检出≥80%/实际≤20%/退化作废/可复现); 真实模式待舰队空闲。
   - 门禁600/0/0。
+- 3.75 (2026-10-21 上午, **R211: Gen-1 架构升级第一批(修复版)**):
+  - **回滚记录**: 2026-10-20 首发(commit 2e3ecd6)因 hist 形状 `(N,3)≠(N,8,3)` 使 actor 崩溃循环
+    → 16:52 **reset 0dafe12 + 恢复模型备份** 回滚(详见 `D:\temp\scratch\gen1_regression_20261020.md`)。
+  - **修复**: `train_tm` 8 拍环形缓冲(`_mem_steps` 最近8步) + `mem_v1.window_hist` 左零填充 →
+    每决策写 `(8,3)`，episode **schema v3** `hist (N,8,3)` int8；`train_start` 协议预检强制
+    `TH123_MEM_DECISIONS=0`(协议与记忆代际无关, 避免 fixture 旧档拒载)。
+  - **记忆分支**: `TH123_MEM_DECISIONS`(默认0=旧行为; 实验档8); 27→32→64 → 加性 `W_mem`(64→n_out,
+    零初始化, 只进策略头); **不扩 Ws1** → env=0 可直接读迁移档回滚(maxdiff=0.0)。
+  - **迁移** `tools/migrate_p1gen1.py`: 加 mem_*/W_mem, 剥离 Wf, 备份 `*_pre_p1gen1.npz`;
+    三模型副本 dry-run: env=0 maxdiff=0.0 / env=8 敏感性 2.05-2.91 / Wf剥离 / 备份。
+  - **§15 k4** corner_urgency(env 默认0=旧 my_y 语义, 复用槽位不扩维); **Wf1/Wf2 死重删除**
+    (forward 4 元组 fwd_pred=零兼容; 旧档忽略键; 回归 test 3 PASS)。
+  - **测试/门禁**: C15 `tests/test_p1gen1_v1.py` **20 PASS**(mem 编码/window_hist/ep v3/v2 兼容/
+    迁移工具+env=0 maxdiff/env=8 敏感性/批 env 源码/k4/Wf); 断言4(含 window_hist 与预检 MEM=0) +
+    变异3; 门禁 `D:\temp\gate_r213_9bd5e42_20261020_190802.txt`(19:08, exit=0) **709 PASS / 2 WARN / 0 FAIL**;
+    变异 **231**; C15 **107**。`test_gpu_onestep` 曾 8P/1F 瞬态→单跑 9P/0F + 重跑绿, 判 flake 留痕。
+  - **窗口**: 停 main(对照臂排除+PID二核) → apply(13 文件, 逐文件哈希) → 单测 → 门禁 709/2W/0 →
+    变异 3/3 红 → 迁移副本 dry-run → 备份 → 迁移三模型 → commit(不 push) →
+    重启 **仅 `TH123_MEM_DECISIONS=8`**(+FEAT/REW/FRAME_LOG/ACT_MASK; **不设 BATCH_MIN**, 批放大 B
+    延后下一窗) → **强制 smoke**(≥2 新 episode schema3/hist(N,8,3)/learner 消费/连续≥3min 无契约错) →
+    验收 wd5/对照臂/≥10拍无0.00/无alert。
+  - **回滚**: env=0 即旧行为(迁移档可直接读); 或恢复 `*_pre_p1gen1.npz`; smoke 失败即回滚不二次重启。
+  - **独立项**: `价值轨迹 conv2d [N,14400]` 为既有问题(对照臂同款), learner 已响亮降级, 单独立项。
 - 3.74 (2026-10-20 下午, **R210: 执行层统一 mask 层(task-29/30；DD 收窄 150-157)**):
   - **统一层** `game_gates.apply_state_gates`(train_tm 单点接入, mask 兜底后); env
     `TH123_ACT_MASK`(总,默认1)/`TH123_AIR_GATE`/`TH123_IMMOBILE_GATE`/`TH123_DD_GUARD_ONLY`;

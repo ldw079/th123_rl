@@ -341,6 +341,11 @@ try:
 except Exception:
     _dd_gate = None
 SPACE_EDGE_X1 = 1160.0
+# Gen-1(2026-10-20): 决策历史(schema v3; env TH123_MEM_DECISIONS)
+try:
+    import mem_v1 as _mem_v1
+except Exception:
+    _mem_v1 = None
 
 
 def space_reward_reset(self):
@@ -1512,6 +1517,8 @@ class TMTrainer:
         feats, sides, acts, rews, masks_hist, bc_targets = [], [], [], [], [], []
         ep_logps = []       # R60(F-11): 采样时行为策略logP(a)(本地路径;
                             # fleet actor走_fleet_logp_rec闭包, 此表留空)
+        self._mem_hist = []    # Gen-1: 决策历史窗口 (8,3)
+        self._mem_steps = []   # Gen-1: 最近8步单步编码缓冲
         opp_acts = []          # R17④: 每决策拍对手动作类(action//128) —
                                # 下一拍作辅助预测标签(末拍-1)
         # R16: 奖励槽在决策点append(0.0), 区间奖励经rews[-1]+=记给上一动作
@@ -2181,6 +2188,33 @@ class TMTrainer:
                     # R47: _expert_rec已删(可行性天花板3: 永久人类风格
                     # 拉力与超人冲突) — BC目标=自身动作(纯自模仿, 无外部锚)
                     bc_targets.append(mid)
+                    if (_mem_v1 is not None and _mem_v1.MEM_DECISIONS > 0):
+                        # 上一决策结果回填(命中/被防/空挥)
+                        if self._mem_steps:
+                            _ph = self._mem_steps[-1]
+                            if dec_dmg > 0:
+                                _ph[1] = 1
+                            elif dec_guarded:
+                                _ph[1] = 2
+                            elif dec_name is not None and \
+                                    self._whiff_cost(dec_name) > 0:
+                                _ph[1] = 3
+                        _cmap = {'MELEE': 0, 'SKILL': 1, 'BULLET': 2,
+                                 'MOVE': 3, 'GUARD_PREP': 4,
+                                 'JUMP': 5, 'OTHER': 6}
+                        _mc = _cmap.get(_dcls, 6)
+                        _ra = int(right.get('action', 0) or 0)
+                        _ru = int(right.get('untech', 0) or 0)
+                        _step = np.array(
+                            [_mc, 0, (_mem_v1.opp_class(_ra) & 0x7)
+                             | (_mem_v1.opp_events(_ra, _ru) & 0x78)],
+                            dtype=np.int8)
+                        self._mem_steps.append(_step)
+                        if len(self._mem_steps) > 8:
+                            self._mem_steps = self._mem_steps[-8:]
+                        # 窗口(8,3) int8: 左侧零填充 + 最近8步
+                        self._mem_hist.append(
+                            _mem_v1.window_hist(self._mem_steps))
                     # 基准树诊断数据(标准树11列+S-7B风格2列: pc1/pc2 —
                     # 消费方按下标取0-10, 尾部追加向后兼容)
                     dx = abs(right["position.x"] - left["position.x"])
@@ -2292,7 +2326,9 @@ class TMTrainer:
             self._submit_update(feats, acts, rews, sides, distill_rows, frames,
                                 masks_hist, bc_targets,
                                 truncated=truncated, opp_acts=opp_acts,
-                                logps=ep_logps)
+                                logps=ep_logps,
+                                hist=(np.stack(self._mem_hist)
+                                      if self._mem_hist else None))
             # 宏计数持久化
             # D13修复(从零审查): 全项目最后一个裸写产物 → 原子写
             _mc_tmp = self.macro_counts_path + ".tmp.npy"

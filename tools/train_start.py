@@ -88,9 +88,13 @@ def pre_flight():
             len(_seeded), len(_skip), len(_rej)))
     except Exception as e:
         print('[前置] league种子异常(%s) — 继续(双兜底)' % e)
+    # Gen-1(2026-10-20): 协议预检与记忆代际无关 → 强制 MEM=0
+    # (env=8 时 fixture 旧档会因缺 mem 键拒载, 曾致首发点火失败)
+    _pre_env = dict(os.environ)
+    _pre_env['TH123_MEM_DECISIONS'] = '0'
     r = subprocess.run([PY, '-X', 'utf8',
                         os.path.join(ROOT, 'tests', 'test_fleet_protocol.py')],
-                       capture_output=True, cwd=ROOT)
+                       capture_output=True, cwd=ROOT, env=_pre_env)
     ok = r.returncode == 0
     print('[前置] fleet协议测试 %s' % ('21+ PASS' if ok else '!!FAIL — 先修'))
     # P0(从零#4, bug_bc_width_asymmetry): BC库宽度硬门禁 — 代际迁移期

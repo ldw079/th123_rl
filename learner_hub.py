@@ -49,6 +49,10 @@ EP_DIR = os.path.join(FLEET_DIR, 'episodes')
 
 BATCH_K = 4          # 默认摸批局数(上限8 — §6陈旧度论证)
 BATCH_TIMEOUT = 60   # 超时秒数
+# Gen-1(2026-10-20): 批放大(默认0=旧行为) + 等待上限(防饥饿/陈旧)
+BATCH_MIN_GAMES = int(os.environ.get('TH123_BATCH_MIN_GAMES', '0'))
+BATCH_MIN_DEC = int(os.environ.get('TH123_BATCH_MIN_DECISIONS', '0'))
+BATCH_WAIT_MAX = float(os.environ.get('TH123_BATCH_WAIT_MAX', '90'))
 SNAP_KEEP = 3        # 快照滚动保留版本数(批间隔~10-60min → 保留窗~45min,
                      # actor局边界轮询(~5min)远快于窗口, 无空窗)
 POOL_EVERY = 50      # 池快照周期(聚合局数) — D3'(R65)重标定推导见
@@ -226,6 +230,7 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
     all_feats, all_sides, all_acts = [], [], []
     all_rews, all_masks, all_bc_t = [], [], []
     all_opp, all_logp = [], []
+    all_hist = []
     ep_lens, ep_terms = [], []
     distill_batches = []
     ok_paths = []
@@ -268,6 +273,11 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
         all_bc_t.append(arr['bc_targets'])
         all_opp.append(arr['opp_next'])
         all_logp.append(arr['logps'])
+        # Gen-1: 决策历史(schema v3); 旧 v2 档 hist=None → 补零
+        _h = arr.get('hist')
+        if _h is None:
+            _h = np.zeros((n, 8, 3), dtype=np.int8)
+        all_hist.append(_h)
         ep_lens.append(n)
         ep_terms.append(bool(arr['ep_terms'][0]))
         try:
@@ -343,6 +353,10 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
     bc_t = np.concatenate(all_bc_t)
     opp_next = np.concatenate(all_opp)
     logps = np.concatenate(all_logp)
+    hist_all = np.concatenate(all_hist) if all_hist else None
+    if hist_all is not None:
+        assert hist_all.shape[0] == len(acts), (
+            'hist行数%d≠N%d' % (hist_all.shape[0], len(acts)))
 
     # GPU更新(stored logp_old → 真ratio; temp=现行退火值,
     # 与单实例trainer的temp=self.ppo._temp同构)
@@ -387,7 +401,8 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
         feats, acts, rews, sides, ep_lens,
         ep_terms=ep_terms, masks=masks, bc_targets=bc_t,
         opp_next=opp_next, bc_extra=bc_use,
-        temp=gpu_tr._temp, stored_logp=logps, gru_reprs=gru_reprs)
+        temp=gpu_tr._temp, stored_logp=logps, gru_reprs=gru_reprs,
+        hist=hist_all)
     # ---- update成功 → 提交副作用(P1-C: 删除/蒸馏/计数下行) ----
     for ep_path, dist in zip(ok_paths, distill_batches):
         if len(dist):
@@ -594,14 +609,21 @@ def run_learner(char, batch_k=BATCH_K, suffix='_fleet'):
     agg_eps = 0    # 聚合局计数(池快照周期)
 
     while True:
-        eps = collect_episodes(EP_DIR, char, batch_k)
-        timeout = (time.time() - last_update) > BATCH_TIMEOUT
-        if len(eps) < batch_k and not timeout:
+        _need = max(batch_k, BATCH_MIN_GAMES)
+        eps = collect_episodes(EP_DIR, char, _need)
+        _waited = time.time() - last_update
+        _wait_max = max(BATCH_TIMEOUT, BATCH_WAIT_MAX)
+        timeout = _waited > _wait_max
+        if len(eps) < _need and not timeout:
             time.sleep(2)
             continue
         if not eps:
             time.sleep(5)
             continue
+        if timeout and len(eps) < _need:
+            print('[batch] timeout waited=%.0fs games=%d need=%d dec_min=%d '
+                  '(按现有数据更新)' % (_waited, len(eps), _need,
+                                        BATCH_MIN_DEC))
 
         # ---- 合并批量+GPU更新(逐局保边界 — GAE不许跨局泄漏) ----
         # R60(F-2): 主循环兜底 — 原一个畸形批即杀死learner(触发静默回滚

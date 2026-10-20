@@ -107,6 +107,9 @@ class FeatureBuilder:
     # =0→回滚358(旧模型/旧BC可用; env/档不符由 ppo load 响亮拒绝).
     import os as _os
     FEAT_SPACE = _os.environ.get("TH123_FEAT_SPACE", "1") != "0"
+    # Gen-1(2026-10-20): §15 k4 改 corner_urgency(复用槽位, 不扩维);
+    # 默认0=旧 my_y 语义(逐位等价), 实验窗=1
+    K4_URGENCY = _os.environ.get("TH123_K4_URGENCY", "0") != "0"
     CORE_DIMS = 382 if FEAT_SPACE else 358
     LEGACY_CORE = 358  # JZ-1(2026-10-15): 343+15(A档字段段[343..357])
     #                # S-2(合并终版方案2026-10-14): 330+13(变招6+心理4
@@ -971,7 +974,15 @@ class FeatureBuilder:
             s[o + 1] = float(np.clip((_mx - _X0) / 600.0, 0, 1))
             s[o + 2] = float(np.clip((_X1 - _mx) / 600.0, 0, 1))
             s[o + 3] = float(np.clip((_Y1 - _my) / _Y1, 0, 1))
-            s[o + 4] = float(np.clip(_my / _Y1, 0, 1))
+            if getattr(self, "K4_URGENCY", False):
+                # corner_urgency=(1-我方最近墙距/600)*(1-对手最近墙距/600)
+                _mwd = min(_mx - _X0, _X1 - _mx)
+                _owd = min(_ox - _X0, _X1 - _ox)
+                _mu = float(np.clip(1.0 - _mwd / 600.0, 0, 1))
+                _ou = float(np.clip(1.0 - _owd / 600.0, 0, 1))
+                s[o + 4] = _mu * _ou
+            else:
+                s[o + 4] = float(np.clip(_my / _Y1, 0, 1))
             _vtop = _my > 500
             s[o + 5] = 1.0 if (_in_left and not _vtop) else 0.0
             s[o + 6] = 1.0 if (_in_right and not _vtop) else 0.0
