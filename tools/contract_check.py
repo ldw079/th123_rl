@@ -2304,6 +2304,7 @@ chk('MEM_DECISIONS = int(os.environ.get(\'TH123_MEM_DECISIONS\', \'0\'))' in _mv
     and 'window_hist(self._mem_steps)' in _tt
     and 'if (_mem_v1 is not None and _mem_v1.MEM_DECISIONS > 0):' in _tt
     and "mem_fc2'] = (rng.standard_normal" in src('tools/migrate_p1gen1.py')
+    and 'H=H_full[idx_t]' in _pg and 'H=H_full[_kt]' in _pg
     and 'import mem_v1 as _mem_v1' in _tt,
     'Gen-1: mem_v1(hist编码/默认0) + train_tm 接线')
 chk('self.W_mem = nn.Linear(_MEM_OUT, n_out, bias=False)' in _pg

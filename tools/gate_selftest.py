@@ -790,6 +790,11 @@ MUTATIONS = [
      'if (_mem_v1 is not None and _mem_v1.MEM_DECISIONS > 0):',
      'if False:',
      'Gen-1: hist env 门失效 → 断言必须红'),
+    # Gen-1(task-41): update 梯度前向删 H → W_mem 恒零 → 断言必红
+    ('ppo_gpu.py',
+     'H=H_full[idx_t] if H_full is not None else None',
+     'H=None  # H 传递删除',
+     'Gen-1: update 前向漏 H(W_mem 恒零) → 断言必须红'),
 ]
 
 

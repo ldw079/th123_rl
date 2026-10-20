@@ -151,6 +151,19 @@ with torch.no_grad():
     za = tr8.net(X, S, 1.0, None, H=H1)[0]
     zb = tr8.net(X, S, 1.0, None, H=H2)[0]
 chk('env=8 hist 敏感性 >0(更新后)', float((za - zb).abs().max()) > 1e-9)
+# 5) 真实 update() 路径: W_mem 必须学到非零(端到端, 防"H 漏传"再回归)
+tr8.net.float()
+Ntr = 24
+rng4 = np.random.default_rng(4)
+feats_tr = rng4.integers(0, 255, (Ntr, 3, 60, 80), dtype=np.uint8)
+sides_tr = np.zeros((Ntr, n_side), np.float32)
+acts_tr = np.zeros(Ntr, np.int64)
+rews_tr = np.zeros(Ntr, np.float32)
+hist_tr = rng4.integers(0, 120, (Ntr, 8, 3), dtype=np.int8)
+tr8.update(feats_tr, acts_tr, rews_tr, sides_tr, [Ntr],
+           ep_terms=[True], hist=hist_tr)
+chk('update() 真实路径后 W_mem.absmax>0(端到端学习)',
+    float(tr8.net.W_mem.weight.detach().abs().max()) > 0)
 shutil.rmtree(tmp2, ignore_errors=True)
-print('==== Gen-1: %d PASS / %d FAIL ====' % (24 - len(FAIL), len(FAIL)))
+print('==== Gen-1: %d PASS / %d FAIL ====' % (25 - len(FAIL), len(FAIL)))
 sys.exit(1 if FAIL else 0)

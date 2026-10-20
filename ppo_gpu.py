@@ -343,6 +343,10 @@ if HAS_TORCH:
                                          % (Ht.shape[0], N))
             else:
                 Ht = None
+            # Gen-1(task-41): 梯度前向必须与最终 X 行对齐的 hist 输入
+            # (原 update 前向漏 H → mem 输入恒零 → W_mem 恒零/梯度死)
+            H_full = Ht
+            _hdim = H_full.shape[1] if H_full is not None else 27
 
             # R55: 保存CPU副本(回放池用 — 避免GPU→CPU来回)
             X_cpu = np.asarray(feats).astype(np.uint8)
@@ -421,6 +425,9 @@ if HAS_TORCH:
                         np.asarray(opp_next),
                         -np.ones(_rp_n, dtype=np.int64)])
                 N = len(A)
+                if H_full is not None:
+                    H_full = torch.cat([H_full, torch.zeros(
+                        _rp_n, _hdim, device=DEVICE)])
 
             # BC-extra
             if bc_extra is not None:
@@ -470,6 +477,9 @@ if HAS_TORCH:
                         np.asarray(opp_next),
                         -np.ones(len(Ye_t), dtype=np.int64)])
                 N = len(A)
+                if H_full is not None:
+                    H_full = torch.cat([H_full, torch.zeros(
+                        len(Ye_t), _hdim, device=DEVICE)])
 
             # R55: bc_mask补齐到总行数(回放行0+专家行1, 与numpy版一致)
             if bc_mask is not None:
@@ -495,6 +505,9 @@ if HAS_TORCH:
             Bt = (torch.from_numpy(np.asarray(bc_targets)).long()
                   .to(DEVICE) if bc_targets is not None else None)
 
+            if H_full is not None:
+                assert H_full.shape[0] == N, (
+                    'H_full行数%d≠批N%d' % (H_full.shape[0], N))
             # 训练循环
             # 从零#2(等价修复1): 归约约定对齐numpy — 策略/熵/BC=sum
             # (numpy的dz逐行无1/B缩放), 值=mean(dv=(V-ret)/B), 辅助=
@@ -525,8 +538,10 @@ if HAS_TORCH:
                     retb = ret_t[idx_t]
                     lpb = lp_old_t[idx_t]
 
-                    logits, V, Q, _fwd = self.net(xb, sb, temp, mb,
-                                            gru_reprs=G[idx_t] if G is not None else None)
+                    logits, V, Q, _fwd = self.net(
+                        xb, sb, temp, mb,
+                        gru_reprs=G[idx_t] if G is not None else None,
+                        H=H_full[idx_t] if H_full is not None else None)
                     logp_new = F.log_softmax(logits, dim=1)
                     logp_act = logp_new[torch.arange(len(idx)), ab]
                     # P2(审计#3): 对齐numpy侧logp差±20钳制(原缺失=
@@ -610,8 +625,10 @@ if HAS_TORCH:
             _kidx = self.rng.choice(N, size=min(500, N), replace=False)
             _kt = torch.from_numpy(_kidx).long().to(DEVICE)
             with torch.no_grad():
-                _lk, _, _, _ = self.net(X[_kt], S[_kt], temp,
-                                     Mt[_kt] if Mt is not None else None)
+                _lk, _, _, _ = self.net(
+                    X[_kt], S[_kt], temp,
+                    Mt[_kt] if Mt is not None else None,
+                    H=H_full[_kt] if H_full is not None else None)
                 _lpk = F.log_softmax(_lk, dim=1)[
                     torch.arange(len(_kidx)), A[_kt]]
                 kl_val = float(torch.abs(_lpk - lp_old_t[_kt]).mean())
