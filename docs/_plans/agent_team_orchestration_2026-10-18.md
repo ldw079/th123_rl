@@ -427,6 +427,15 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 31. Gen-1 重上成功（R211b，2026-10-20 晚）+ audit#8 Phase-1
+
+- **R211b 窗（`60e0962`，已 push，main=origin=`60e0962`）**：18:52:22 停→19:20:42 全启 **28.3min**（≤45）；pool 隔离 C（reimu 2 档旧宽 exploit→`fleet/pool_legacy_pre_space/`，清单 `_legacy_pool_manifest_20261020_185236.json`，不删）；apply 13 文件（逐文件哈希=payload `b3210de4…7272` NONE）；单测 gen1 20/20、Wf 回归 3/3、mask 19/19、fleet 协议 24/0；门禁 `gate_r213_9bd5e42_20261020_190802`=**709/2W/0 exit=0**；变异 **3/3 红 0 漏网**（首轮 2红+1漏网=应用版缺 hist 门断言，补后门禁重跑绿+单跑红）；迁移三模型 `mem_dim=8/W_mem=True/Wf=False`（真实前值备份 `p1gen1b_backup_20261020/SHA256.txt`；自动 `*_pre_p1gen1.npz` 为旧 16:39 档未覆盖→P2 记 migrate"已存在不覆盖"断言）；**smoke PASS**（7 档 episode `schema=3 hist=(N,8,3)` + learner 消费；工具修 offset 扫描/learner 最近行）；重启 env `FEAT/REW/FRAME_LOG/ACT_MASK + MEM=8`（无 BATCH）；验收主臂 7py+4 游戏、对照臂 2py+1、`wd` 5 字段 10 拍 zero=0、post-boot 无契约错误/无池拒载。
+- **更正**：`[batch] timeout waited=91s games=1-2 need=4 dec_min=0` 是 **默认 `BATCH_K=4` 行为**（`learner_hub.py:50/612`，`_need=max(batch_k,BATCH_MIN_GAMES)`），**非 env 泄漏**；不做无意义重启；批放大 **B（2局+120s）** 仍为下一窗候选。
+- **audit#8 Phase-1（HEAD 9bd5e42，无 P0）**：门禁链/R203–R210/红线①≤1e-6/mask 规则（150-157 正防、158+错防 mask、不可动 action-id 白名单、受身 both、env=0 逐位、空 mask 仅待机）/变异/`[act_mask]` 真生效/停机账/对照臂连续性/Gen-1 回归闭环/休眠记账 均核过；**P1-A 评估/人测路径未接 mask**（side_driver 无 game_gates）→ **task-39**；**P1-B 不可动率旧口径不可复现**（9.91/10.73/10.21% 与 1.5/1.4/1.4% 撤出验收）→ task-39 加 `[act_mask] masked=...` 埋点，Phase-2 复核；P2-③ config_error 应回旧行为（现 raise）→task-39；P2-④ 指令技地空分类 claim 与实现不符→task-39；R207/R208 无提交=中间窗并入 R209 注记；R211 账拆 30.2min 窗+1.5min 崩溃+2min 回滚；R210 gate 命名错位仅注记。
+- **下一步**：audit Phase-2（Gen-1 实证据 + LE 口径 382/Gen-1 后重定义必答）；24h 行为诊断自 19:20:42 起算；20:30 后低载跑 task-29/30 probe；明早 task-39 小窗（评估路径 mask/config_error 回退/指令技静态表/`masked` 埋点/`[mem]` 启动行）；Gen-2 决策门待 24–48h 数据。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
