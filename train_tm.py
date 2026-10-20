@@ -1973,11 +1973,11 @@ class TMTrainer:
                                 and _end_mask.any() else
                                 _ev_mask if _ev_mask is not None
                                 and _ev_mask.any() else self.base_mask)
-                    # task-28(2026-10-19): DD(回避结界)仅正防态(150-167)可用
+                    # task-28/29/30(2026-10-20): 统一执行层 mask 层
+                    # (DD 仅 150-157 + 地空门控 + 不可动门控; env=0 逐位旧行为)
                     if _dd_gate is not None:
-                        mask = _dd_gate.dd_gate(
-                            mask, [m[0] for m in self.macros],
-                            left.get("action", 0))
+                        mask = _dd_gate.apply_state_gates(
+                            mask, [m[0] for m in self.macros], left)
                     # v2配额探索: 新宏(计数<150)12%探针覆盖 + 乐观先验
                     # R50(体检A4): 原子宏配额延长 — 零初始化迁移的logit
                     # 需要梯度才能>0, 但150次配额跑完后策略层不选零logit宏

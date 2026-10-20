@@ -764,6 +764,16 @@ MUTATIONS = [
      'm[i] = False',
      'm[i] = True',
      'task-28: DD 门控失效(非防态可再选) → 断言必须红'),
+    # task-29(2026-10-20): 地空门控删除 → 矩阵断言必红
+    ('game_gates.py',
+     '    if AIR_GATE:',
+     '    if False:',
+     'task-29: 地空门控失效 → 断言必须红'),
+    # task-30: DD 门控放宽回 167(158/159-166 漏放) → 断言必红
+    ('game_gates.py',
+     'GUARD_STUN_LO, GUARD_STUN_HI = 150, 157',
+     'GUARD_STUN_LO, GUARD_STUN_HI = 150, 167',
+     'task-30: DD 门控放宽(158/159-166 漏放) → 断言必须红'),
 ]
 
 

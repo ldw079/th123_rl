@@ -2105,6 +2105,8 @@ _BEHAVIOR_TESTS = [
      "task-20: 惩罚窗/空挥再平衡/窗口bias/成功才结算/红线①bias入stored"),
     ("test_dd_gate.py",
      "task-28: DD 仅正防门控(正/负例+env回滚)"),
+    ("test_act_mask_v1.py",
+     "task-29/30: 统一 mask 层(地空/不可动/DD 150-157)"),
 ]
 # 审计#6c(2026-10-18): C15 白名单对账 — "新测试漏注册"第3次复发(21档/
 # macros_branch/R198 test_load_gate 43项从未进门槛)的永久防线:
@@ -2273,8 +2275,20 @@ _tt_dd = src('train_tm.py')
 chk('DD_GUARD_ONLY = os.environ.get(\'TH123_DD_GUARD_ONLY\', \'1\')' in _gg
     and 'def is_guard_action(' in _gg and 'def dd_gate(' in _gg
     and 'm[i] = False' in _gg
-    and '_dd_gate.dd_gate(' in _tt_dd,
+    and '_dd_gate.apply_state_gates(' in _tt_dd,
     'task-28: DD 仅正防门控(150-167)+train_tm 接线')
+# task-29/30(2026-10-20): 统一执行层 mask 层(地空/不可动/DD 150-157).
+chk('def apply_state_gates(' in _gg
+    and 'GUARD_STUN_LO, GUARD_STUN_HI = 150, 157' in _gg
+    and 'AIR_DEF_STUN = 158' in _gg
+    and 'MISGUARD_LO, MISGUARD_HI = 159, 166' in _gg
+    and 'def _is_ground_only(' in _gg and "n == '待机'" in _gg,
+    'task-29/30: mask 层(地空/不可动/DD收窄150-157/158·159-166 mask/空mask仅待机)')
+chk('ACT_MASK = os.environ.get(\'TH123_ACT_MASK\', \'1\')' in _gg
+    and 'AIR_GATE = os.environ.get(\'TH123_AIR_GATE\', \'1\')' in _gg
+    and 'IMMOBILE_GATE = os.environ.get(\'TH123_IMMOBILE_GATE\', \'1\')' in _gg
+    and '    if not ACT_MASK:' in _gg,
+    'task-29/30: env 三开关 + env=0 逐位回滚分支')
 # ============ P2波锚(审计#3十九项首波, 2026-10-13) ============
 print("=== P2修复波锚(审计#3) ===")
 # 审计2026-10-16 P1-1防复发: CE-1宏层画像的生产调用形态 — begin必须

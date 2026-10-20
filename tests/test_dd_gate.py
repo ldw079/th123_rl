@@ -49,7 +49,8 @@ os.environ['TH123_DD_GUARD_ONLY'] = '1'
 importlib.reload(G)
 
 line = G.startup_line()
-chk('启动行含 guard_only', 'guard_only=1' in line and 'dd_gate' in line)
+chk('启动行含 mask/dd 开关', ('dd_guard=1' in line or 'guard_only=1' in line)
+    and ('[act_mask]' in line or '[dd_gate]' in line))
 TOTAL = 14
 print('==== task-28 dd gate: %d PASS / %d FAIL ===='
       % (TOTAL - len(FAIL), len(FAIL)))
