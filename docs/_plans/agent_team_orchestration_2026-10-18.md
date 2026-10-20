@@ -407,6 +407,17 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 29. R210 mask 上线 + Gen-1 首次迁移回归/回滚（2026-10-20 下午）
+
+- **R210（`e972053`，push 后 main=origin=`0dafe12`）**：执行层统一 mask 层（task-28/29/30 合并）——DD/铜钱/羽衣仅**正确防御硬直 150-157**（158/错防 159-166 mask）；地/空门控；不可动门控（action-id 并集白名单）；env=0 逐位等价；配置异常→关 gate 回旧行为。门禁 **704/2W/0**；变异 2/2 红；停机 14:12:37→14:34:30 **21.9min**；三角色 `[act_mask] ON air=1 immobile=1 dd_guard=1 guard_ids=150-157`；tmp 清理 +1.27GB（D 51.64→52.91）。
+- **Gen-1 首次迁移窗（R211，16:13:16–16:43:25，30.2min）**：门禁 `gate_r212` **709/2W/0**、变异 3/3 红（首轮 1 漏网→补断言后复验）、三模型迁移（env=0 maxdiff=0.0、敏感性 2.81/2.05/2.91、Wf 剥离、备份哈希入档）、commit `2e3ecd6`（**未 push**）；首次重启被 `test_fleet_protocol` fixture 旧档拦下→迁移 fixture 后二次重启成功。
+- **运行回归（16:50 发现）**：actor `EpisodeContractError: hist形状(N,3)≠(N,8,3)` → 连续无效局退出→崩溃循环；**根因：train_tm 每决策只 append 单步 (3,)，未做 8 拍窗口**；门禁/C15 未覆盖真实对局闭环。**回滚 16:52:32→16:54:29（2min）**：reset `0dafe12`+恢复 8 档模型（哈希核验）+旧 env 重启；训练恢复、episode schema=2 正常、无数据丢失。
+- **修复（task-38）**：`train_tm` 8 拍环形缓冲 + `mem_v1.window_hist` 左零填充 → 每决策 `(8,3)`、episode `(N,8,3)`；单测 20 PASS；fleet 预检强制 `TH123_MEM_DECISIONS=0`+旧 fixture 恢复（协议测试 24/0）；门禁 `gate_gen1_final` **709/2W/0**（test_gpu_onestep 8P/1F 瞬态→单跑 9P/0F，flake 留痕）；payload `p1gen1b` agg `b3210de446243fe7a4a311af23b5bd79f58484b074f3cff67e12d8199cc97272`（13 文件，apply HEAD=0dafe12 守卫，新 worktree 验证 NONE）。
+- **决定**：明日 10:00 迁移窗**只带 MEM=8、不设 BATCH_MIN**（先单独验证记忆+hist 链 24h）；批放大 B（2 局+120s）为下一窗候选，A 再议；**新增制度：运行闭环类变更（episode schema/网络输入/迁移）窗内必须做最小对局 smoke test**（≥2-3 新 episode/schema/形状/learner 消费/连续≥3min 无契约错误，否则窗不通过）；`价值轨迹 conv2d [N,14400]` 确认为既有独立项（不阻塞）。
+- **磁盘/环境**：D 47.4GB（pagefile 12.3/20.7GB 动态伸缩为主因，<45GB 触发停写盘上抛）；主机休眠 01:44–09:42 与 14:12/16:13 两次"离线时段"均入账。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
