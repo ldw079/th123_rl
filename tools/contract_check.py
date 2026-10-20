@@ -2300,10 +2300,11 @@ _aw = src('actor_worker.py')
 chk('MEM_DECISIONS = int(os.environ.get(\'TH123_MEM_DECISIONS\', \'0\'))' in _mv
     and 'def hist_step(' in _mv and 'HIST_DIM = MEM_N * MEM_BYTES' in _mv
     and 'def window_hist(' in _mv
+    and "_pre_env['TH123_MEM_DECISIONS'] = '0'" in src('tools/train_start.py')
     and 'window_hist(self._mem_steps)' in _tt
-    and 'import mem_v1 as _mem_v1' in _tt
     and 'if (_mem_v1 is not None and _mem_v1.MEM_DECISIONS > 0):' in _tt
-    and "_pre_env['TH123_MEM_DECISIONS'] = '0'" in src('tools/train_start.py'),
+    and "mem_fc2'] = (rng.standard_normal" in src('tools/migrate_p1gen1.py')
+    and 'import mem_v1 as _mem_v1' in _tt,
     'Gen-1: mem_v1(hist编码/默认0) + train_tm 接线')
 chk('self.W_mem = nn.Linear(_MEM_OUT, n_out, bias=False)' in _pg
     and 'self.W_mem.weight.zero_()' in _pg

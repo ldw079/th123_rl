@@ -24,7 +24,9 @@ def migrate_one(pi, vv, n_out, dry):
     out['mem_fc1'] = (rng.standard_normal((MEM_IN, MEM_HID))
                       / np.sqrt(MEM_IN)).astype(np.float32)
     out['mem_b1'] = np.zeros(MEM_HID, dtype=np.float32)
-    out['mem_fc2'] = np.zeros((MEM_HID, MEM_OUT), dtype=np.float32)
+    # task-40: mem_fc2 必须非零小随机, 否则 W_mem 输入恒零→恒零梯度(死分支)
+    out['mem_fc2'] = (rng.standard_normal((MEM_HID, MEM_OUT)) * 0.05
+                      ).astype(np.float32)
     out['mem_b2'] = np.zeros(MEM_OUT, dtype=np.float32)
     out['W_mem'] = np.zeros((MEM_OUT, n_out), dtype=np.float32)
     if dry:
@@ -34,6 +36,9 @@ def migrate_one(pi, vv, n_out, dry):
         bk = p.replace('.npz', '_pre_p1gen1.npz')
         if not os.path.exists(bk):
             shutil.copy2(p, bk)
+        else:
+            print('[warn] 备份已存在不覆盖: %s (回滚请用窗内备份目录)'
+                  % os.path.basename(bk))
     np.savez(pi, **out)
     print('[ok] %s +mem/W_mem (Wf stripped), 备份 *_pre_p1gen1.npz'
           % os.path.basename(pi))

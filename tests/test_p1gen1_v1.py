@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Gen-1 单测: 记忆编码/ep v3 hist/迁移等价/批 env/k4 env."""
+"""Gen-1 单测(hermetic, task-40): mem 编码/ep v3 hist/迁移等价/一步学习/批 k4 env.
+
+不读 live store: 迁移 fixture 由 env=0 trainer 在本测试 temp 目录内合成.
+"""
 import importlib
 import json
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
 
@@ -70,6 +72,7 @@ p2 = E.save_episode_npz(tmp, 'reimu', 1, 1, arrs2,
 arr3, _ = E.load_episode_npz(p2)
 chk('ep v2 兼容(hist=None)', int(np.load(p2)['schema']) == 2
     and arr3['hist'] is None)
+shutil.rmtree(tmp, ignore_errors=True)
 
 # 3) 批 env/k4 env 源码锚
 _lh = open(os.path.join(WT, 'learner_hub.py'), encoding='utf8').read()
@@ -79,63 +82,75 @@ chk('批 env 常量', "TH123_BATCH_MIN_GAMES" in _lh
 _fb = open(os.path.join(WT, 'feat_builder.py'), encoding='utf8').read()
 chk('k4 env 常量', "TH123_K4_URGENCY" in _fb and "corner_urgency" in _fb)
 
-# 4) 迁移等价(副本; env=0 maxdiff=0.0)
+# 4) hermetic 迁移 fixture: env=0 trainer 合成旧档 → 迁移 → 等价/敏感性/一步学习
 os.environ['TH123_MEM_DECISIONS'] = '0'
 importlib.reload(M)
 import torch  # noqa: E402
 import ppo_gpu as G  # noqa: E402
-STORE = r'D:\temp\th123_models'
-tmp2 = tempfile.mkdtemp(prefix='gen1_mig_')
-for f in ('model_ppo_reimu_fleet.npz', 'model_ppo_reimu_fleet_v.npz'):
-    shutil.copy2(os.path.join(STORE, f), os.path.join(tmp2, f))
 n_out = 88
 n_side = 5 * n_out + 382
+tmp2 = tempfile.mkdtemp(prefix='gen1_h_')
+pi = os.path.join(tmp2, 'model_ppo_reimu_fleet.npz')
+vv = os.path.join(tmp2, 'model_ppo_reimu_fleet_v.npz')
 tr0 = G.PPOTrainerGPU(n_side=n_side, n_out=n_out)
-tr0.load(os.path.join(tmp2, 'model_ppo_reimu_fleet.npz'),
-         os.path.join(tmp2, 'model_ppo_reimu_fleet_v.npz'))
+tr0.save(pi, vv)
 tr0.net.cpu().double().eval()
 rng = np.random.default_rng(7)
 X = torch.from_numpy(rng.normal(0, .5, (4, 3, 60, 80)))
 S = torch.from_numpy(rng.normal(0, .3, (4, n_side)))
 with torch.no_grad():
     z_old = tr0.net(X, S, 1.0, None)[0].clone()
-r = subprocess.run([sys.executable, '-X', 'utf8',
-                    'tools/migrate_p1gen1.py', '--store', tmp2],
-                   capture_output=True, text=True)
-chk('迁移工具 三件套(Wf剥离/mem/W_mem)', r.returncode == 0
-    and 'Wf stripped' in r.stdout)
-d = np.load(os.path.join(tmp2, 'model_ppo_reimu_fleet.npz'))
+
+sys.path.insert(0, os.path.join(WT, 'tools'))
+import importlib as _il  # noqa: E402
+_mig = _il.import_module('migrate_p1gen1')
+_mig.migrate_one(pi, vv, n_out, dry=False)
+d = np.load(pi)
 chk('迁移档无 Wf 键 + 有 mem_dim/W_mem',
     'Wf1' not in d.files and 'mem_dim' in d.files and 'W_mem' in d.files)
+chk('迁移后 W_mem 全零(加性零初始化)', float(np.abs(d['W_mem']).max()) == 0.0)
+chk('迁移后 mem_fc2 非零(打破死分支)',
+    float(np.abs(d['mem_fc2']).max()) > 0.0)
 chk('备份 *_pre_p1gen1.npz',
     os.path.exists(os.path.join(tmp2,
                                 'model_ppo_reimu_fleet_pre_p1gen1.npz')))
 importlib.reload(M)
 importlib.reload(G)
 tr1 = G.PPOTrainerGPU(n_side=n_side, n_out=n_out)
-tr1.load(os.path.join(tmp2, 'model_ppo_reimu_fleet.npz'),
-         os.path.join(tmp2, 'model_ppo_reimu_fleet_v.npz'))
+tr1.load(pi, vv)
 tr1.net.cpu().double().eval()
 with torch.no_grad():
     z_env0 = tr1.net(X, S, 1.0, None)[0]
 chk('env=0 迁移档 maxdiff=0.0',
     float((z_old - z_env0).abs().max()) < 1e-9)
+
 os.environ['TH123_MEM_DECISIONS'] = '8'
 importlib.reload(M)
 importlib.reload(G)
 tr8 = G.PPOTrainerGPU(n_side=n_side, n_out=n_out)
-tr8.load(os.path.join(tmp2, 'model_ppo_reimu_fleet.npz'),
-         os.path.join(tmp2, 'model_ppo_reimu_fleet_v.npz'))
-tr8.net.cpu().double().eval()
-with torch.no_grad():
-    tr8.net.mem_fc2.weight.normal_(0, 0.5)
-    tr8.net.W_mem.weight.normal_(0, 0.5)
+tr8.load(pi, vv)
+tr8.net.double()
 H1 = torch.zeros(4, 27, dtype=torch.float64)
 H2 = torch.zeros(4, 27, dtype=torch.float64)
 H2[:, 0] = 1.0
+tr8.net.train()
+tr8.net.zero_grad()
+Hr = torch.from_numpy(rng.normal(0, 1.0, (4, 27))).double()
+out = tr8.net(X, S, 1.0, None, H=Hr)
+loss = (out[0] ** 2).sum()
+loss.backward()
+g = tr8.net.W_mem.weight.grad
+chk('W_mem 梯度非零(死分支修复)', g is not None
+    and float(g.detach().abs().max()) > 0.0)
+with torch.no_grad():
+    tr8.net.W_mem.weight.copy_(tr8.net.W_mem.weight - 1e-3 * g)
+chk('一步后 W_mem.absmax>0(实际学习)',
+    float(tr8.net.W_mem.weight.detach().abs().max()) > 0.0)
+# 零初始化 W_mem 下 H 扰动必然无差, 故在一步更新后验证敏感性>0
 with torch.no_grad():
     za = tr8.net(X, S, 1.0, None, H=H1)[0]
     zb = tr8.net(X, S, 1.0, None, H=H2)[0]
-chk('env=8 hist 敏感性 >0', float((za - zb).abs().max()) > 1e-9)
-print('==== Gen-1: %d PASS / %d FAIL ====' % (20 - len(FAIL), len(FAIL)))
+chk('env=8 hist 敏感性 >0(更新后)', float((za - zb).abs().max()) > 1e-9)
+shutil.rmtree(tmp2, ignore_errors=True)
+print('==== Gen-1: %d PASS / %d FAIL ====' % (24 - len(FAIL), len(FAIL)))
 sys.exit(1 if FAIL else 0)
