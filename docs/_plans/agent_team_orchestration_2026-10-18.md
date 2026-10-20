@@ -418,6 +418,15 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 30. 磁盘回收（2026-10-20 17:55，用户授权）
+
+- 背景：D_free 由 45.3GB 降至 **41.4GB**（<45 阈值）；排查=另一智能体下载 `D:\study\models`（8.67GB，word2vec 3.35GB 于 17:44 落完）+ `D:\pagefile.sys` 动态伸缩（峰值 20.7GB 分配）；训练侧无泄漏（episodes/frame_logs 量级正常）。
+- **用户裁定授权**删除我方 `D:\temp\bc_store_backup_20261018`（**18.22GB**，10-18 BC 备份；普通目录非 junction、代码无运行时引用、live BC `th123_bc_v3` 36.53GB 保留）；删前留清单 `D:\temp\scratch\bc_backup_manifest_20261018.txt`。
+- 结果：**D_free 41.45→59.66GB（+18.19GB）**；邻近目录未动；施工记录写入 `gen1_regression_20261020.md §6`。
+- 纪律：D<45GB 报警 Lead；<43GB 暂停非必要写盘；未经用户授权不删任何备份/数据；清理前必须留清单并核验非 reparse/junction。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
