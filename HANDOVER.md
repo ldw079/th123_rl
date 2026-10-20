@@ -28,6 +28,14 @@
 > Gen-1 修复版: hist **8 拍环形缓冲**(`window_hist` 左零填充 → 每决策 (8,3), episode hist (N,8,3))
 > + 预检强制 MEM=0(协议与记忆代际无关) + 加性 W_mem/env=0 回滚 + Wf 死重删除；
 > 本窗仅 `TH123_MEM_DECISIONS=8`（**批放大 B(2局+120s) 延后下一窗**）；变异 232 / C15 107）。
+> **R213 门禁**: `D:\temp\gate_r215_a331c44_20261020_203959.txt`（20:39, exit=0, 原始末行 `709 PASS / 2 WARN / 0 FAIL`，变异 232/Gen-1 4条全红）；
+> **Gen-1 bug2 修复**: `ppo_gpu.update()` 梯度前向补 `H_full`（原始行=hist；回放/BC 行零；训练 `idx_t`/KL `_kt`）——
+> 原漏 H 使 mem 输入恒零、`W_mem` 恒 0（"迁移成功但记忆未学"）；新增真实 `update()` 端到端测试（25 PASS）。
+> **运行时学习验收（新制度）**: 迁移/架构变更窗口重启后 **+10min** 必须核生产档/snapshot `W_mem.absmax>0`+`nnz`，
+> 不只看 schema/启动行；首验 21:08–21:11: reimu 8.39e-3(5487)/marisa 1.02e-2(5662)/suika 7.45e-3(5570)。
+> **detached 启动（防 harness Job Object 连坐）**: 主臂/对照臂经 WMI `Win32_Process.Create` + bat 启动（父=WmiPrvSE，
+> 脱离 DSH 会话树）；对照臂脚本必须**绝对路径**（相对路径命令行不含 `th123_rl_control` → 被 train_start 前置清理误杀）。
+> 事故台账: `D:\temp\scratch\gen1_incident_ledger_20261020.md`；`--detach` 工具化明日补。
 > **R210 门禁**: `D:\temp\gate_r211_92bcb08_20261020_141259.txt`（14:12, exit=0, 原始末行 `704 PASS / 2 WARN / 0 FAIL`）；
 > task-29/30 执行层统一 mask 层: 地空门控(受身 both/后跳·白楼剑·铜钱 ground/命令技分地空) +
 > 不可动门控(action-id 硬直集 50-78/150-167/倒地; 158·159-166 全 mask) + DD 收窄 150-157;

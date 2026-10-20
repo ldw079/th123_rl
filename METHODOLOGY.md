@@ -2812,6 +2812,15 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     验收 wd5/对照臂/≥10拍无0.00/无alert。
   - **回滚**: env=0 即旧行为(迁移档可直接读); 或恢复 `*_pre_p1gen1.npz`; smoke 失败即回滚不二次重启。
   - **独立项**: `价值轨迹 conv2d [N,14400]` 为既有问题(对照臂同款), learner 已响亮降级, 单独立项。
+  - **bug2(20:30 实锤, task-41)**: 迁移成功后生产档 `W_mem` 仍恒 0 —— 根因 `ppo_gpu.update()` 梯度前向**漏传 H**
+    (mem 输入恒零 → `∂L/∂W_mem=0`、`∂L/∂mem_fc2=0`)；修 = 构造与最终 X 行对齐的 `H_full`(原始行=hist；回放/BC
+    行=零；guard assert)，训练前向 `H=H_full[idx_t]`、KL 复检 `H=H_full[_kt]`；新增**真实 `update()` 端到端测试**
+    (合成含 hist batch → update 一步 → `W_mem.absmax>0`) + 变异"删 H 传递 → 必红"(4/4 红)。
+  - **运行时学习验收制度(新)**: 记忆/架构类变更窗口重启后 **+10min** 必须核生产档/snapshot `W_mem.absmax>0`
+    与 `nnz`；仅 schema3/启动行/敏感性单测**不算**通过。21:08–21:11 三模型首验: 8.39e-3(5487)/1.02e-2(5662)/7.45e-3(5570)。
+  - **detached 启动规程(事故后)**: 双臂经 WMI `Win32_Process.Create` + `D:\temp\launch_{main,control}.bat` 启动
+    (父=WmiPrvSE，脱离 DSH harness Job Object 防连坐)；对照臂/主臂脚本必须**绝对路径**，否则命令行缺
+    `th123_rl_control` 豁免标记会被 `train_start` 前置清理误杀；事故台账 `gen1_incident_ledger_20261020.md`。
 - 3.74 (2026-10-20 下午, **R210: 执行层统一 mask 层(task-29/30；DD 收窄 150-157)**):
   - **统一层** `game_gates.apply_state_gates`(train_tm 单点接入, mask 兜底后); env
     `TH123_ACT_MASK`(总,默认1)/`TH123_AIR_GATE`/`TH123_IMMOBILE_GATE`/`TH123_DD_GUARD_ONLY`;
