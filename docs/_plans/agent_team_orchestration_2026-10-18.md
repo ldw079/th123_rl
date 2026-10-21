@@ -471,6 +471,18 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 35. task-43b/44 小窗（R216，2026-10-21 下午）：detach schtasks 修复 + pref_on_removed（含 flake 流程/超时如实记录）
+
+- **窗口**：13:10:22 停（收 GO 即执行，早于计划 5min）→ 13:29:51–13:31 验收，**中断 ≈19.5min**（超 15min 目标、未超 13:35 硬线；原因：首跑 `git stash apply` 被 PowerShell 花括号解析失败→重试+重跑门禁/单测）；对照臂 2py+1 存活；commit **`3ee0cfd`**（12 文件；ahead 1/0，待 push）。
+- **flake 流程（首次正式执行）**：门禁首跑 `gate_r218_7d54d67_20261021_124531`=**712/2W/1 FAIL**（`test_gpu_onestep` 8P/1F 瞬态）→ 单跑 `lg_rerun_onestep_20261021_131036.log`=**9P/0F** + 门禁重跑 `gate_r220_7d54d67_20261021_131503`=**713/2W/0** ⇒ 判 flake（两证据留痕）。
+- **内容**：`train_detach.py` 改 Popen+**schtasks 计划任务脱离链**（`[detach] schtasks 启动成功 task=th123_train_detached`，任务 Status Ready，主臂父进程非 dsh；breakaway 被 Job 拒→自动回退）；`pref_on_removed` 埋点（`note_pref()/pref_on_removed_line()`，train_tm/side_driver 采样后调用）；C15 detach 12/12、task39 20/20；变异 `task-43b,44` **2/2 红**；MUT 237（+2）；docs 数字 713/237/109。
+- **验收行（三 actor 均见）**：`[mem] on mem_dim=8 hist=(N,8,3) env=8`；`[act_mask] masked_choice=0/N (0.0%) pref_on_removed=0/N gate_removed=X/N (≈99%)`；games 4、对照臂 2py+1、schema3、wd 5 字段、无 alert。
+- **pref_on_removed=0 异常（待验证）**：三角色全 0（0/3218、0/2202、0/1464）——需确认"真实为 0"（策略从不偏好被 gate 移除项）还是**实现 bug**（softmax 在 gate 后 mask 上计算/removed 项本被 base mask 挡住）；task-44 保持 in_progress 直到诊断；push 后指标报告标注"待验证"。
+- **教训入账**：①`git stash apply 'stash@{0}'` 必须引号（PowerShell 花括号解析）；②flake 流程（单跑+重跑两证据）正式启用；③窗口材料自检清单增加 stash/pop 引号+路径转义项。
+- **下一步**：push `3ee0cfd`；pref 口径诊断；`probe v2`（back/up 位移判定/guardstun/压制，13:32 已开跑）→ 阶段 1（buf jump/attack K=6）材料准备；B 延后机制窗末。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
