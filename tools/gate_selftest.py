@@ -795,6 +795,16 @@ MUTATIONS = [
      'H=H_full[idx_t] if H_full is not None else None',
      'H=None  # H 传递删除',
      'Gen-1: update 前向漏 H(W_mem 恒零) → 断言必须红'),
+    # task-39: 评估路径 gate 删除 → 断言必红
+    ('side_driver.py',
+     'mask = _dd_gate.apply_state_gates(',
+     'mask = mask  # task-39: 评估路径 gate 删除',
+     'task-39: 评估路径 gate 删除 → 断言必须红'),
+    # task-39: masked 埋点日志删除 → 断言必红
+    ('train_tm.py',
+     'print(_dd_gate.masked_line())',
+     'pass  # task-39: masked 日志删除',
+     'task-39: masked 埋点删除 → 断言必须红'),
 ]
 
 

@@ -13,6 +13,12 @@ import sys
 # R61u(C1): 统一宏执行器(与train_tm共同调用 — 双拷贝终结)
 import macro_executor
 
+# task-39: 评估/人测/剥削者与训练共用统一执行 mask 层
+try:
+    import game_gates as _dd_gate
+except Exception:
+    _dd_gate = None
+
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -305,6 +311,20 @@ class SideDriver:
         # JZ-3.2: 对手投技无敌窗内禁采样投技(与train_tm同源, 掩码层)
         if self.throw_idx.any() and self._throw_invuln_trk.invuln > 0:
             mask = mask & ~self.throw_idx
+        # task-39: 评估路径接入统一 mask(共用 env; config_error 关 gate 回旧行为)
+        if _dd_gate is not None and getattr(self, '_act_mask_ok', True):
+            try:
+                mask = _dd_gate.apply_state_gates(
+                    mask, [m[0] for m in self.macros],
+                    {'action': own.get('action', 0),
+                     'airBorne': own.get('airBorne', False)})
+            except Exception as _ame:
+                self._act_mask_ok = False
+                print('[act_mask] config_error -> gates disabled: %r'
+                      % (_ame,))
+            self._eval_gate_cnt = getattr(self, '_eval_gate_cnt', 0) + 1
+            if self._eval_gate_cnt % 200 == 0:
+                print(_dd_gate.masked_line())
         if not mask.any():
             mask = (_end_mask if _end_mask is not None
                     and _end_mask.any() else self.base_mask)

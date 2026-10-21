@@ -520,6 +520,8 @@ class TMTrainer:
             print(_atk_v1.startup_line())
         if _dd_gate is not None:
             print(_dd_gate.startup_line())
+            self._act_mask_ok = True
+            self._gate_cnt = 0
         _fsp = os.environ.get('TH123_FEAT_SPACE', '1')
         print('[feat_space] feat_space=%s CORE_DIMS=%d n_side=%d' % (
             _fsp, FeatureBuilder.CORE_DIMS,
@@ -1982,9 +1984,19 @@ class TMTrainer:
                                 and _ev_mask.any() else self.base_mask)
                     # task-28/29/30(2026-10-20): 统一执行层 mask 层
                     # (DD 仅 150-157 + 地空门控 + 不可动门控; env=0 逐位旧行为)
-                    if _dd_gate is not None:
-                        mask = _dd_gate.apply_state_gates(
-                            mask, [m[0] for m in self.macros], left)
+                    if _dd_gate is not None and getattr(
+                            self, '_act_mask_ok', True):
+                        try:
+                            mask = _dd_gate.apply_state_gates(
+                                mask, [m[0] for m in self.macros], left)
+                        except Exception as _ame:
+                            # task-39: 配置异常 → 关 gate 回旧行为(不崩 actor)
+                            self._act_mask_ok = False
+                            print('[act_mask] config_error -> gates disabled: '
+                                  '%r' % (_ame,))
+                        self._gate_cnt = getattr(self, '_gate_cnt', 0) + 1
+                        if self._gate_cnt % 200 == 0:
+                            print(_dd_gate.masked_line())
                     # v2配额探索: 新宏(计数<150)12%探针覆盖 + 乐观先验
                     # R50(体检A4): 原子宏配额延长 — 零初始化迁移的logit
                     # 需要梯度才能>0, 但150次配额跑完后策略层不选零logit宏

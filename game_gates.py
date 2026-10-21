@@ -44,6 +44,21 @@ def dd_gate(mask, names, action):
 
 
 # ---- 统一 mask 层(task-28/29/30) ----
+# task-39: 运行时埋点(每次 apply_state_gates 计一次; 与原 mask 不同=被 mask)
+_GATE_DECISIONS = 0
+_MASKED_DECISIONS = 0
+
+
+def reset_masked_stats():
+    global _GATE_DECISIONS, _MASKED_DECISIONS
+    _GATE_DECISIONS = 0
+    _MASKED_DECISIONS = 0
+
+
+def masked_line():
+    n, m = _GATE_DECISIONS, _MASKED_DECISIONS
+    pct = (100.0 * m / n) if n else 0.0
+    return ('[act_mask] masked=%d/%d (%.1f%%)' % (m, n, pct))
 ACT_MASK = os.environ.get('TH123_ACT_MASK', '1') != '0'
 AIR_GATE = os.environ.get('TH123_AIR_GATE', '1') != '0'
 IMMOBILE_GATE = os.environ.get('TH123_IMMOBILE_GATE', '1') != '0'
@@ -56,6 +71,11 @@ AIR_NAMES = {'jA', 'j6A', 'j8A', 'j2A', 'j2B', 'jC',
              '空结界4', '空结界6', '空tech'}
 GROUND_MOVE = {'跳跃', '高跳', '前冲', '后冲', '后跳', '斜上冲', '斜后跳'}
 BOTH = {'待机', '前进', '后退', '受身'}
+# task-39: 指令技静态地空表 — 数字方向开头(623/236/214/22/46/41236/63214...)为地面
+# 指令技(空中变体由 j* 前缀/空* 命名单独归类); 供地空门控使用.
+CMD_GROUND = set()      # 显式补充(若发现某数字名字实为空中技, 记录于此并翻转分类)
+CMD_GROUND_PREFIX = ('236', '623', '214', '22', '46', '41236', '63214',
+                     '236236', '214214', '623623')
 GUARD_MACROS = {'立防', '蹲防', '防', '防反'}
 UKEMI = {'受身'}
 WAKE = {'起身', '起身穿'}
@@ -70,11 +90,19 @@ def _is_air(n):
         is_dd_macro(n) and '空' in str(n))
 
 
+def _is_cmd_ground(n):
+    """指令技静态表: 数字方向开头且非 j/空 → 地面指令技(task-39)."""
+    s = str(n)
+    if not s or s[0] not in '0123456789':
+        return False
+    return any(s.startswith(p) for p in CMD_GROUND_PREFIX) or s in CMD_GROUND
+
+
 def _is_ground_only(n):
     if n in BOTH or n in AIR_NAMES or _is_air(n):
         return False
     return (n in GUARD_MACROS or n in GROUND_ATK or n in GROUND_MOVE
-            or n in WAKE or n in CARDS_GROUND
+            or n in WAKE or n in CARDS_GROUND or _is_cmd_ground(n)
             or (is_dd_macro(n) and '空' not in str(n)))
 
 
@@ -82,6 +110,8 @@ def apply_state_gates(mask, names, left):
     """统一 mask 层; env=0 时原样返回(逐位旧行为)。"""
     if not ACT_MASK:
         return mask
+    globals()['_GATE_DECISIONS'] = _GATE_DECISIONS + 1
+    _orig = mask
     act = int(left.get('action', 0) or 0)
     air = bool(left.get('airBorne'))
     m = mask.copy()
@@ -122,6 +152,8 @@ def apply_state_gates(mask, names, left):
                 '请设 TH123_ACT_MASK=0 回旧行为并上报')
         m[:] = False
         m[idle[0]] = True
+    if not (m == _orig).all():
+        globals()['_MASKED_DECISIONS'] = _MASKED_DECISIONS + 1
     return m
 
 
