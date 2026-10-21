@@ -29,6 +29,7 @@ FILES = [
          "opp_model.py",
          "standard_tree.py",
          "train_tm.py",
+         "tools/train_detach.py",
          "mem_v1.py",
          "atk_v1.py",
          "game_gates.py",
@@ -805,6 +806,16 @@ MUTATIONS = [
      'print(_dd_gate.masked_line())',
      'pass  # task-39: masked 日志删除',
      'task-39: masked 埋点删除 → 断言必须红'),
+    # task-43: detach 去掉 breakaway(脱离 Job 失效) → 断言必红
+    ('tools/train_detach.py',
+     'CREATE_BREAKAWAY_FROM_JOB = 0x01000000',
+     'CREATE_BREAKAWAY_FROM_JOB = 0x00000000',
+     'task-43: breakaway 失效 → 断言必须红'),
+    # task-41: masked_choice 埋点删除 → 断言必红
+    ('train_tm.py',
+     'if not _dd_gate.note_choice(mid):',
+     'if False:  # task-41: note_choice 删除',
+     'task-41: masked_choice 埋点删除 → 断言必须红'),
 ]
 
 

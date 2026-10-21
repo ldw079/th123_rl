@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import os
 
+import numpy as np
+
 # ---- task-28 既有接口(保留兼容) ----
 DD_GUARD_ONLY = os.environ.get('TH123_DD_GUARD_ONLY', '1') != '0'
 DD_PREFIX = ('结界', '空结界')
@@ -59,6 +61,48 @@ def masked_line():
     n, m = _GATE_DECISIONS, _MASKED_DECISIONS
     pct = (100.0 * m / n) if n else 0.0
     return ('[act_mask] masked=%d/%d (%.1f%%)' % (m, n, pct))
+
+
+# task-41: 真正的 masked-choice 埋点(选中项是否被 gate 从可用集合移出).
+# 正常应恒 0(采样在 gate 之后); 若 >0 = 采样/门控顺序 bug → C15 红色断言.
+_CHOICE_DECISIONS = 0
+_CHOICE_MASKED = 0
+_LAST_REMOVED = frozenset()
+_REMOVED_TOTAL = 0
+
+
+def reset_masked_stats():
+    global _GATE_DECISIONS, _MASKED_DECISIONS
+    global _CHOICE_DECISIONS, _CHOICE_MASKED, _LAST_REMOVED, _REMOVED_TOTAL
+    _GATE_DECISIONS = 0
+    _MASKED_DECISIONS = 0
+    _CHOICE_DECISIONS = 0
+    _CHOICE_MASKED = 0
+    _LAST_REMOVED = frozenset()
+    _REMOVED_TOTAL = 0
+
+
+def note_choice(idx):
+    """采样后调用: 记录选中项是否在 gate 移除集合(应恒 False)."""
+    global _CHOICE_DECISIONS, _CHOICE_MASKED
+    _CHOICE_DECISIONS += 1
+    if int(idx) in _LAST_REMOVED:
+        _CHOICE_MASKED += 1
+        return False
+    return True
+
+
+def choice_legal(idx):
+    return int(idx) not in _LAST_REMOVED
+
+
+def masked_choice_line():
+    nc, mc = _CHOICE_DECISIONS, _CHOICE_MASKED
+    pct = (100.0 * mc / nc) if nc else 0.0
+    n, m = _GATE_DECISIONS, _MASKED_DECISIONS
+    removed_pct = (100.0 * m / n) if n else 0.0
+    return ('[act_mask] masked_choice=%d/%d (%.1f%%) gate_removed=%d/%d '
+            '(%.1f%%)' % (mc, nc, pct, m, n, removed_pct))
 ACT_MASK = os.environ.get('TH123_ACT_MASK', '1') != '0'
 AIR_GATE = os.environ.get('TH123_AIR_GATE', '1') != '0'
 IMMOBILE_GATE = os.environ.get('TH123_IMMOBILE_GATE', '1') != '0'
@@ -152,6 +196,9 @@ def apply_state_gates(mask, names, left):
                 '请设 TH123_ACT_MASK=0 回旧行为并上报')
         m[:] = False
         m[idle[0]] = True
+    _rem = np.nonzero(np.asarray(_orig) & ~np.asarray(m))[0]
+    globals()['_LAST_REMOVED'] = frozenset(int(x) for x in _rem)
+    globals()['_REMOVED_TOTAL'] = _REMOVED_TOTAL + len(_rem)
     if not (m == _orig).all():
         globals()['_MASKED_DECISIONS'] = _MASKED_DECISIONS + 1
     return m

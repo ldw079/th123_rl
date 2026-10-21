@@ -331,6 +331,10 @@ class SideDriver:
         mid, _pred = self.ppo.sample(feat, side, mask=mask,
                                      temp=getattr(self.ppo, "_temp", 1.0),
                                      return_pred=True)
+        if _dd_gate is not None and getattr(self, '_act_mask_ok', True):
+            _dd_gate.note_choice(mid)
+            if self._eval_gate_cnt % 200 == 0:
+                print(_dd_gate.masked_choice_line())
         # R16: 温度跟随模型meta退火值(评估=训练行为策略; 原1.0冷静采样
         # 与训练玩家行为分布不一致, 战报低估)
         self.decisions += 1

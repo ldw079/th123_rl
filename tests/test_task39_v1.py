@@ -100,7 +100,8 @@ chk('side_driver 接入统一 mask',
     and '_eval_gate_cnt' in sd)
 chk('train_tm config_error 回退 + masked 日志',
     '[act_mask] config_error -> gates disabled: ' in tt
-    and 'masked_line()' in tt and '_act_mask_ok' in tt)
+    and ('masked_choice_line()' in tt or 'masked_line()' in tt)
+    and 'note_choice(mid)' in tt and '_act_mask_ok' in tt)
 chk('[mem] 启动行', "'[mem] %s mem_dim=%d" in lh)
-print('==== task-39: %d PASS / %d FAIL ====' % (14 - len(FAIL), len(FAIL)))
+print('==== task-39: %d PASS / %d FAIL ====' % (16 - len(FAIL), len(FAIL)))
 sys.exit(1 if FAIL else 0)

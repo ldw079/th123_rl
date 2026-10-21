@@ -1995,8 +1995,6 @@ class TMTrainer:
                             print('[act_mask] config_error -> gates disabled: '
                                   '%r' % (_ame,))
                         self._gate_cnt = getattr(self, '_gate_cnt', 0) + 1
-                        if self._gate_cnt % 200 == 0:
-                            print(_dd_gate.masked_line())
                     # v2配额探索: 新宏(计数<150)12%探针覆盖 + 乐观先验
                     # R50(体检A4): 原子宏配额延长 — 零初始化迁移的logit
                     # 需要梯度才能>0, 但150次配额跑完后策略层不选零logit宏
@@ -2052,6 +2050,12 @@ class TMTrainer:
                         mid, _pred = self._ppo_act.sample(
                             feat, side, mask=mask, bias=nbias,
                             return_pred=True, gru_repr=_gru_repr)
+                        if _dd_gate is not None:
+                            if not _dd_gate.note_choice(mid):
+                                print('[act_mask] ERROR: 选中项被 gate 移出 '
+                                      '(masked_choice>0) — 采样/门控顺序 bug')
+                            if getattr(self, '_gate_cnt', 0) % 200 == 0:
+                                print(_dd_gate.masked_choice_line())
                     # R35(差距#3-L1): 价值引导宏选择 — critic评估Top-5
                     # 相当于一步前瞻搜索(depth=1), 零新参数
                     # (第九轮审计P0-3: 原`_V,=...[1:]`解包3元组的[1:]=2元组
