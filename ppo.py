@@ -8,6 +8,8 @@
 - 温度退火作用于 logits(softmax 温度), 熵为类别熵。
 """
 
+import os
+
 import numpy as np
 
 from macros import N_MACROS
@@ -606,6 +608,11 @@ class PPOTrainer:
         进critic(读对对手=读不准价值)。"""
         if S is None:
             S = np.zeros((Xn.shape[0], self.N_SIDE), dtype=np.float32)
+        elif os.environ.get('TH123_VAL_DEACT', '1') != '0':
+            # task-46(方案B): 值头屏蔽 side 前 2N(我/敌上一动作 one-hot),
+            # 与 GPU 侧 __init__ val_deact 同步, 防值头动作条件化回归
+            S = S.copy()
+            S[:, :2 * self.N_OUT] = 0.0
         Oh = self._opp_fwd(S)[1] if self.W_opp is not None else np.zeros(
             (Xn.shape[0], self.OPP_H2), dtype=np.float32)
         Xn = np.concatenate([Xn, S, Oh], axis=1)

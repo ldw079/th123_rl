@@ -101,7 +101,8 @@ chk('side_driver 接入统一 mask',
 chk('train_tm config_error 回退 + masked 日志',
     '[act_mask] config_error -> gates disabled: ' in tt
     and ('masked_choice_line()' in tt or 'masked_line()' in tt)
-    and 'note_choice(mid)' in tt and '_act_mask_ok' in tt)
+    and ('note_choice(_sampled_mid)' in tt or 'note_choice(mid)' in tt)
+    and '_act_mask_ok' in tt)
 chk('[mem] 启动行', "'[mem] %s mem_dim=%d" in lh)
 # 5b) masked_choice: 选中被 gate 移出 → 计数(红色语义); 合法选择不增
 G.reset_masked_stats()
@@ -123,6 +124,11 @@ rem7 = [i for i in range(3) if not mg7[i]]
 G.note_pref(np.array([0.7, 0.2, 0.1]))   # removed=5A(1) → mass 20%
 G.note_pref(np.array([0.1, 0.8, 0.1]))   # top1 在 removed → top1=1, mass=(.2+.8)/2=50%
 line = G.pref_on_removed_line()
+# task-45 hotfix: 探针分支(强制 newbie_legal)必须写 _sampled_mid, 防 masked_choice 假阳性
+chk('探针分支写 _sampled_mid + note_choice 防御',
+    '_sampled_mid = None' in tt
+    and '_sampled_mid = mid' in tt
+    and '(_sampled_mid is not None' in tt)
 chk('pref_removed_mass/top1 计数/格式',
     'pref_removed_mass=50.000%' in line and 'pref_removed_top1=1/2' in line)
 print('==== task-39: %d PASS / %d FAIL ====' % (20 - len(FAIL), len(FAIL)))

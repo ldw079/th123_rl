@@ -242,8 +242,9 @@ def apply_state_gates(mask, names, left):
 
 def startup_line():
     return ('[act_mask] %s air=%d immobile=%d dd_guard=%d guard_ids=%d-%d '
-            '(158/159-166 masked) buffer=%d K=%d'
+            '(158/159-166 masked) buffer=%d K=%d maxwait=%d'
             % ('ON' if ACT_MASK else 'OFF', int(AIR_GATE),
                int(IMMOBILE_GATE), int(DD_GUARD_ONLY), GUARD_STUN_LO,
                GUARD_STUN_HI, int(BUFFER),
-               int(os.environ.get('TH123_BUFFER_K', '6'))))
+               int(os.environ.get('TH123_BUFFER_K', '6')),
+               int(os.environ.get('TH123_BUFFER_MAXWAIT', '0')) or -1))

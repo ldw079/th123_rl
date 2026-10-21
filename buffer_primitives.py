@@ -30,11 +30,19 @@ class BufferState:
         self.names = list(names)
         self.allowed = {i for i, n in enumerate(self.names)
                         if n in BUFFER_NAMES}
-        self.max_wait = BUFFER_K if max_wait is None else int(max_wait)
+        _mw = os.environ.get('TH123_BUFFER_MAXWAIT')
+        if max_wait is not None:
+            self.max_wait = int(max_wait)
+        elif _mw is not None:
+            self.max_wait = int(_mw)
+        else:
+            self.max_wait = max(BUFFER_K, 40)   # 决策数上限(硬直20-30F; 6 会大量丢弃)
         self.pending = None      # (mid, frames_waited)
         self.executed = 0
         self.dropped = 0
         self.registered = 0
+        self.acted_ok = 0
+        self.acted_n = 0
 
     @property
     def active(self):
@@ -65,6 +73,14 @@ class BufferState:
         self.executed += 1
         return mid
 
+    def note_outcome(self, acted):
+        """执行后 8 决策内是否出现非待机动作(行为生效判定)."""
+        self.acted_n += 1
+        if acted:
+            self.acted_ok += 1
+        return acted
+
     def stats_line(self):
-        return ('[buffer] registered=%d executed=%d dropped=%d'
-                % (self.registered, self.executed, self.dropped))
+        return ('[buffer] registered=%d executed=%d dropped=%d acted=%d/%d'
+                % (self.registered, self.executed, self.dropped,
+                   self.acted_ok, self.acted_n))

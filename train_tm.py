@@ -1995,6 +1995,20 @@ class TMTrainer:
                     # (DD 仅 150-157 + 地空门控 + 不可动门控; env=0 逐位旧行为)
                     _buf_in_stun = False
                     if self._buf_state is not None:
+                        # task-45: 执行后 8 决策内是否出现非待机动作
+                        _bc = getattr(self, '_buf_check', 0)
+                        if _bc > 0:
+                            _a_now2 = int(left.get('action', 0) or 0)
+                            if (_a_now2 != 0 and not (50 <= _a_now2 <= 78)
+                                    and not (150 <= _a_now2 <= 166)
+                                    and not getattr(self, '_buf_hit', False)):
+                                self._buf_hit = True
+                            _bc -= 1
+                            self._buf_check = _bc
+                            if _bc == 0:
+                                self._buf_state.note_outcome(
+                                    bool(getattr(self, '_buf_hit', False)))
+                                self._buf_hit = False
                         _act_now = int(left.get('action', 0) or 0)
                         _buf_in_stun = (
                             _act_now in range(50, 79)
@@ -2024,8 +2038,10 @@ class TMTrainer:
                     _probe_fired = False
                     _vg_on = False
                     _vg_best = None
+                    _sampled_mid = None   # stage1b: 采样原值(探针分支也写入)
                     if newbie_legal and self._ppo_act.rng.random() < 0.12:
                         mid = int(self._ppo_act.rng.choice(newbie_legal))
+                        _sampled_mid = mid
                         _probe_fired = True
                     else:
                         if newbie_legal:
@@ -2065,10 +2081,13 @@ class TMTrainer:
                         mid, _pred = self._ppo_act.sample(
                             feat, side, mask=mask, bias=nbias,
                             return_pred=True, gru_repr=_gru_repr)
+                        _sampled_mid = mid   # stage1b: buffer 替换前的采样原值
                         if self._buf_state is not None:
                             _mid_res = self._buf_state.resolve(_buf_in_stun)
                             if _mid_res is not None:
                                 mid = _mid_res
+                                self._buf_check = 8
+                                self._buf_hit = False
                             elif self._buf_state.register(mid,
                                                           _buf_in_stun):
                                 mid = (self._buf_idle
@@ -2078,7 +2097,8 @@ class TMTrainer:
                             if self._buf_cnt % 200 == 0:
                                 print(self._buf_state.stats_line())
                         if _dd_gate is not None:
-                            if not _dd_gate.note_choice(mid):
+                            if (_sampled_mid is not None
+                                    and not _dd_gate.note_choice(_sampled_mid)):
                                 print('[act_mask] ERROR: 选中项被 gate 移出 '
                                       '(masked_choice>0) — 采样/门控顺序 bug')
                             # task-44修: pref=gate 前 raw softmax(未 mask/未 bias)

@@ -535,6 +535,12 @@ def run_learner(char, batch_k=BATCH_K, suffix='_fleet'):
         sys.exit(1)
 
     gpu_tr = PPOTrainerGPU(n_side=n_side, n_out=n_out)
+    try:
+        from mem_v1 import VAL_DEACT as _vd
+        print('[val] deact=%d (task-46: 值头屏蔽 side 前 2N 上一动作)'
+              % int(bool(_vd)))
+    except Exception:
+        pass
     _md = int(getattr(gpu_tr.net, 'mem_dim', 0) or 0)
     print('[mem] %s mem_dim=%d hist=(N,8,3) env=%s'
           % ('on' if _md > 0 else 'off', _md,

@@ -40,6 +40,9 @@ st2.register(1, True)
 for _ in range(3):
     st2.resolve(True)
 chk('超过 max_wait 丢弃', not st2.active and st2.dropped == 1)
+st.note_outcome(True)
+st.note_outcome(False)
+chk('执行结果 acted 统计', 'acted=1/2' in st.stats_line())
 chk('stats_line 格式', '[buffer] registered=' in st.stats_line())
 
 # gate: stun 帧白名单并集/env=0 旧行为
@@ -67,5 +70,5 @@ tt = open(os.path.join(WT, 'train_tm.py'), encoding='utf8').read()
 chk('train_tm 接线 BufferState/register/resolve',
     'BufferState(' in tt and 'register(mid' in tt
     and 'resolve(_buf_in_stun)' in tt and 'stats_line()' in tt)
-print('==== buffer v1: %d PASS / %d FAIL ====' % (14 - len(FAIL), len(FAIL)))
+print('==== buffer v1: %d PASS / %d FAIL ====' % (15 - len(FAIL), len(FAIL)))
 sys.exit(1 if FAIL else 0)

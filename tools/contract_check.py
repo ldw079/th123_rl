@@ -2107,6 +2107,8 @@ _BEHAVIOR_TESTS = [
      "task-28: DD 仅正防门控(正/负例+env回滚)"),
     ("test_act_mask_v1.py",
      "task-29/30: 统一 mask 层(地空/不可动/DD 150-157)"),
+    ("test_val_deact_v1.py",
+     "task-46: 值头 deact(GPU/numpy 等价/env=0 回滚/[val] 行)"),
     ("test_buffer_v1.py",
      "task-29/30 阶段1: BufferState/白名单/env=0/startup 行"),
     ("test_train_detach_v1.py",
@@ -2313,6 +2315,12 @@ chk('MEM_DECISIONS = int(os.environ.get(\'TH123_MEM_DECISIONS\', \'0\'))' in _mv
     and 'H=H_full[idx_t]' in _pg and 'H=H_full[_kt]' in _pg
     and 'import mem_v1 as _mem_v1' in _tt,
     'Gen-1: mem_v1(hist编码/默认0) + train_tm 接线')
+# task-46: 值头去动作条件化(默认 on; GPU/numpy 同步; env=0 回滚)
+chk("VAL_DEACT = int(os.environ.get('TH123_VAL_DEACT', '1'))"
+    in src('mem_v1.py')
+    and "os.environ.get('TH123_VAL_DEACT', '1')" in src('ppo.py')
+    and "'[val] deact=" in src('learner_hub.py'),
+    'task-46: 值头 deact 默认1(GPU env)+numpy 同步+[val] 启动行')
 # task-29/30 阶段1: 缓冲原语(BufferState + stun 白名单并集 + env 开关)
 chk('class BufferState' in src('buffer_primitives.py')
     and 'def register(' in src('buffer_primitives.py')
@@ -2330,7 +2338,8 @@ chk('CREATE_BREAKAWAY_FROM_JOB' in src('tools/train_detach.py')
     and 'def pref_on_removed_line(' in _gg
     and 'pref_removed_mass=' in _gg and 'pref_removed_top1=' in _gg
     and 'TH123_PREF_STAT' in src('side_driver.py')
-    and 'note_choice(mid)' in _tt and 'note_choice(mid)' in src('side_driver.py')
+    and ('note_choice(_sampled_mid)' in _tt or 'note_choice(mid)' in _tt)
+    and 'note_choice(mid)' in src('side_driver.py')
     and 'note_pref(' in _tt and 'note_pref(' in src('side_driver.py'),
     'task-43b/44: train_detach(schtasks/回退告警) + masked_choice + pref_on_removed')
 # task-39: 评估路径同 mask + config_error 回退 + masked 埋点 + [mem] 行

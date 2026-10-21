@@ -827,6 +827,11 @@ MUTATIONS = [
      'if _buf_ok:',
      'if False:  # buffer 白名单删除',
      'task-29/30: buffer 白名单删除 → 断言必须红'),
+    # task-46: val_deact 默认回 0(值头动作条件化回归) → 断言必红
+    ('mem_v1.py',
+     "'TH123_VAL_DEACT', '1'",
+     "'TH123_VAL_DEACT', '0'",
+     'task-46: val_deact 默认回0 → 断言必须红'),
 ]
 
 

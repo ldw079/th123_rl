@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 
 MEM_DECISIONS = int(os.environ.get('TH123_MEM_DECISIONS', '0'))
-VAL_DEACT = int(os.environ.get('TH123_VAL_DEACT', '0')) != 0
+VAL_DEACT = int(os.environ.get('TH123_VAL_DEACT', '1')) != 0
 MEM_N = 8
 MEM_BYTES = 3
 HIST_DIM = MEM_N * MEM_BYTES          # 24
