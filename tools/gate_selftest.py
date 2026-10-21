@@ -832,6 +832,11 @@ MUTATIONS = [
      "'TH123_VAL_DEACT', '1'",
      "'TH123_VAL_DEACT', '0'",
      'task-46: val_deact 默认回0 → 断言必须红'),
+    # task-48: BATCH_K env 读取删除(默认4回归不可配) → 断言必红
+    ('learner_hub.py',
+     "TH123_BATCH_K', '4'",
+     "TH123_BATCHQ', '4'",
+     'task-48: BATCH_K env 删除 → 断言必须红'),
 ]
 
 

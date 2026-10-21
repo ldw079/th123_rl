@@ -47,7 +47,7 @@ STORE = os.environ.get('TH123_STORE', r'D:\temp\th123_models')
 FLEET_DIR = os.path.join(STORE, 'fleet')
 EP_DIR = os.path.join(FLEET_DIR, 'episodes')
 
-BATCH_K = 4          # 默认摸批局数(上限8 — §6陈旧度论证)
+BATCH_K = int(os.environ.get('TH123_BATCH_K', '4'))  # 默认4(逐位等价); env=2 启用小批放大
 BATCH_TIMEOUT = 60   # 超时秒数
 # Gen-1(2026-10-20): 批放大(默认0=旧行为) + 等待上限(防饥饿/陈旧)
 BATCH_MIN_GAMES = int(os.environ.get('TH123_BATCH_MIN_GAMES', '0'))

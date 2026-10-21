@@ -2315,6 +2315,12 @@ chk('MEM_DECISIONS = int(os.environ.get(\'TH123_MEM_DECISIONS\', \'0\'))' in _mv
     and 'H=H_full[idx_t]' in _pg and 'H=H_full[_kt]' in _pg
     and 'import mem_v1 as _mem_v1' in _tt,
     'Gen-1: mem_v1(hist编码/默认0) + train_tm 接线')
+# task-48: B 批放大 batch_k 可配(env 默认4=逐位等价)
+chk("BATCH_K = int(os.environ.get('TH123_BATCH_K', '4'))"
+    in src('learner_hub.py')
+    and '_need = max(batch_k, BATCH_MIN_GAMES)'
+    in src('learner_hub.py'),
+    'task-48: BATCH_K env(默认4)+need 计算')
 # task-46: 值头去动作条件化(默认 on; GPU/numpy 同步; env=0 回滚)
 chk("VAL_DEACT = int(os.environ.get('TH123_VAL_DEACT', '1'))"
     in src('mem_v1.py')

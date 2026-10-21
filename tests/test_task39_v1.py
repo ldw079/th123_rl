@@ -129,6 +129,16 @@ chk('探针分支写 _sampled_mid + note_choice 防御',
     '_sampled_mid = None' in tt
     and '_sampled_mid = mid' in tt
     and '(_sampled_mid is not None' in tt)
+import subprocess as _sp
+_c = _sp.run([sys.executable, '-X', 'utf8', '-c',
+              "import os;os.environ['TH123_BATCH_K']='2';"
+              "import learner_hub as L;print(L.BATCH_K)"],
+             capture_output=True, text=True, cwd=WT)
+chk('task-48: BATCH_K env 生效(env=2→2, 默认4)',
+    _c.returncode == 0 and _c.stdout.strip().endswith('2')
+    and "TH123_BATCH_K', '4'" in tt.replace('train_tm', '')
+    or "TH123_BATCH_K', '4'" in open(
+        os.path.join(WT, 'learner_hub.py'), encoding='utf8').read())
 chk('pref_removed_mass/top1 计数/格式',
     'pref_removed_mass=50.000%' in line and 'pref_removed_top1=1/2' in line)
 print('==== task-39: %d PASS / %d FAIL ====' % (20 - len(FAIL), len(FAIL)))
