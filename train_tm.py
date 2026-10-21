@@ -2054,6 +2054,8 @@ class TMTrainer:
                             if not _dd_gate.note_choice(mid):
                                 print('[act_mask] ERROR: 选中项被 gate 移出 '
                                       '(masked_choice>0) — 采样/门控顺序 bug')
+                            if _pred is not None:
+                                _dd_gate.note_pref(_pred[0])
                             if getattr(self, '_gate_cnt', 0) % 200 == 0:
                                 print(_dd_gate.masked_choice_line())
                     # R35(差距#3-L1): 价值引导宏选择 — critic评估Top-5

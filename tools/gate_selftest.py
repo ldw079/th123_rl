@@ -806,16 +806,21 @@ MUTATIONS = [
      'print(_dd_gate.masked_line())',
      'pass  # task-39: masked 日志删除',
      'task-39: masked 埋点删除 → 断言必须红'),
-    # task-43: detach 去掉 breakaway(脱离 Job 失效) → 断言必红
+    # task-43b: detach 去掉 schtasks 脱离路径 → 断言必红
     ('tools/train_detach.py',
-     'CREATE_BREAKAWAY_FROM_JOB = 0x01000000',
-     'CREATE_BREAKAWAY_FROM_JOB = 0x00000000',
-     'task-43: breakaway 失效 → 断言必须红'),
+     'def launch_schtasks(',
+     'def launch_schtasks_disabled(',
+     'task-43b: schtasks 脱离路径删除 → 断言必须红'),
     # task-41: masked_choice 埋点删除 → 断言必红
     ('train_tm.py',
      'if not _dd_gate.note_choice(mid):',
      'if False:  # task-41: note_choice 删除',
      'task-41: masked_choice 埋点删除 → 断言必须红'),
+    # task-44: pref_on_removed 埋点删除 → 断言必红
+    ('game_gates.py',
+     'def pref_on_removed_line(',
+     'def pref_on_removed_line_disabled(',
+     'task-44: pref_on_removed 埋点删除 → 断言必须红'),
 ]
 
 

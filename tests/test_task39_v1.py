@@ -103,5 +103,26 @@ chk('train_tm config_error 回退 + masked 日志',
     and ('masked_choice_line()' in tt or 'masked_line()' in tt)
     and 'note_choice(mid)' in tt and '_act_mask_ok' in tt)
 chk('[mem] 启动行', "'[mem] %s mem_dim=%d" in lh)
-print('==== task-39: %d PASS / %d FAIL ====' % (16 - len(FAIL), len(FAIL)))
+# 5b) masked_choice: 选中被 gate 移出 → 计数(红色语义); 合法选择不增
+G.reset_masked_stats()
+N6 = ['待机', '5A', 'jA']
+mg6 = G.apply_state_gates(np.ones(3, bool), N6,
+                          {'action': 0, 'airBorne': True})
+removed = [i for i in range(3) if not mg6[i]]
+chk('gate_removed 记录', len(removed) == 1 and not G.choice_legal(removed[0]))
+G.note_choice(0)
+G.note_choice(removed[0])
+chk('masked_choice 计数(应暴露顺序 bug)',
+    'masked_choice=1/2' in G.masked_choice_line()
+    and 'gate_removed=' in G.masked_choice_line())
+# 5c) task-44: pref_on_removed(策略 top1 落在 gate 移除集合)
+G.reset_masked_stats()
+mg7 = G.apply_state_gates(np.ones(3, bool), N6,
+                          {'action': 0, 'airBorne': True})
+rem7 = [i for i in range(3) if not mg7[i]]
+G.note_pref(rem7[0])
+G.note_pref(0)
+chk('pref_on_removed 计数/格式',
+    'pref_on_removed=1/2' in G.pref_on_removed_line())
+print('==== task-39: %d PASS / %d FAIL ====' % (20 - len(FAIL), len(FAIL)))
 sys.exit(1 if FAIL else 0)

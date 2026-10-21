@@ -2315,9 +2315,12 @@ chk('MEM_DECISIONS = int(os.environ.get(\'TH123_MEM_DECISIONS\', \'0\'))' in _mv
 chk('CREATE_BREAKAWAY_FROM_JOB' in src('tools/train_detach.py')
     and 'DETACHED_PROCESS' in src('tools/train_detach.py')
     and 'breakaway 被 Job 限制' in src('tools/train_detach.py')
+    and 'launch_schtasks' in src('tools/train_detach.py')
     and 'def masked_choice_line(' in _gg
-    and 'note_choice(mid)' in _tt and 'note_choice(mid)' in src('side_driver.py'),
-    'task-43: train_detach(breakaway/回退告警) + masked_choice 埋点')
+    and 'def pref_on_removed_line(' in _gg
+    and 'note_choice(mid)' in _tt and 'note_choice(mid)' in src('side_driver.py')
+    and 'note_pref(' in _tt and 'note_pref(' in src('side_driver.py'),
+    'task-43b/44: train_detach(schtasks/回退告警) + masked_choice + pref_on_removed')
 # task-39: 评估路径同 mask + config_error 回退 + masked 埋点 + [mem] 行
 chk('_dd_gate.apply_state_gates(' in src('side_driver.py')
     and 'config_error' in src('side_driver.py')
