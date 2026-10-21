@@ -10,7 +10,7 @@
 > 并行开发: **PARALLEL_WORKFLOW.md(三智能体并行约定, 2026-10-16用户批准试行)** — 单写者规则+docs/_pending_entries.md 队列; 写文件前先查写入权
 > 版本: 3.75 · 2026-10-21 · R211(**Gen-1 架构升级第一批·修复版** /**执行层统一 mask 层 task-29/30** /**task-20 进攻奖励 + task-28 DD 正防门控** /**A1/A2 CPU-H P-B/P-C + task-16 入库** /
 > wd 5 字段(旧读者兼容)+L3 machine_alert/dashboard 三口径/load_gate 三工具 + behavior_deep_report |
-> 门禁 709/2/0, 变异 237
+> 门禁 709/2/0, 变异 238
 
 ---
 
@@ -2803,8 +2803,8 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     (forward 4 元组 fwd_pred=零兼容; 旧档忽略键; 回归 test 3 PASS)。
   - **测试/门禁**: C15 `tests/test_p1gen1_v1.py` **20 PASS**(mem 编码/window_hist/ep v3/v2 兼容/
     迁移工具+env=0 maxdiff/env=8 敏感性/批 env 源码/k4/Wf); 断言4(含 window_hist 与预检 MEM=0) +
-    变异3; 门禁 `D:\temp\gate_r213_9bd5e42_20261020_190802.txt`(19:08, exit=0) **713 PASS / 2 WARN / 0 FAIL**;
-    变异 **237**; C15 **107**。`test_gpu_onestep` 曾 8P/1F 瞬态→单跑 9P/0F + 重跑绿, 判 flake 留痕。
+    变异3; 门禁 `D:\temp\gate_r213_9bd5e42_20261020_190802.txt`(19:08, exit=0) **715 PASS / 2 WARN / 0 FAIL**;
+    变异 **238**; C15 **107**。`test_gpu_onestep` 曾 8P/1F 瞬态→单跑 9P/0F + 重跑绿, 判 flake 留痕。
   - **窗口**: 停 main(对照臂排除+PID二核) → apply(13 文件, 逐文件哈希) → 单测 → 门禁 709/2W/0 →
     变异 3/3 红 → 迁移副本 dry-run → 备份 → 迁移三模型 → commit(不 push) →
     重启 **仅 `TH123_MEM_DECISIONS=8`**(+FEAT/REW/FRAME_LOG/ACT_MASK; **不设 BATCH_MIN**, 批放大 B
@@ -2812,6 +2812,11 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     验收 wd5/对照臂/≥10拍无0.00/无alert。
   - **回滚**: env=0 即旧行为(迁移档可直接读); 或恢复 `*_pre_p1gen1.npz`; smoke 失败即回滚不二次重启。
   - **独立项**: `价值轨迹 conv2d [N,14400]` 为既有问题(对照臂同款), learner 已响亮降级, 单独立项。
+  - **阶段1 缓冲原语(task-29/30, 2026-10-21)**: `buffer_primitives.BufferState`(纯逻辑可单测); env
+    `TH123_BUFFER`(默认0)/`TH123_BUFFER_K`(6)/`TH123_BUFFER_NAMES`(跳跃,5A 槽复用, **不扩动作空间**);
+    gate stun 帧(50-78/150-157/158-166)白名单并集 buf 槽; train_tm 登记后待机, **解硬直首帧执行**
+    (probe 实测硬直末 ≥10F 预输入有效 → end+0 保守可行; end-K 预启待帧表); `[buffer]` 埋点;
+    变异"删白名单→红"; C15 `test_buffer_v1` 14 PASS。
   - **bug2(20:30 实锤, task-41)**: 迁移成功后生产档 `W_mem` 仍恒 0 —— 根因 `ppo_gpu.update()` 梯度前向**漏传 H**
     (mem 输入恒零 → `∂L/∂W_mem=0`、`∂L/∂mem_fc2=0`)；修 = 构造与最终 X 行对齐的 `H_full`(原始行=hist；回放/BC
     行=零；guard assert)，训练前向 `H=H_full[idx_t]`、KL 复检 `H=H_full[_kt]`；新增**真实 `update()` 端到端测试**

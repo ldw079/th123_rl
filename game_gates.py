@@ -46,45 +46,40 @@ def dd_gate(mask, names, action):
 
 
 # ---- 统一 mask 层(task-28/29/30) ----
-# task-39: 运行时埋点(每次 apply_state_gates 计一次; 与原 mask 不同=被 mask)
+# task-39/41/44: 运行时埋点(每次 apply_state_gates 计一次)
 _GATE_DECISIONS = 0
 _MASKED_DECISIONS = 0
-
-
-def reset_masked_stats():
-    global _GATE_DECISIONS, _MASKED_DECISIONS
-    _GATE_DECISIONS = 0
-    _MASKED_DECISIONS = 0
-
-
-def masked_line():
-    n, m = _GATE_DECISIONS, _MASKED_DECISIONS
-    pct = (100.0 * m / n) if n else 0.0
-    return ('[act_mask] masked=%d/%d (%.1f%%)' % (m, n, pct))
-
-
-# task-41: 真正的 masked-choice 埋点(选中项是否被 gate 从可用集合移出).
-# 正常应恒 0(采样在 gate 之后); 若 >0 = 采样/门控顺序 bug → C15 红色断言.
 _CHOICE_DECISIONS = 0
 _CHOICE_MASKED = 0
 _PREF_DECISIONS = 0
 _PREF_REMOVED = 0
+_PREF_MASS_SUM = 0.0
+_PREF_MASS_N = 0
 _LAST_REMOVED = frozenset()
 _REMOVED_TOTAL = 0
 
 
 def reset_masked_stats():
     global _GATE_DECISIONS, _MASKED_DECISIONS
-    global _CHOICE_DECISIONS, _CHOICE_MASKED, _LAST_REMOVED, _REMOVED_TOTAL
-    global _PREF_DECISIONS, _PREF_REMOVED
+    global _CHOICE_DECISIONS, _CHOICE_MASKED
+    global _PREF_DECISIONS, _PREF_REMOVED, _PREF_MASS_SUM, _PREF_MASS_N
+    global _LAST_REMOVED, _REMOVED_TOTAL
     _GATE_DECISIONS = 0
     _MASKED_DECISIONS = 0
     _CHOICE_DECISIONS = 0
     _CHOICE_MASKED = 0
     _PREF_DECISIONS = 0
     _PREF_REMOVED = 0
+    _PREF_MASS_SUM = 0.0
+    _PREF_MASS_N = 0
     _LAST_REMOVED = frozenset()
     _REMOVED_TOTAL = 0
+
+
+def masked_line():
+    n, m = _GATE_DECISIONS, _MASKED_DECISIONS
+    pct = (100.0 * m / n) if n else 0.0
+    return '[act_mask] masked=%d/%d (%.1f%%)' % (m, n, pct)
 
 
 def note_choice(idx):
@@ -101,11 +96,20 @@ def choice_legal(idx):
     return int(idx) not in _LAST_REMOVED
 
 
-def note_pref(top1):
-    """task-44: 记录策略 top1 是否落在 gate 移除集合(诊断"被 mask 偏好")."""
-    global _PREF_DECISIONS, _PREF_REMOVED
+def note_pref(raw_probs):
+    """task-44修: raw softmax 在 gate 移除集合上的概率质量 + raw top1 频次.
+
+    raw_probs = gate 前(mask=None/bias=None) softmax 分布; 移除集合=_LAST_REMOVED.
+    """
+    global _PREF_DECISIONS, _PREF_REMOVED, _PREF_MASS_SUM, _PREF_MASS_N
+    import numpy as np
+    probs = np.asarray(raw_probs, dtype=np.float64).ravel()
     _PREF_DECISIONS += 1
-    if int(top1) in _LAST_REMOVED:
+    if _LAST_REMOVED:
+        _PREF_MASS_SUM += float(sum(probs[i] for i in _LAST_REMOVED))
+        _PREF_MASS_N += 1
+    top1 = int(np.argmax(probs))
+    if top1 in _LAST_REMOVED:
         _PREF_REMOVED += 1
         return False
     return True
@@ -113,8 +117,9 @@ def note_pref(top1):
 
 def pref_on_removed_line():
     n, m = _PREF_DECISIONS, _PREF_REMOVED
-    pct = (100.0 * m / n) if n else 0.0
-    return '[act_mask] pref_on_removed=%d/%d (%.1f%%)' % (m, n, pct)
+    mass_pct = (100.0 * _PREF_MASS_SUM / _PREF_MASS_N) if _PREF_MASS_N else 0.0
+    return ('[act_mask] pref_removed_mass=%.3f%% pref_removed_top1=%d/%d'
+            % (mass_pct, m, n))
 
 
 def masked_choice_line():
@@ -122,11 +127,14 @@ def masked_choice_line():
     pct = (100.0 * mc / nc) if nc else 0.0
     n, m = _GATE_DECISIONS, _MASKED_DECISIONS
     removed_pct = (100.0 * m / n) if n else 0.0
-    return ('[act_mask] masked_choice=%d/%d (%.1f%%) pref_on_removed=%d/%d '
-            'gate_removed=%d/%d (%.1f%%)' % (
-                mc, nc, pct, _PREF_REMOVED, _PREF_DECISIONS, m, n,
-                removed_pct))
+    return ('[act_mask] masked_choice=%d/%d (%.1f%%) %s gate_removed=%d/%d '
+            '(%.1f%%)' % (mc, nc, pct, pref_on_removed_line().replace(
+                '[act_mask] ', ''), m, n, removed_pct))
 ACT_MASK = os.environ.get('TH123_ACT_MASK', '1') != '0'
+# task-29/30 阶段1: 缓冲原语开关(默认0=旧行为; =1 时 stun 帧白名单加 buf 槽)
+BUFFER = os.environ.get('TH123_BUFFER', '0') != '0'
+BUFFER_NAMES = tuple(n for n in os.environ.get(
+    'TH123_BUFFER_NAMES', '跳跃,5A').split(',') if n)
 AIR_GATE = os.environ.get('TH123_AIR_GATE', '1') != '0'
 IMMOBILE_GATE = os.environ.get('TH123_IMMOBILE_GATE', '1') != '0'
 GUARD_STUN_LO, GUARD_STUN_HI = 150, 157   # 正防硬直(实测 151/152/155/156 有效)
@@ -192,15 +200,20 @@ def apply_state_gates(mask, names, left):
     # (b) 不可动门控(action-id 集合; 不裸用 raw untech)
     if IMMOBILE_GATE:
         allow = None
+        _buf_ok = BUFFER
         if act in DOWN_ACTS:
             allow = UKEMI | WAKE
         elif act in HIT_ACTS:
             allow = set(UKEMI)
+            if _buf_ok:
+                allow = allow | set(BUFFER_NAMES)
         elif GUARD_STUN_LO <= act <= GUARD_STUN_HI:
             allow = set(GUARD_MACROS) | set(CARDS_GROUND) | {
                 n for n in names if is_dd_macro(n)}
+            if _buf_ok:
+                allow = allow | set(BUFFER_NAMES)
         elif act == AIR_DEF_STUN or MISGUARD_LO <= act <= MISGUARD_HI:
-            allow = set()
+            allow = set(BUFFER_NAMES) if _buf_ok else set()
         if allow is not None:
             for i, n in enumerate(names):
                 if n not in allow:
@@ -229,7 +242,8 @@ def apply_state_gates(mask, names, left):
 
 def startup_line():
     return ('[act_mask] %s air=%d immobile=%d dd_guard=%d guard_ids=%d-%d '
-            '(158/159-166 masked)' % (
-                'ON' if ACT_MASK else 'OFF', int(AIR_GATE),
-                int(IMMOBILE_GATE), int(DD_GUARD_ONLY), GUARD_STUN_LO,
-                GUARD_STUN_HI))
+            '(158/159-166 masked) buffer=%d K=%d'
+            % ('ON' if ACT_MASK else 'OFF', int(AIR_GATE),
+               int(IMMOBILE_GATE), int(DD_GUARD_ONLY), GUARD_STUN_LO,
+               GUARD_STUN_HI, int(BUFFER),
+               int(os.environ.get('TH123_BUFFER_K', '6'))))

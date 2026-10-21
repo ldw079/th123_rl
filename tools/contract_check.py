@@ -2107,6 +2107,8 @@ _BEHAVIOR_TESTS = [
      "task-28: DD 仅正防门控(正/负例+env回滚)"),
     ("test_act_mask_v1.py",
      "task-29/30: 统一 mask 层(地空/不可动/DD 150-157)"),
+    ("test_buffer_v1.py",
+     "task-29/30 阶段1: BufferState/白名单/env=0/startup 行"),
     ("test_train_detach_v1.py",
      "task-43: train_detach 工具(dry/env/breakaway回退/日志路径)"),
     ("test_task39_v1.py",
@@ -2311,6 +2313,14 @@ chk('MEM_DECISIONS = int(os.environ.get(\'TH123_MEM_DECISIONS\', \'0\'))' in _mv
     and 'H=H_full[idx_t]' in _pg and 'H=H_full[_kt]' in _pg
     and 'import mem_v1 as _mem_v1' in _tt,
     'Gen-1: mem_v1(hist编码/默认0) + train_tm 接线')
+# task-29/30 阶段1: 缓冲原语(BufferState + stun 白名单并集 + env 开关)
+chk('class BufferState' in src('buffer_primitives.py')
+    and 'def register(' in src('buffer_primitives.py')
+    and 'def resolve(' in src('buffer_primitives.py')
+    and 'TH123_BUFFER' in _gg and 'BUFFER_NAMES' in _gg
+    and 'BufferState(' in _tt and 'register(mid' in _tt
+    and 'resolve(_buf_in_stun)' in _tt,
+    'task-29/30: 缓冲原语(gate stun 白名单并集/env 开关/train_tm 登记执行)')
 # task-43(task-41): train_detach 工具 + masked_choice 埋点
 chk('CREATE_BREAKAWAY_FROM_JOB' in src('tools/train_detach.py')
     and 'DETACHED_PROCESS' in src('tools/train_detach.py')
@@ -2318,6 +2328,8 @@ chk('CREATE_BREAKAWAY_FROM_JOB' in src('tools/train_detach.py')
     and 'launch_schtasks' in src('tools/train_detach.py')
     and 'def masked_choice_line(' in _gg
     and 'def pref_on_removed_line(' in _gg
+    and 'pref_removed_mass=' in _gg and 'pref_removed_top1=' in _gg
+    and 'TH123_PREF_STAT' in src('side_driver.py')
     and 'note_choice(mid)' in _tt and 'note_choice(mid)' in src('side_driver.py')
     and 'note_pref(' in _tt and 'note_pref(' in src('side_driver.py'),
     'task-43b/44: train_detach(schtasks/回退告警) + masked_choice + pref_on_removed')

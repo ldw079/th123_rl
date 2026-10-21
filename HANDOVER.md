@@ -4,7 +4,7 @@
 
 > **2026-10-18 交接快照（R170-R195 收口；另一智能体接手时先读这段）**
 >
-> **门禁**: 713 PASS / 2 WARN / 0 FAIL（裸跑看退出码，勿用管道吞码）；变异 **237** 条；行为测试 109 档。
+> **门禁**: 715 PASS / 2 WARN / 0 FAIL（裸跑看退出码，勿用管道吞码）；变异 **238** 条；行为测试 110 档。
 > **W1 验收门禁**: `D:\temp\gate_r197_final.txt`（12:12:51, exit=0, 原始末行 `668 PASS / 0 WARN / 0 FAIL`）。
 > **R200 门禁**: `D:\temp\gate_r200.txt`（14:29:59, exit=0, 原始末行 `671 PASS / 0 WARN / 0 FAIL`；
 > 本批补注册 `test_load_gate.py` C15(43 项)+白名单对账断言/变异, 变异 208, C15 93）。
@@ -24,11 +24,11 @@
 > task-21 v1 空间 24 维(CORE_DIMS 358→382, TH123_FEAT_SPACE 回滚) + Phase1 空间奖励
 > (TH123_REW_SPACE 保守档) + 旧前缀等价 3.6e-15 + BC 行级 zero-fill v2；变异 220 / C15 101；
 > 用户裁定 bcw 保留 0.05（评估数据归档））。
-> **R211 门禁**: `D:\temp\gate_r213_9bd5e42_20261020_190802.txt`（19:08, exit=0, 原始末行 `713 PASS / 2 WARN / 0 FAIL`）；
+> **R211 门禁**: `D:\temp\gate_r213_9bd5e42_20261020_190802.txt`（19:08, exit=0, 原始末行 `715 PASS / 2 WARN / 0 FAIL`）；
 > Gen-1 修复版: hist **8 拍环形缓冲**(`window_hist` 左零填充 → 每决策 (8,3), episode hist (N,8,3))
 > + 预检强制 MEM=0(协议与记忆代际无关) + 加性 W_mem/env=0 回滚 + Wf 死重删除；
-> 本窗仅 `TH123_MEM_DECISIONS=8`（**批放大 B(2局+120s) 延后下一窗**）；变异 237 / C15 109）。
-> **R213 门禁**: `D:\temp\gate_r215_a331c44_20261020_203959.txt`（20:39, exit=0, 原始末行 `713 PASS / 2 WARN / 0 FAIL`，变异 237/Gen-1 4条全红）；
+> 本窗仅 `TH123_MEM_DECISIONS=8`（**批放大 B(2局+120s) 延后下一窗**）；变异 238 / C15 110）。
+> **R213 门禁**: `D:\temp\gate_r215_a331c44_20261020_203959.txt`（20:39, exit=0, 原始末行 `715 PASS / 2 WARN / 0 FAIL`，变异 238/Gen-1 4条全红）；
 > **Gen-1 bug2 修复**: `ppo_gpu.update()` 梯度前向补 `H_full`（原始行=hist；回放/BC 行零；训练 `idx_t`/KL `_kt`）——
 > 原漏 H 使 mem 输入恒零、`W_mem` 恒 0（"迁移成功但记忆未学"）；新增真实 `update()` 端到端测试（25 PASS）。
 > **运行时学习验收（新制度）**: 迁移/架构变更窗口重启后 **+10min** 必须核生产档/snapshot `W_mem.absmax>0`+`nnz`，
@@ -40,6 +40,12 @@
 > （Windows `CreateProcessW` + `DETACHED_PROCESS|CREATE_NEW_PROCESS_GROUP|CREATE_BREAKAWAY_FROM_JOB`；
 > breakaway 被 Job 限制时自动回退并告警；日志固定 `D:\temp\main_detached.log`；`--stop` 透传停机）。
 > masked-choice 埋点（task-41）: `[act_mask] masked_choice=M/N (pct%) gate_removed=...`，选中项必在 gate 后 mask 内。
+> pref 埋点（task-44 修，2026-10-21）: `pref_removed_mass=x.xxx% pref_removed_top1=M/N` = gate **前 raw softmax**
+> 落在移除集合的概率质量/top1 频次（用 masked top1 恒 0，已弃用）；`TH123_PREF_STAT` 控制评估路径。
+> **阶段1 缓冲原语（task-29/30，2026-10-21）**: `buffer_primitives.BufferState` + env `TH123_BUFFER`（默认0=旧行为，
+> =1 启用）/`TH123_BUFFER_K`(默认6)/`TH123_BUFFER_NAMES`(默认 跳跃,5A，**槽复用不扩动作空间**)；gate 在 stun 帧
+> (受创50-78/正防150-157/158-166) 白名单并集 buf 槽；train_tm 登记后吞决策(待机)，**解硬直首帧执行**
+> （probe 证 end-10F 输入有效；end-K 预启待帧表接入）；`[buffer] registered/executed/dropped` 埋点。
 > **R210 门禁**: `D:\temp\gate_r211_92bcb08_20261020_141259.txt`（14:12, exit=0, 原始末行 `704 PASS / 2 WARN / 0 FAIL`）；
 > task-29/30 执行层统一 mask 层: 地空门控(受身 both/后跳·白楼剑·铜钱 ground/命令技分地空) +
 > 不可动门控(action-id 硬直集 50-78/150-167/倒地; 158·159-166 全 mask) + DD 收窄 150-157;
@@ -204,7 +210,7 @@ tail -5 D:\temp\th123_models\fleet_supervision.log
 
 ```bash
 D:\temp\pyenv\python.exe tools/contract_check.py
-# 必须 exit 0 —— 2026-10-21 19:08 实测 713 PASS / 2 WARN / 0 FAIL(gate_r213_9bd5e42_20261020_190802.txt 原始末行)
+# 必须 exit 0 —— 2026-10-21 19:08 实测 715 PASS / 2 WARN / 0 FAIL(gate_r213_9bd5e42_20261020_190802.txt 原始末行)
 ```
 
 **纪律**: 裸跑(不pipe)+检查退出码. `| tail` 会吞退出码(f4668e1事故).

@@ -29,6 +29,7 @@ FILES = [
          "opp_model.py",
          "standard_tree.py",
          "train_tm.py",
+         "buffer_primitives.py",
          "tools/train_detach.py",
          "mem_v1.py",
          "atk_v1.py",
@@ -821,6 +822,11 @@ MUTATIONS = [
      'def pref_on_removed_line(',
      'def pref_on_removed_line_disabled(',
      'task-44: pref_on_removed 埋点删除 → 断言必须红'),
+    # task-29/30: buffer stun 白名单删除 → 断言必红
+    ('game_gates.py',
+     'if _buf_ok:',
+     'if False:  # buffer 白名单删除',
+     'task-29/30: buffer 白名单删除 → 断言必须红'),
 ]
 
 

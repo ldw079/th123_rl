@@ -340,6 +340,10 @@ try:
     import game_gates as _dd_gate
 except Exception:
     _dd_gate = None
+try:
+    import buffer_primitives as _buf_prims
+except Exception:
+    _buf_prims = None
 SPACE_EDGE_X1 = 1160.0
 # Gen-1(2026-10-20): 决策历史(schema v3; env TH123_MEM_DECISIONS)
 try:
@@ -1519,6 +1523,11 @@ class TMTrainer:
         feats, sides, acts, rews, masks_hist, bc_targets = [], [], [], [], [], []
         ep_logps = []       # R60(F-11): 采样时行为策略logP(a)(本地路径;
                             # fleet actor走_fleet_logp_rec闭包, 此表留空)
+        self._buf_state = (_buf_prims.BufferState(
+            [m[0] for m in self.macros])
+            if (_buf_prims is not None and _buf_prims.BUFFER) else None)
+        self._buf_idle = next(
+            (i for i, m in enumerate(self.macros) if m[0] == '待机'), None)
         self._mem_hist = []    # Gen-1: 决策历史窗口 (8,3)
         self._mem_steps = []   # Gen-1: 最近8步单步编码缓冲
         opp_acts = []          # R17④: 每决策拍对手动作类(action//128) —
@@ -1984,6 +1993,12 @@ class TMTrainer:
                                 and _ev_mask.any() else self.base_mask)
                     # task-28/29/30(2026-10-20): 统一执行层 mask 层
                     # (DD 仅 150-157 + 地空门控 + 不可动门控; env=0 逐位旧行为)
+                    _buf_in_stun = False
+                    if self._buf_state is not None:
+                        _act_now = int(left.get('action', 0) or 0)
+                        _buf_in_stun = (
+                            _act_now in range(50, 79)
+                            or 150 <= _act_now <= 166)
                     if _dd_gate is not None and getattr(
                             self, '_act_mask_ok', True):
                         try:
@@ -2050,12 +2065,34 @@ class TMTrainer:
                         mid, _pred = self._ppo_act.sample(
                             feat, side, mask=mask, bias=nbias,
                             return_pred=True, gru_repr=_gru_repr)
+                        if self._buf_state is not None:
+                            _mid_res = self._buf_state.resolve(_buf_in_stun)
+                            if _mid_res is not None:
+                                mid = _mid_res
+                            elif self._buf_state.register(mid,
+                                                          _buf_in_stun):
+                                mid = (self._buf_idle
+                                       if self._buf_idle is not None else mid)
+                            self._buf_cnt = getattr(
+                                self, '_buf_cnt', 0) + 1
+                            if self._buf_cnt % 200 == 0:
+                                print(self._buf_state.stats_line())
                         if _dd_gate is not None:
                             if not _dd_gate.note_choice(mid):
                                 print('[act_mask] ERROR: 选中项被 gate 移出 '
                                       '(masked_choice>0) — 采样/门控顺序 bug')
-                            if _pred is not None:
-                                _dd_gate.note_pref(_pred[0])
+                            # task-44修: pref=gate 前 raw softmax(未 mask/未 bias)
+                            try:
+                                _t0 = getattr(self._ppo_act, '_temp', 1.0)
+                                _, _, _Praw = self._ppo_act._pi_forward(
+                                    feat.reshape(1, -1),
+                                    side.reshape(1, -1)
+                                    if side is not None else None,
+                                    temp=_t0, mask=None, bias=None,
+                                    gru_repr=_gru_repr)
+                                _dd_gate.note_pref(_Praw[0])
+                            except Exception:
+                                pass
                             if getattr(self, '_gate_cnt', 0) % 200 == 0:
                                 print(_dd_gate.masked_choice_line())
                     # R35(差距#3-L1): 价值引导宏选择 — critic评估Top-5

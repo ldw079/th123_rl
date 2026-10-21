@@ -115,14 +115,15 @@ G.note_choice(removed[0])
 chk('masked_choice 计数(应暴露顺序 bug)',
     'masked_choice=1/2' in G.masked_choice_line()
     and 'gate_removed=' in G.masked_choice_line())
-# 5c) task-44: pref_on_removed(策略 top1 落在 gate 移除集合)
+# 5c) task-44修: pref_removed_mass(raw softmax 在移除集合) + top1 频次
 G.reset_masked_stats()
 mg7 = G.apply_state_gates(np.ones(3, bool), N6,
                           {'action': 0, 'airBorne': True})
 rem7 = [i for i in range(3) if not mg7[i]]
-G.note_pref(rem7[0])
-G.note_pref(0)
-chk('pref_on_removed 计数/格式',
-    'pref_on_removed=1/2' in G.pref_on_removed_line())
+G.note_pref(np.array([0.7, 0.2, 0.1]))   # removed=5A(1) → mass 20%
+G.note_pref(np.array([0.1, 0.8, 0.1]))   # top1 在 removed → top1=1, mass=(.2+.8)/2=50%
+line = G.pref_on_removed_line()
+chk('pref_removed_mass/top1 计数/格式',
+    'pref_removed_mass=50.000%' in line and 'pref_removed_top1=1/2' in line)
 print('==== task-39: %d PASS / %d FAIL ====' % (20 - len(FAIL), len(FAIL)))
 sys.exit(1 if FAIL else 0)

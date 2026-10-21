@@ -333,8 +333,17 @@ class SideDriver:
                                      return_pred=True)
         if _dd_gate is not None and getattr(self, '_act_mask_ok', True):
             _dd_gate.note_choice(mid)
-            if _pred is not None:
-                _dd_gate.note_pref(_pred[0])
+            if os.environ.get('TH123_PREF_STAT', '0') != '0':
+                try:
+                    _t0 = getattr(self.ppo, '_temp', 1.0)
+                    _, _, _Praw = self.ppo._pi_forward(
+                        feat.reshape(1, -1),
+                        side.reshape(1, -1)
+                        if side is not None else None,
+                        temp=_t0, mask=None, bias=None)
+                    _dd_gate.note_pref(_Praw[0])
+                except Exception:
+                    pass
             if self._eval_gate_cnt % 200 == 0:
                 print(_dd_gate.masked_choice_line())
         # R16: 温度跟随模型meta退火值(评估=训练行为策略; 原1.0冷静采样
