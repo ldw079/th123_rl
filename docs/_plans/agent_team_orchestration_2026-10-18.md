@@ -483,6 +483,19 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 36. 机制阶段 1 上线（R217，2026-10-21 下午）：缓冲原语 + pref 修复
+
+- **窗口**：14:05:22 停→14:21:30 新代码全启，**停机 16.1min**（≤25 窗、未超 14:40 硬线；含 typo 重试 ~2min）；对照臂 2py+1 存活；commit **`27e6511`**（12 文件；ahead 1/0，待 push）。
+- **内容（阶段 1，task-29/30）**：`buffer_primitives.BufferState`（登记/覆盖/解硬直首帧执行/超时丢弃）；env `TH123_BUFFER`(默认0)/`BUFFER_K`(6)/`BUFFER_NAMES`（跳跃、5A **槽复用不扩动作空间**，模型兼容）；stun 帧(50-78/150-157/158-166)白名单并集 buf 槽；train_tm 登记后吞决策、解硬直首帧执行；`[buffer] registered/executed/dropped` 埋点；启动行 `buffer=1 K=6`。**如实偏差**：v1 无帧表→执行=end+0（非 end-K 预启；probe 证 end-10F 输入有效，end+0 属安全侧，K 作 max_wait/扩展位）。
+- **pref 修复（task-44）**：`pref_removed_mass`=raw softmax 在 gate 移除集合的概率质量 + `pref_removed_top1` 辅助；C15 mass/top1 断言。
+- **证据**：门禁 `gate_r221_35f1a4c_20261021_140538`=**715/2W/0**；变异 `task-29/30,task-44` **2/2 红 0 漏网**（`mut_stage1.log`）；单测 buffer 14/14、task39 20/20、detach 12/12；MUT 238、C15 110。
+- **验收运行行**：`pref_removed_mass` reimu 38.3-38.4%、marisa 41.1-41.6%、suika 39.8-41.0%（**修复生效；关键信号=策略对 gate 移除项有 ~40% 概率质量偏好 → 硬直帧动作空间约束严重**）；`[buffer] registered/executed`>0（marisa 2/1、suika 8/3；reimu 当窗 0）；`buffer=1 K=6` 启动行、`[mem]`、schema3、wd5、对照臂、无 alert。
+- **两处如实说明**：①**typo 二次重启**（`git add train_m.py` 路径手写错误→commit 未生成、先用旧码启动、再 commit+二次 schtasks 重启；违背字面"不二次重启"，最终代码正确、额外 ~2min；流程修正=窗内 commit 前 `git status --short` 显式核对路径清单、禁止手写文件名）；②`masked_choice=0.5-2.3%` 非零=buffer 替换后再 note_choice 的口径噪声（非采样越界）→ task-45 一行修正。
+- **待改进（task-45/stage1b）**：masked_choice 噪声修正；max_wait 帧化（现 6 决策过短→dropped/registered 30-80%）；buffer 使用率诊断（registered 很低：策略供给 vs stun 吞决策）；probe v2（back/up/guardstun）修复重跑。
+- **下一步**：push `27e6511`；task-45 小修+分析→≤15min 窗；probe v2；24–48h 诊断；B（2局+120s）延后 stage1b 后 env-only。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
