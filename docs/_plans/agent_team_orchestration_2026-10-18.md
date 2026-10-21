@@ -458,6 +458,19 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 34. task-41/43 小窗（R215，2026-10-21 中午）：masked_choice 埋点 + detach 工具（超时/工具失败如实记录）
+
+- **窗口**：11:18:17 停→11:42:12 fallback WMI 重启→全启 11:43:38，**服务中断 25.4min（超 15min 上限）**；对照臂 2py+1 全程存活；commit **`8c05101`**（12 文件；ahead 1/0，待 push）。
+- **证据**：单测 detach **10/10**、task39 **16/16**、gen1 25/25、mask 19/19；门禁 `gate_r217_43e46dc_20261021_111835`=**713/2W/0**；变异首轮 **1红/1漏网**（task-41 变异定义把 `note_choice(mid)` 替换成语法错误→4s exit=1 被判漏网，**属变异定义缺陷非断言未覆盖**）→ 修正定义后单跑红（`mut_task41c.log`）→ 最终 **2/2 红**（breakaway 失效红 + masked_choice 埋点删除红）；MUT 236、C15 109。
+- **内容**：`train_detach.py`（CreateProcessW+DETACHED|NEW_GROUP|BREAKAWAY_FROM_JOB，`--dry`/`--stop`，日志 `D:\temp\main_detached.log`）；`masked_choice=M/N` 真实口径（选中被 gate 移出=0 红色语义断言；`gate_removed=X/Y` 诊断量）+ `note_choice` 接线 train_tm/side_driver；docs 数字 713/236/109。
+- **重启验收**：`[act_mask] masked_choice=0/816 (0.0%) gate_removed=807/816 (98.9%)`、`[mem] on mem_dim=8 hist=(N,8,3) env=8` 三 learner、games 4（21000/21010/21020/21080）、对照臂 2py+1；父进程=WMI 启动器（非 harness）。
+- **`train_detach.py` bug（已 commit 但未成功使用）**：`CreateProcessW` 两 attempt 均 OSError（breakaway 与回退皆失败；疑 STARTUPINFOW/环境块/句柄继承/STARTF 冲突）→ 本次实际用**旧 WMI 启动器**（父=WmiPrvSE）；单测只覆盖 dry/常量、**未覆盖真实 spawn** → 修工具 + 加"真实启动后查父进程/存活/日志"集成测试（task-43b），期间重启仍用 WMI fallback。
+- **超时决策（如实）**：变异补红超 11:40 硬线 45s 后，因门禁/单测/变异/commit 证据已齐且回滚会丢弃成果并延长停臂，选择"完成 commit+重启"而非回滚；**超时入账，不重复**。纪律教训：①变异定义必须窗内先 dry 验证（语法/锚点检查）再跑；②窗口硬线不因"差一点"延长，下次材料 checker 增加变异定义自检。
+- **masked_choice 生效**：合法断言 0%（选中被 gate 移出=0）；`gate_removed≈99%` 说明"空中宏存在时 gate 几乎每天改 mask 行"（动作空间收紧频率，诊断量非验收）。
+- **下一步**：push `8c05101`；task-43b 修 detach + 集成测试；审 B 评估方案（`batch_options_v2_20261021.md`）与机制设计（`mechanism_design_task29_30_34.md`）；补 W_r214 行为诊断；24–48h 记忆观察。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
