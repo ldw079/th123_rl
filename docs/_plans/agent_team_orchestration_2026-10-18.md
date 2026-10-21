@@ -447,6 +447,17 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 33. task-39 执行层收尾（R214，2026-10-21 上午）
+
+- **窗口**：10:09:37 停→10:19:12 detached(WMI) 重启→全启 10:20:33，**中断 10.9min**（≤15）；对照臂 2py+1 全程存活；commit **`4e7d35c`**（11 文件：6 code+1 new test+4 docs；ahead 1/0，待 push）。
+- **证据**：C15 `test_task39_v1` **14/14**（env=0 逐位/地空/指令技静态表/受创/158/masked 计数/配置异常响亮/side_driver&train_tm&learner_hub 接线）；门禁 `gate_r216_05838f6_20261021_100955`=**711/2W/0**（+1 断言+1 C15）；变异 `SELFTEST_TAGS='task-39'` **2/2 红 0 漏网**（side_driver gate 删除 / masked 日志删除）；MUT 234、C15 108。
+- **内容**：`side_driver` 接入 `game_gates.apply_state_gates`（评估矩阵/人测/剥削者与训练同 mask，共用 env；config_error→关 gate 回旧行为）；`train_tm` 捕获回退 + `[act_mask] masked=N/total` 埋点；`game_gates` 指令技静态地空表（236/623/214/22/46/41236/63214…）+ 计数 API；`learner_hub` **`[mem] on mem_dim=8 hist=(N,8,3) env=8` 启动行**（3 learner 均见）。
+- **口径说明（重要）**：当前 `masked=N/total` 定义为"gate 是否改变 mask 行"（空中宏存在时≈99%，**不是**"被 mask 的选择占比"）→ **旧口径不作验收依据**；真正的 masked-choice 埋点（采样后检查选中宏是否被 gate 移除）立 **task-39b** 补，下一小改。
+- **夜间事故账**：主机 **02:40:31→09:41:17 睡眠 ≈7h**（帧日志断档；训练暂停）；唤醒后 actor `code=1` 退出 09:48-09:50、supervisor 自动重启（既有唤醒崩溃模式，非新代码）；**有效运行时段**：20:54:30→02:40:31（5.76h）+ 09:50 后；W_mem 睡眠前后保持非零（10:00：3.19/2.37/2.71e-2）。
+- **下一步**：push `4e7d35c`；有效时段行为诊断（vs 修前基线：空挥/攻击/防御/挂角/逃压/SC）；B（2局+120s）候选评估；`train_start --detach` 工具化；机制批设计（防御取消/受身推板优先）。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
