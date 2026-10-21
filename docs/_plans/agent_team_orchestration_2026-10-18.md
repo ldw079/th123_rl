@@ -517,6 +517,18 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 39. B 批放大真启用（R219，2026-10-21 晚）：BATCH_K env 补丁
+
+- **背景/根因**：窗#2 用 env `BATCH_MIN_GAMES=2 WAIT_MAX=120` 未能降批——`learner_hub.py:50 BATCH_K=4` 硬编码，`:622 _need=max(batch_k,BATCH_MIN_GAMES)` 只抬不降；同时 `train_detach` 显式 pop BATCH_* env（工具 bug，task-47）且 schtasks 曾 Queued 未触发（WMI 回退恢复）。
+- **修复（`36a4a6c`）**：`BATCH_K = int(os.environ.get('TH123_BATCH_K','4'))`（默认 4 逐位等价）；C15 env=2→_need=2 + 默认=4；contract +1 PASS（718）；变异 task-48（删 env 读取）→ MUT 240；docs 718/240/111；8 文件 commit（待 push）。
+- **门禁**：`gate_batchk.txt`=**718/2W/0 exit=0**（19:40:50；因训练并行+heavy 测试耗时 ~15min，如实入账）。
+- **启用**：stop 19:42:43 → WMI 重启（launch.bat 追加 `TH123_BATCH_K=2`）19:42:56 → **停机 ≈1.0min**；4 游戏、对照 2py+1、hb 14s、无 alert；**`[batch] ... need=2` 已在 marisa/suika 出现**（reimu 新 learner 稍后首行）。
+- **24h 判据（自 19:46 need=2 首行起）**：games/batch P50≥2、timeout≤30%、|KL| 0.01–0.05、值损/熵/吞吐；恶化→去 B env WMI 重启回滚。
+- **并行**：ukemi probe 初版（k=0/2：left→action330/dx-30、right→302/dx+23、none→300；k≥3 仪器待复跑）→ task-34 2a"方向受身（复用前冲/后冲方向令牌，不改 n_out）"材料 21:00 前报；task-29 宏时序 probe 二轮、task-30 actable 设计并行。
+- **教训/待办**：工具 `train_detach` 需 `--allow-batch` 显式透传 + 启动后 Queued/进程校验 + WMI 回退（**task-47** P2）；夜间追加代码窗仅限用户明确"压缩排期"时、且需 Lead 批。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
