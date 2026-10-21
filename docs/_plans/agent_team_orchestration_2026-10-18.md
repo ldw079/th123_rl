@@ -506,6 +506,17 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 38. 窗#1 合并上线（R218，2026-10-21 晚）：stage1b + val_deact（含探针指标 hotfix 例外）
+
+- **窗口（压缩排期，Lead 令"不浪费时间"）**：stop 18:39:40 → 首启 18:49:38（≈10.0min）→ 发现硬条件 `masked_choice=1.8%` 未过 → Lead 裁决 **A（一行修复+amend+一次批准例外重启）**：修复 `train_tm.py:2041-2043` 探针分支补 `_sampled_mid = mid` + C15；门禁 `gate_window1b`=717/2W/0；amend `67714e3`→**`4c7a586`**（15 文件，ahead 1/0 待 push）；stop 18:58:40 → 再启 ≈19:00:30（1.8min）；**累计有效停机 ≈11.8min**；commit `959b2ea..4c7a586`。
+- **内容**：task-45 stage1b（masked_choice 用采样原值、`TH123_BUFFER_MAXWAIT` 帧化 max(K,40)、`[buffer] registered/executed/dropped/acted` 埋点、probe 教训文档）；task-46 val_deact B（GPU `_VAL_DEACT`+numpy `_v_forward` 同步置零 side 前 2N、默认 1、`[val] deact=1` 启动行、env=0 回滚；A 迁移删列并入 Gen-2）。
+- **证据**：单测 buffer 15/15、val_deact 10/10、task39 20/20、detach 12/12；门禁 `gate_window1`=717/2W/0（首启前）+ hotfix 后 `gate_window1b`=717/2W/0；变异 **2/2 红**（task-46 val_deact 回0 / task-29/30 buffer 白名单删除）；MUT 239、C15 111。
+- **验收行（重启后实采）**：`[val] deact=1` 三 learner；`[act_mask] ON ... buffer=1 K=6 maxwait=40`；**`masked_choice=0/1091、0/1280（0.0%，修复后）`**；`pref_removed_mass=35.5–42.5%`（关键：策略被 gate 移除的偏好仍 ~40%）；`[buffer] registered/executed/acted`>0；schema3；`wd` 5 字段（重启首拍占位后实值）；对照臂 2py+1；无 alert。
+- **探针指标 bug 教训**：验收指标实现必须覆盖"探针/回退分支"路径（本次 `_sampled_mid` 漏写导致伪 1.8%）；C15 已加"探针分支 masked_choice=0"断言防回归；窗口例外（二次重启）已批准并记录理由。
+- **下一步**：push `4c7a586`+§38；**窗#2 19:10 env-only B 批放大**（BATCH_MIN_GAMES=2 WAIT_MAX=120，5min，失败去 env 回滚）；24h 观察（批规模/timeout/KL/熵/吞吐 + val_deact 值损方差）；随后立即开工 task-34 2a + task-29 宏时序修复。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
