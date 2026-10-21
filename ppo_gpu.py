@@ -498,6 +498,11 @@ if HAS_TORCH:
             ret_t = torch.from_numpy(ret).float().to(DEVICE)
             lp_old_t = torch.from_numpy(
                 logp_old).float().to(DEVICE)
+            # task-49: buffer 替换决策 logp=NaN(sentinel) → 不参与 PPO/KL
+            _valid_np = np.isfinite(logp_old)
+            valid_t = torch.from_numpy(_valid_np.astype(np.float32)).to(
+                DEVICE)
+            _buf_skipped = int(N - int(_valid_np.sum()))
             # R56(fleet): bc_targets须转Tensor(原numpy直用 → BC分支
             # cross_entropy收numpy target即TypeError — bcw>0时必炸)
             # 从零#2(等价修复4): None时Bt=None — 原回退A=幽灵自模仿
@@ -544,6 +549,10 @@ if HAS_TORCH:
                         H=H_full[idx_t] if H_full is not None else None)
                     logp_new = F.log_softmax(logits, dim=1)
                     logp_act = logp_new[torch.arange(len(idx)), ab]
+                    # task-49: 无效行(sentinel) ratio 置1(无梯度)+adv=0, 防 NaN
+                    vb = valid_t[idx_t]
+                    lpb = torch.where(vb > 0, lpb, logp_act.detach())
+                    advb = advb * vb
                     # P2(审计#3): 对齐numpy侧logp差±20钳制(原缺失=
                     # 降级不对称; 防离群ratio爆炸)
                     ratio = torch.exp(
@@ -551,7 +560,9 @@ if HAS_TORCH:
                     surr1 = ratio * advb
                     surr2 = torch.clamp(ratio, 1 - self.CLIP,
                                         1 + self.CLIP) * advb
-                    pi_loss = -torch.min(surr1, surr2).sum()
+                    _den = vb.sum().clamp_min(1.0)
+                    # task-49: 保持 sum 归约(全 valid 时与原逐位一致); 仅剔除 sentinel 行
+                    pi_loss = (-torch.min(surr1, surr2) * vb).sum()
                     v_loss = F.mse_loss(V, retb)
                     ent = -(F.softmax(logits, dim=1)
                             * logp_new).sum(1).sum()
@@ -631,7 +642,10 @@ if HAS_TORCH:
                     H=H_full[_kt] if H_full is not None else None)
                 _lpk = F.log_softmax(_lk, dim=1)[
                     torch.arange(len(_kidx)), A[_kt]]
-                kl_val = float(torch.abs(_lpk - lp_old_t[_kt]).mean())
+                _kv = valid_t[_kt]
+                kl_val = float(
+                    (torch.abs(_lpk - lp_old_t[_kt]) * _kv).sum()
+                    / _kv.sum().clamp_min(1.0))
                 # 熵诊断(同掩码 — numpy R18 P0同源)
                 _Pk = F.softmax(_lk, dim=1).clamp(1e-8, 1.0)
                 ent_diag = float((-(_Pk * _Pk.log()).sum(1)).mean())
@@ -674,20 +688,24 @@ if HAS_TORCH:
 
             # 从零#2(等价修复7): 统计字典与numpy版逐键对齐(原4键缩水
             # → 仪表/诊断消费方读不到return/kl_stopped/退火值等)
-            return {'pi_loss': float(np.mean(losses)) if losses else 0,
-                    'return': float(np.mean(ret)),
-                    'entropy': ent_diag,
-                    'kl': kl_val,
-                    'value_loss': (float(np.mean(v_losses))
-                                   if v_losses else 0.0),
-                    'kl_stopped': stopped,
-                    'beta': self._beta, 'temp': self._temp,
-                    'bcw': self._bcw,
-                    'aux_loss': (float(np.mean(aux_losses))
-                                 if aux_losses else None),
-                    'aux_acc': (aux_hits / aux_n if aux_n > 0 else None),
-                    'adv_abs': float(np.abs(adv).mean()),
-                    'kl_abs': abs(kl_val)}
+            _stats_out = {'pi_loss': float(np.mean(losses)) if losses else 0,
+                          'return': float(np.mean(ret)),
+                          'entropy': ent_diag,
+                          'kl': kl_val,
+                          'value_loss': (float(np.mean(v_losses))
+                                         if v_losses else 0.0),
+                          'kl_stopped': stopped,
+                          'beta': self._beta, 'temp': self._temp,
+                          'bcw': self._bcw,
+                          'aux_loss': (float(np.mean(aux_losses))
+                                       if aux_losses else None),
+                          'aux_acc': (aux_hits / aux_n if aux_n > 0
+                                      else None),
+                          'adv_abs': float(np.abs(adv).mean()),
+                          'kl_abs': abs(kl_val)}
+            if _buf_skipped:
+                _stats_out['buf_skipped'] = _buf_skipped
+            return _stats_out
 
         def _gae(self, V, R, ep_lens, ep_terms):
             N = len(R)

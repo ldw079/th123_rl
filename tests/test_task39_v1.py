@@ -134,6 +134,13 @@ _c = _sp.run([sys.executable, '-X', 'utf8', '-c',
               "import os;os.environ['TH123_BATCH_K']='2';"
               "import learner_hub as L;print(L.BATCH_K)"],
              capture_output=True, text=True, cwd=WT)
+chk('task-49: KL NaN sentinel/isfinite 过滤/buf_skipped',
+    'np.isfinite(logp_old)' in open(os.path.join(WT, 'ppo_gpu.py'),
+                                     encoding='utf8').read()
+    and 'buf_skipped=' in open(os.path.join(
+        WT, 'learner_hub.py'), encoding='utf8').read()
+    and "float('nan')" in open(os.path.join(WT, 'train_tm.py'),
+                                 encoding='utf8').read())
 chk('task-48: BATCH_K env 生效(env=2→2, 默认4)',
     _c.returncode == 0 and _c.stdout.strip().endswith('2')
     and "TH123_BATCH_K', '4'" in tt.replace('train_tm', '')

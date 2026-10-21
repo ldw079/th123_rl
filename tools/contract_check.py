@@ -2315,6 +2315,12 @@ chk('MEM_DECISIONS = int(os.environ.get(\'TH123_MEM_DECISIONS\', \'0\'))' in _mv
     and 'H=H_full[idx_t]' in _pg and 'H=H_full[_kt]' in _pg
     and 'import mem_v1 as _mem_v1' in _tt,
     'Gen-1: mem_v1(hist编码/默认0) + train_tm 接线')
+# task-49: buffer 替换决策 logp=NaN sentinel → learner 过滤不参与 PPO/KL
+chk('np.isfinite(logp_old)' in src('ppo_gpu.py')
+    and 'buf_skipped' in src('ppo_gpu.py')
+    and 'buf_skipped=' in src('learner_hub.py')
+    and "_buf_skip" in _tt,
+    'task-49: KL NaN sentinel + isfinite 过滤 + buf_skipped 计数')
 # task-48: B 批放大 batch_k 可配(env 默认4=逐位等价)
 chk("BATCH_K = int(os.environ.get('TH123_BATCH_K', '4'))"
     in src('learner_hub.py')

@@ -837,6 +837,11 @@ MUTATIONS = [
      "TH123_BATCH_K', '4'",
      "TH123_BATCHQ', '4'",
      'task-48: BATCH_K env 删除 → 断言必须红'),
+    # task-49: 删 isfinite 过滤(NaN 行进 PPO → NaN/爆炸) → 断言必红
+    ('ppo_gpu.py',
+     'np.isfinite(logp_old)',
+     'np.ones_like(logp_old).astype(bool)',
+     'task-49: isfinite 过滤删除 → 断言必须红'),
 ]
 
 

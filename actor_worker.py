@@ -114,6 +114,9 @@ def run_actor(char, actor_id, port, tps=480, episodes=1000,
     def rec_logp(mid, feat, side, mask, nbias, mix_p=None):
         # P1-5(从零#4): mix_p=混合行为边际(探针12%均匀+π88%×VG30%重选)
         # — 探针/VG路径占比~40%, 原记纯π系有偏(红线①债)
+        if mix_p is not None and np.isnan(mix_p):
+            fleet_logps.append(float('nan'))   # task-49 sentinel
+            return
         if mix_p is not None:
             fleet_logps.append(float(np.log(max(mix_p, 1e-10))))
             return

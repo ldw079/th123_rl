@@ -682,11 +682,12 @@ def run_learner(char, batch_k=BATCH_K, suffix='_fleet'):
         # aux读数(诊断2026-10-06: 日志行原未带 — 统计字典有)
         _aux = stats.get('aux_acc')
         _aux_s = (' aux命中%.0f%%' % (_aux * 100)) if _aux else ''
+        _bs = int(stats.get('buf_skipped', 0))
         print('[learner] %s 批%d局/%d决策 %.1fs v%d |KL|%.4f 熵%.2f '
-              '值损%.4f 陈旧%d%s'
+              '值损%.4f 陈旧%d%s buf_skipped=%d'
               % (char, n_eps, N, dt, ver,
                   stats.get('kl', 0), stats.get('entropy', 0),
-                  stats.get('value_loss', 0), ver - max_ver, _aux_s))
+                  stats.get('value_loss', 0), ver - max_ver, _aux_s, _bs))
         # 阶段0仪表: 系列位置分桶曲线随批留档(grep口径: 系列曲线)
         if stats.get('series_curve'):
             print('[learner] %s 系列曲线 %s'

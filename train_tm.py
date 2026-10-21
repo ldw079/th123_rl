@@ -1994,6 +1994,7 @@ class TMTrainer:
                     # task-28/29/30(2026-10-20): 统一执行层 mask 层
                     # (DD 仅 150-157 + 地空门控 + 不可动门控; env=0 逐位旧行为)
                     _buf_in_stun = False
+                    _buf_skip = False   # task-49: buffer 替换决策→logp NaN(不参与PPO)
                     if self._buf_state is not None:
                         # task-45: 执行后 8 决策内是否出现非待机动作
                         _bc = getattr(self, '_buf_check', 0)
@@ -2092,6 +2093,7 @@ class TMTrainer:
                                                           _buf_in_stun):
                                 mid = (self._buf_idle
                                        if self._buf_idle is not None else mid)
+                                _buf_skip = True
                             self._buf_cnt = getattr(
                                 self, '_buf_cnt', 0) + 1
                             if self._buf_cnt % 200 == 0:
@@ -2169,7 +2171,9 @@ class TMTrainer:
                     # 概率=混合边际(mixed_behavior_p) — 原记纯π系有偏
                     # (~40%决策), 红线①"actor记真实logP"债清偿。
                     _mix_p = None
-                    if newbie_legal or _vg_on:
+                    if _buf_skip:
+                        _mix_p = float('nan')   # sentinel: 不参与 PPO
+                    elif newbie_legal or _vg_on:
                         P_rec = self._ppo_act._pi_forward(
                             feat.reshape(1, -1), side.reshape(1, -1),
                             temp=self._ppo_act._temp,
@@ -2182,6 +2186,8 @@ class TMTrainer:
                     if self._fleet_logp_rec is not None:
                         self._fleet_logp_rec(mid, feat, side, mask, nbias,
                                              mix_p=_mix_p)
+                    elif _buf_skip:
+                        ep_logps.append(float('nan'))
                     elif _mix_p is not None:
                         ep_logps.append(float(np.log(_mix_p)))
                     else:
