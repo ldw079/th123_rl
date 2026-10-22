@@ -88,6 +88,7 @@ def _load_char_libs():
                               m_reimu.STRING_MACROS, m_reimu.AIR_MACROS),
         # JZ-3.2: 投技宏集(无敌窗内掩蔽; 灵梦无指令投)
         "throw": {"择·投"},
+        "disabled": getattr(m_reimu, 'DISABLED_MACROS', set()),
     }
     CHAR_LIBS["marisa"] = {
         "id": 1, "macros": m_marisa.MACROS_MARISA,
@@ -101,6 +102,7 @@ def _load_char_libs():
                               m_marisa.SKILL_MACROS_MARISA, m_marisa.COMBO_MACROS_MARISA,
                               m_marisa.STRING_MACROS_MARISA, m_marisa.AIR_MACROS_MARISA),
         "throw": {"择·投"},        # JZ-3.2(黑白无指令投)
+        "disabled": getattr(m_marisa, 'DISABLED_MACROS', set()),
     }
     CHAR_LIBS["suika"] = {
         "id": 9, "macros": m_suika.MACROS_SUIKA,
@@ -114,6 +116,7 @@ def _load_char_libs():
                               m_suika.SKILL_MACROS_SUIKA, m_suika.COMBO_MACROS_SUIKA,
                               m_suika.STRING_MACROS_SUIKA, m_suika.AIR_MACROS_SUIKA),
         "throw": {"择·投", "623B"},   # JZ-3.2(萃鬼=指令投, suika.py:57)
+        "disabled": getattr(m_suika, 'DISABLED_MACROS', set()),
     }
     # R44(2026-10-04): 六新角色 — tools/gen_newchar_libs.py生成的同构骨架库
     # (66宏: 通用体术+指令技+确认连段+原子宏+系统/角色符卡)。
@@ -344,6 +347,10 @@ try:
     import buffer_primitives as _buf_prims
 except Exception:
     _buf_prims = None
+try:
+    import actable_state as _actable_mod
+except Exception:
+    _actable_mod = None
 SPACE_EDGE_X1 = 1160.0
 # Gen-1(2026-10-20): 决策历史(schema v3; env TH123_MEM_DECISIONS)
 try:
@@ -575,6 +582,12 @@ class TMTrainer:
         # 基础掩码: 非符卡宏(符卡宏由每决策的可用性门控动态放开)
         self.base_mask = np.array(
             [m[0] not in self.sc_names for m in self.macros], dtype=bool)
+        # task-29: 禁用宏(实机无此招/不可用)从基础掩码剔除(不删 id 空间)
+        _dis = set(lib.get("disabled") or ())
+        if _dis:
+            self.base_mask &= np.array(
+                [m[0] not in _dis for m in self.macros], dtype=bool)
+            print('[mask] disabled macros: %s' % sorted(_dis))
         # 符卡目标/耗费表(v2 Phase C制度移植, TM包手牌数据驱动)
         self.sc_targets = _parse_sc_targets(self.macros)
         self.sc_cost_table = dict(lib["sc_cost"])
@@ -1528,6 +1541,10 @@ class TMTrainer:
             if (_buf_prims is not None and _buf_prims.BUFFER) else None)
         self._buf_idle = next(
             (i for i, m in enumerate(self.macros) if m[0] == '待机'), None)
+        self._ukemi_dir = 'back'   # task-34 2a 方向令牌状态
+        self._actable = (_actable_mod.ActableTracker()
+                         if (_actable_mod is not None
+                             and _actable_mod.ACTABLE) else None)
         self._mem_hist = []    # Gen-1: 决策历史窗口 (8,3)
         self._mem_steps = []   # Gen-1: 最近8步单步编码缓冲
         opp_acts = []          # R17④: 每决策拍对手动作类(action//128) —
@@ -2014,6 +2031,12 @@ class TMTrainer:
                         _buf_in_stun = (
                             _act_now in range(50, 79)
                             or 150 <= _act_now <= 166)
+                        if self._actable is not None:
+                            self._actable.update(_act_now)
+                            self._act_cnt = getattr(
+                                self, '_act_cnt', 0) + 1
+                            if self._act_cnt % 200 == 0:
+                                print(self._actable.line())
                     if _dd_gate is not None and getattr(
                             self, '_act_mask_ok', True):
                         try:
@@ -2084,16 +2107,35 @@ class TMTrainer:
                             return_pred=True, gru_repr=_gru_repr)
                         _sampled_mid = mid   # stage1b: buffer 替换前的采样原值
                         if self._buf_state is not None:
-                            _mid_res = self._buf_state.resolve(_buf_in_stun)
-                            if _mid_res is not None:
-                                mid = _mid_res
-                                self._buf_check = 8
-                                self._buf_hit = False
-                            elif self._buf_state.register(mid,
-                                                          _buf_in_stun):
+                            _udir_on = bool(getattr(
+                                _dd_gate, 'BUFFER_UKEMI_DIR', False))
+                            _mname = self.macros[mid][0]
+                            if (_udir_on and _buf_in_stun
+                                    and _mname in ('前冲', '后冲')):
+                                # 方向令牌: 只记录方向, 吞决策
+                                self._ukemi_dir = (
+                                    'forward' if _mname == '前冲' else 'back')
                                 mid = (self._buf_idle
                                        if self._buf_idle is not None else mid)
                                 _buf_skip = True
+                            else:
+                                _mid_res = self._buf_state.resolve(
+                                    _buf_in_stun)
+                                if _mid_res is not None:
+                                    mid, _dir = _mid_res
+                                    if _dir:
+                                        self._ukemi_dir = _dir
+                                    self._buf_check = 8
+                                    self._buf_hit = False
+                                elif self._buf_state.register(
+                                        mid, _buf_in_stun,
+                                        direction=(self._ukemi_dir
+                                                   if _mname == '受身'
+                                                   else None)):
+                                    mid = (self._buf_idle
+                                           if self._buf_idle is not None
+                                           else mid)
+                                    _buf_skip = True
                             self._buf_cnt = getattr(
                                 self, '_buf_cnt', 0) + 1
                             if self._buf_cnt % 200 == 0:
@@ -2331,6 +2373,14 @@ class TMTrainer:
                     from level_macros import adjust_script
                     script = adjust_script(self.macros[mid][1],
                                            self.feat_builder._skill_levels)
+                    # task-34 2a: 受身按方向令牌替换为方向脚本(end+0)
+                    if (getattr(_dd_gate, 'BUFFER_UKEMI_DIR', False)
+                            and self.macros[mid][0] == '受身'
+                            and getattr(self, '_ukemi_dir', None)):
+                        _d = ('right' if self._ukemi_dir == 'forward'
+                              else 'left')
+                        script = [((_d,), 2), ((_d, 'A'), 8)]
+                        self._ukemi_dir = 'back'
                     # P0-B(从零#2): 入队走macro_executor.enqueue_script单源
                     # — 原内联(ks,0)丢字符串步载荷(branch/link/ender)
                     macro_executor.enqueue_script(macro_queue, script)

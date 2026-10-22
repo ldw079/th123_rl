@@ -30,6 +30,7 @@ FILES = [
          "standard_tree.py",
          "train_tm.py",
          "buffer_primitives.py",
+         "actable_state.py",
          "tools/train_detach.py",
          "mem_v1.py",
          "atk_v1.py",
@@ -842,6 +843,21 @@ MUTATIONS = [
      'np.isfinite(logp_old)',
      'np.ones_like(logp_old).astype(bool)',
      'task-49: isfinite 过滤删除 → 断言必须红'),
+    # task-29: 禁用宏清空(无效宏回归采样) → 断言必红
+    ('macros/__init__.py',
+     "DISABLED_MACROS = {'214B'}",
+     "DISABLED_MACROS = set()",
+     'task-29: disabled 清空 → 断言必须红'),
+    # task-34: 方向令牌 env 删除 → 断言必红
+    ('game_gates.py',
+     "BUFFER_UKEMI_DIR = os.environ.get('TH123_BUFFER_UKEMI_DIR', '0') != '0'",
+     "BUFFER_UKEMI_DIR = False",
+     'task-34: 方向令牌 env 删除 → 断言必须红'),
+    # task-30: actable 模块类删除 → 断言必红
+    ('actable_state.py',
+     'class ActableTracker',
+     'class ActableTrackerX',
+     'task-30: ActableTracker 删除 → 断言必须红'),
 ]
 
 

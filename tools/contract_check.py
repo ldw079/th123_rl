@@ -2109,6 +2109,8 @@ _BEHAVIOR_TESTS = [
      "task-29/30: 统一 mask 层(地空/不可动/DD 150-157)"),
     ("test_val_deact_v1.py",
      "task-46: 值头 deact(GPU/numpy 等价/env=0 回滚/[val] 行)"),
+    ("test_actable_v1.py",
+     "task-30: actable 状态估计(env/stun/近末/line)"),
     ("test_buffer_v1.py",
      "task-29/30 阶段1: BufferState/白名单/env=0/startup 行"),
     ("test_train_detach_v1.py",
@@ -2315,6 +2317,18 @@ chk('MEM_DECISIONS = int(os.environ.get(\'TH123_MEM_DECISIONS\', \'0\'))' in _mv
     and 'H=H_full[idx_t]' in _pg and 'H=H_full[_kt]' in _pg
     and 'import mem_v1 as _mem_v1' in _tt,
     'Gen-1: mem_v1(hist编码/默认0) + train_tm 接线')
+# task-29/34/30 合并: 禁用宏掩码 + 受身方向令牌 + actable
+chk("DISABLED_MACROS = {'214B'}" in src('macros/__init__.py')
+    and 'disabled' in _tt and '[mask] disabled macros' in _tt
+    and 'disabled' in src('side_driver.py'),
+    'task-29: 无效命令宏掩码禁用(214B, 不删 id)')
+chk('BUFFER_UKEMI_DIR' in _gg and 'UKEMI_DIR_TOKENS' in _gg
+    and 'BUFFER_UKEMI_DIR' in _tt and '_ukemi_dir' in _tt,
+    'task-34 2a: 受身方向令牌 + 方向脚本覆盖')
+chk('class ActableTracker' in src('actable_state.py')
+    and 'TH123_ACTABLE' in src('actable_state.py')
+    and '_actable_mod.ActableTracker()' in _tt,
+    'task-30: actable 状态估计(env 默认0, 仅埋点)')
 # task-49: buffer 替换决策 logp=NaN sentinel → learner 过滤不参与 PPO/KL
 chk('np.isfinite(logp_old)' in src('ppo_gpu.py')
     and 'buf_skipped' in src('ppo_gpu.py')
@@ -2338,8 +2352,8 @@ chk('class BufferState' in src('buffer_primitives.py')
     and 'def register(' in src('buffer_primitives.py')
     and 'def resolve(' in src('buffer_primitives.py')
     and 'TH123_BUFFER' in _gg and 'BUFFER_NAMES' in _gg
-    and 'BufferState(' in _tt and 'register(mid' in _tt
-    and 'resolve(_buf_in_stun)' in _tt,
+    and 'BufferState(' in _tt and 'self._buf_state.register(' in _tt
+    and 'self._buf_state.resolve(' in _tt and '_ukemi_dir' in _tt,
     'task-29/30: 缓冲原语(gate stun 白名单并集/env 开关/train_tm 登记执行)')
 # task-43(task-41): train_detach 工具 + masked_choice 埋点
 chk('CREATE_BREAKAWAY_FROM_JOB' in src('tools/train_detach.py')

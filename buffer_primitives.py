@@ -37,7 +37,7 @@ class BufferState:
             self.max_wait = int(_mw)
         else:
             self.max_wait = max(BUFFER_K, 40)   # 决策数上限(硬直20-30F; 6 会大量丢弃)
-        self.pending = None      # (mid, frames_waited)
+        self.pending = None      # (mid, frames_waited, dir)
         self.executed = 0
         self.dropped = 0
         self.registered = 0
@@ -48,13 +48,13 @@ class BufferState:
     def active(self):
         return self.pending is not None
 
-    def register(self, mid, in_stun):
+    def register(self, mid, in_stun, direction=None):
         """stun 帧选中 buf 槽 → 登记; 返回 True=已吞掉该决策."""
         if not in_stun or mid not in self.allowed:
             return False
         if self.pending is not None:
             self.dropped += 1
-        self.pending = (int(mid), 0)
+        self.pending = (int(mid), 0, direction)
         self.registered += 1
         return True
 
@@ -62,16 +62,16 @@ class BufferState:
         """每决策调用: 若已解硬直→返回待执行 mid(并清空); 否则 None."""
         if self.pending is None:
             return None
-        mid, waited = self.pending
+        mid, waited, _dir = self.pending
         if in_stun:
-            self.pending = (mid, waited + 1)
+            self.pending = (mid, waited + 1, _dir)
             if waited + 1 > self.max_wait:
                 self.dropped += 1
                 self.pending = None
             return None
         self.pending = None
         self.executed += 1
-        return mid
+        return mid, _dir
 
     def note_outcome(self, acted):
         """执行后 8 决策内是否出现非待机动作(行为生效判定)."""

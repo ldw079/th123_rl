@@ -31,10 +31,14 @@ chk('stun 帧登记', st.register(1, True) and st.active and st.pending[0] == 1)
 chk('重复登记覆盖旧 pending', st.register(2, True) and st.dropped == 1
     and st.pending[0] == 2)
 chk('stun 中 resolve 不执行', st.resolve(True) is None)
-chk('解硬直首帧执行', st.resolve(False) == 2 and not st.active)
+chk('解硬直首帧执行', st.resolve(False)[0] == 2 and not st.active)
 chk('非 buf 槽不登记', st.register(4, True) is False)
 chk('非 stun 不登记', st.register(1, False) is False)
 # max_wait 过期丢弃
+st3 = B.BufferState(NAMES)
+chk('dir 令牌登记/传递',
+    st3.register(1, True, direction='forward')
+    and st3.resolve(False)[1] == 'forward')
 st2 = B.BufferState(NAMES, max_wait=2)
 st2.register(1, True)
 for _ in range(3):
@@ -68,7 +72,7 @@ chk('startup_line 含 buffer=1/K', 'buffer=1' in line and 'K=' in line)
 # train_tm 接线源码级
 tt = open(os.path.join(WT, 'train_tm.py'), encoding='utf8').read()
 chk('train_tm 接线 BufferState/register/resolve',
-    'BufferState(' in tt and 'register(mid' in tt
-    and 'resolve(_buf_in_stun)' in tt and 'stats_line()' in tt)
-print('==== buffer v1: %d PASS / %d FAIL ====' % (15 - len(FAIL), len(FAIL)))
+    'BufferState(' in tt and 'self._buf_state.register(' in tt
+    and 'self._buf_state.resolve(' in tt and 'stats_line()' in tt)
+print('==== buffer v1: %d PASS / %d FAIL ====' % (16 - len(FAIL), len(FAIL)))
 sys.exit(1 if FAIL else 0)

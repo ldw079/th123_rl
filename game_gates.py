@@ -135,6 +135,9 @@ ACT_MASK = os.environ.get('TH123_ACT_MASK', '1') != '0'
 BUFFER = os.environ.get('TH123_BUFFER', '0') != '0'
 BUFFER_NAMES = tuple(n for n in os.environ.get(
     'TH123_BUFFER_NAMES', '跳跃,5A').split(',') if n)
+# task-34 2a: 受身方向令牌(前冲/后冲 仅 stun 帧作方向选择)
+BUFFER_UKEMI_DIR = os.environ.get('TH123_BUFFER_UKEMI_DIR', '0') != '0'
+UKEMI_DIR_TOKENS = ('前冲', '后冲')
 AIR_GATE = os.environ.get('TH123_AIR_GATE', '1') != '0'
 IMMOBILE_GATE = os.environ.get('TH123_IMMOBILE_GATE', '1') != '0'
 GUARD_STUN_LO, GUARD_STUN_HI = 150, 157   # 正防硬直(实测 151/152/155/156 有效)
@@ -207,6 +210,8 @@ def apply_state_gates(mask, names, left):
             allow = set(UKEMI)
             if _buf_ok:
                 allow = allow | set(BUFFER_NAMES)
+            if BUFFER_UKEMI_DIR:
+                allow = allow | set(UKEMI_DIR_TOKENS)
         elif GUARD_STUN_LO <= act <= GUARD_STUN_HI:
             allow = set(GUARD_MACROS) | set(CARDS_GROUND) | {
                 n for n in names if is_dd_macro(n)}

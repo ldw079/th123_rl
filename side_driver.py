@@ -74,6 +74,10 @@ class SideDriver:
         self.names = [m[0] for m in self.macros]
         self.base_mask = np.array(
             [m[0] not in self.sc_names for m in self.macros], dtype=bool)
+        _dis = set(lib.get("disabled") or ())
+        if _dis:
+            self.base_mask &= np.array(
+                [m[0] not in _dis for m in self.macros], dtype=bool)
         # R16: 符卡状态机(与train_tm同源)
         self.sc_cost_table = lib["sc_cost"]
         self.sc_targets = _parse_sc_targets(self.macros)

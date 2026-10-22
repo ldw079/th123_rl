@@ -340,3 +340,6 @@ DASH_MACROS |= _WD
 
 MACRO_NAMES = [m[0] for m in MACROS]
 N_MACROS = len(MACROS)
+
+# task-29: 实机无此招/宏不可用 → 掩码禁用(不删 id, 保模型兼容)
+DISABLED_MACROS = {'214B'}
