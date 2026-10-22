@@ -541,6 +541,17 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 41. 机制阶段 2a 合并上线（R221，2026-10-22 上午）：方向受身 + 宏禁用 + actable 埋点
+
+- **窗口（提前至 09:45）**：先建 autorecover（10:24）→ stop 09:44:50 → 变异→commit→WMI 重启 09:55:18 → 全启/验收 09:56:54，**停机 ≈10.5min**（硬线 10:10 内）；autorecover 成功后删除；commit **`6ec41ef`**（14 文件；ahead 1/0，待 push）。
+- **内容**：①**task-34 2a**：`TH123_BUFFER_UKEMI_DIR`（默认0）+ stun 白名单加 前冲/后冲 方向令牌 + 受身登记带 dir + 解硬直首帧方向化受身脚本 `(dir,2),(dir+A,8)` + 默认 back；②**task-29**：`DISABLED_MACROS` 机制（不删 id）+ reimu `214B` 掩码禁用 + `[mask] disabled macros` 启动行；③**task-30**：`actable_state.py`（ActableTracker：frames_in_stun/est_left/near_end/actable 在线估计）+ `[actable]` 埋点，env `TH123_ACTABLE` 默认 0，不改 CORE_DIMS。
+- **证据**：门禁 `gate_merged3`=**723/2W/0**；变异 `mut_merged.log` **3红/0漏网**（方向令牌 env 删除/disabled 清空/ActableTracker 删除）；单测 buffer 16/16、actable 10/10、task39 20、p1gen1 25；MUT 244、C15 112。
+- **验收行（实采）**：`[mask] disabled macros: ['214B']`；`[buffer] registered=17 executed=8 dropped=9 acted=8/8`；`[actable] in_stun=0 frames=0 est_left=0.00 near_end=0 actable=1 avg=11.40`；`masked_choice=0/39456 (0.0%)`；`pref_removed_mass=39.666%`；`[val] deact=1`；need=2；KL 0.15–0.17、`buf_skipped`>0、`kl_nan=0`；4 游戏/对照 2py+1/hb 10s/无 alert。
+- **如实缺口（follow-up）**：①`[buffer]` 统计行未加 `dir_f/dir_b/dir_n` 计数（埋点缺口非功能缺口）；②task-29 全角色扫描：reimu 缺 {623C,22B,214C}（本轮仅掩 214B）、marisa/suika 8 命令宏齐、**17 新角色 SKILL 集为空**（命令宏存在但未进技能集）；③actable 仅埋点，特征化待 Gen-2/空槽确认。均入 **task-48**（P1 收尾）。
+- **下一步**：push `6ec41ef`+§41；24h 观察（KL 09:0x 起，本窗起含方向受身/宏禁用/actable）；下午：24h 数据初读 + task-31/32/33/35 设计与排期 + task-48 收尾材料。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
