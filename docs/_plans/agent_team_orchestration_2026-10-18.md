@@ -552,6 +552,16 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 42. 机制 2a 收尾窗（R222，2026-10-22 上午）：dir 计数 + 214 宏修正 + guard_cancel 埋点
+
+- **窗口（提前至 10:45）**：autorecover 11:04 建 → stop 10:43:53 → 变异 3/3 红（`mut_window4.log` 7min）→ commit → WMI 重启 10:54:58 → 验收 10:57，**停机 ≈11.1min**（硬线 11:00 内）；autorecover 成功后删除；commit **`f0848cb`**（30 文件；**amend 说明**：首 commit `b8c6a0e` FILES 漏 `train_tm.py`（disabled 行恒打印小修）→ 窗内 add+amend；运行代码本已含该改动）。
+- **内容**：task-48① `[buffer] ... dir_f/dir_b/dir_n` 计数（C15 18/18）；task-48② **214B/214C 宏方向修正**（20 宏文件 `←↙←`→`↓↙←`，纯数据）→ reimu 214B 回放 **0.00→404@12F**，**重新启用**（`[mask] disabled macros: []`，机制保留）；task-32 probe 阳性（防御硬直末按 A→动作 **330**（普通 5A=300），k=0/1 可；SC/SW 单按无效）→ 防御帧白名单代码 + `TH123_GUARD_CANCEL` 默认 **0**（先埋点，语义复核后再开）。
+- **证据**：门禁 `gate_materials3`=**724/2W/0**；变异 3/3 红（214 方向回退/dir 计数删除/防御取消 env 删除）；MUT 247、C15 112；验收 `[buffer] dir_f=0 dir_b=0 dir_n=11`、`[mask] disabled []`、`guard_cancel=0`、`[actable] avg=8.52`、`masked_choice=0/49105`、pref 43.3%、KL 0.18/kl_nan=0、4 游戏/对照 2py+1/hb 28s/无 alert。
+- **材料结论（转 Gen-2）**：①623C/22B/214C 招式**存在**（单按钮基线 C→410/B→400；命令→414/404/414）但宏库无 → 新增宏=n_out 变化 → **Gen-2 迁移批**；②槽位核对：CORE 382/358 **无空闲维**（JZ-1 343..357 + task-21 358..381 全满）→ actable 4D/天气 5D 特征化 → **Gen-2 迁移批**（优先级 actable>天气）；③17 新角色 SKILL 集为空 → 需数据核验，入 Gen-2 数据批。
+- **下一步**：push `f0848cb`+§42；guard_cancel 330 语义复核 + 5min 开启窗；task-33 帧表校准工具；task-35 deck_cond 采样条件化（不需新槽）；**Gen-2 迁移批设计**（actable 4D/天气 5D/新命令宏/17 角色 SKILL/frame tables）；明早 09:10 完整 24h 首检。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
