@@ -43,6 +43,9 @@ class BufferState:
         self.registered = 0
         self.acted_ok = 0
         self.acted_n = 0
+        self.dir_f = 0   # task-48: 方向令牌统计
+        self.dir_b = 0
+        self.dir_n = 0
 
     @property
     def active(self):
@@ -56,6 +59,12 @@ class BufferState:
             self.dropped += 1
         self.pending = (int(mid), 0, direction)
         self.registered += 1
+        if direction == 'forward':
+            self.dir_f += 1
+        elif direction == 'back':
+            self.dir_b += 1
+        else:
+            self.dir_n += 1
         return True
 
     def resolve(self, in_stun):
@@ -81,6 +90,8 @@ class BufferState:
         return acted
 
     def stats_line(self):
-        return ('[buffer] registered=%d executed=%d dropped=%d acted=%d/%d'
+        return ('[buffer] registered=%d executed=%d dropped=%d acted=%d/%d '
+                'dir_f=%d dir_b=%d dir_n=%d'
                 % (self.registered, self.executed, self.dropped,
-                   self.acted_ok, self.acted_n))
+                   self.acted_ok, self.acted_n,
+                   self.dir_f, self.dir_b, self.dir_n))

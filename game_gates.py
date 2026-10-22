@@ -138,6 +138,9 @@ BUFFER_NAMES = tuple(n for n in os.environ.get(
 # task-34 2a: 受身方向令牌(前冲/后冲 仅 stun 帧作方向选择)
 BUFFER_UKEMI_DIR = os.environ.get('TH123_BUFFER_UKEMI_DIR', '0') != '0'
 UKEMI_DIR_TOKENS = ('前冲', '后冲')
+# task-32 stage1: 防御取消(probe: 防御硬直末 A → 动作330) — 防御帧白名单并集近战宏
+GUARD_CANCEL = os.environ.get('TH123_GUARD_CANCEL', '0') != '0'
+GUARD_CANCEL_NAMES = ('5A', '2A', '6A', '3A', '4A', 'DA')
 AIR_GATE = os.environ.get('TH123_AIR_GATE', '1') != '0'
 IMMOBILE_GATE = os.environ.get('TH123_IMMOBILE_GATE', '1') != '0'
 GUARD_STUN_LO, GUARD_STUN_HI = 150, 157   # 正防硬直(实测 151/152/155/156 有效)
@@ -212,6 +215,8 @@ def apply_state_gates(mask, names, left):
                 allow = allow | set(BUFFER_NAMES)
             if BUFFER_UKEMI_DIR:
                 allow = allow | set(UKEMI_DIR_TOKENS)
+            if GUARD_CANCEL:
+                allow = allow | set(GUARD_CANCEL_NAMES)
         elif GUARD_STUN_LO <= act <= GUARD_STUN_HI:
             allow = set(GUARD_MACROS) | set(CARDS_GROUND) | {
                 n for n in names if is_dd_macro(n)}
@@ -247,9 +252,10 @@ def apply_state_gates(mask, names, left):
 
 def startup_line():
     return ('[act_mask] %s air=%d immobile=%d dd_guard=%d guard_ids=%d-%d '
-            '(158/159-166 masked) buffer=%d K=%d maxwait=%d'
+            '(158/159-166 masked) buffer=%d K=%d maxwait=%d guard_cancel=%d'
             % ('ON' if ACT_MASK else 'OFF', int(AIR_GATE),
                int(IMMOBILE_GATE), int(DD_GUARD_ONLY), GUARD_STUN_LO,
                GUARD_STUN_HI, int(BUFFER),
                int(os.environ.get('TH123_BUFFER_K', '6')),
-               int(os.environ.get('TH123_BUFFER_MAXWAIT', '0')) or -1))
+               int(os.environ.get('TH123_BUFFER_MAXWAIT', '0')) or -1,
+               int(GUARD_CANCEL)))

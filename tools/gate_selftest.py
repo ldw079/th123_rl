@@ -843,11 +843,6 @@ MUTATIONS = [
      'np.isfinite(logp_old)',
      'np.ones_like(logp_old).astype(bool)',
      'task-49: isfinite 过滤删除 → 断言必须红'),
-    # task-29: 禁用宏清空(无效宏回归采样) → 断言必红
-    ('macros/__init__.py',
-     "DISABLED_MACROS = {'214B'}",
-     "DISABLED_MACROS = set()",
-     'task-29: disabled 清空 → 断言必须红'),
     # task-34: 方向令牌 env 删除 → 断言必红
     ('game_gates.py',
      "BUFFER_UKEMI_DIR = os.environ.get('TH123_BUFFER_UKEMI_DIR', '0') != '0'",
@@ -858,6 +853,32 @@ MUTATIONS = [
      'class ActableTracker',
      'class ActableTrackerX',
      'task-30: ActableTracker 删除 → 断言必须红'),
+    # task-48: dir 计数输出删除 → 断言必红
+    ('buffer_primitives.py',
+     'dir_f=%d dir_b=%d dir_n=%d',
+     'dir_x=%d',
+     'task-48: dir 计数删除 → 断言必须红'),
+    # task-29: disabled 机制删除(掩码机制消失) → 断言必红
+    ('macros/__init__.py',
+     'DISABLED_MACROS = set()',
+     'DISABLED_MACROSX = set()',
+     'task-29: disabled 机制删除 → 断言必须红'),
+    # task-29: 214 方向序列回退(←↙←) → 断言必红
+    ('macros/__init__.py',
+     '((' + chr(34) + 'down' + chr(34) + ',), 3), ((' + chr(34)
+      + 'down' + chr(34) + ', ' + chr(34) + 'left' + chr(34)
+      + '), 3), ((' + chr(34) + 'left' + chr(34) + ', ' + chr(34)
+      + 'B' + chr(34) + '), 10)',
+     '((' + chr(34) + 'left' + chr(34) + ',), 3), ((' + chr(34)
+      + 'down' + chr(34) + ', ' + chr(34) + 'left' + chr(34)
+      + '), 3), ((' + chr(34) + 'left' + chr(34) + ', ' + chr(34)
+      + 'B' + chr(34) + '), 10)',
+     'task-29: 214 方向回退 → 断言必须红'),
+    # task-32: 防御取消 env 删除 → 断言必红
+    ('game_gates.py',
+     "GUARD_CANCEL = os.environ.get('TH123_GUARD_CANCEL', '0') != '0'",
+     'GUARD_CANCEL = False',
+     'task-32: 防御取消 env 删除 → 断言必须红'),
 ]
 
 

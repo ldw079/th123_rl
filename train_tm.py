@@ -584,10 +584,9 @@ class TMTrainer:
             [m[0] not in self.sc_names for m in self.macros], dtype=bool)
         # task-29: 禁用宏(实机无此招/不可用)从基础掩码剔除(不删 id 空间)
         _dis = set(lib.get("disabled") or ())
-        if _dis:
-            self.base_mask &= np.array(
-                [m[0] not in _dis for m in self.macros], dtype=bool)
-            print('[mask] disabled macros: %s' % sorted(_dis))
+        self.base_mask &= np.array(
+            [m[0] not in _dis for m in self.macros], dtype=bool)
+        print('[mask] disabled macros: %s' % sorted(_dis))
         # 符卡目标/耗费表(v2 Phase C制度移植, TM包手牌数据驱动)
         self.sc_targets = _parse_sc_targets(self.macros)
         self.sc_cost_table = dict(lib["sc_cost"])

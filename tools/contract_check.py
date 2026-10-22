@@ -2318,10 +2318,14 @@ chk('MEM_DECISIONS = int(os.environ.get(\'TH123_MEM_DECISIONS\', \'0\'))' in _mv
     and 'import mem_v1 as _mem_v1' in _tt,
     'Gen-1: mem_v1(hist编码/默认0) + train_tm 接线')
 # task-29/34/30 合并: 禁用宏掩码 + 受身方向令牌 + actable
-chk("DISABLED_MACROS = {'214B'}" in src('macros/__init__.py')
+chk('DISABLED_MACROS' in src('macros/__init__.py')
     and 'disabled' in _tt and '[mask] disabled macros' in _tt
-    and 'disabled' in src('side_driver.py'),
-    'task-29: 无效命令宏掩码禁用(214B, 不删 id)')
+    and 'disabled' in src('side_driver.py')
+    and '((' + chr(34) + 'down' + chr(34) + ',), 3), ((' + chr(34)
+    + 'down' + chr(34) + ', ' + chr(34) + 'left' + chr(34) + '), 3), (('
+    + chr(34) + 'left' + chr(34) + ', ' + chr(34) + 'B' + chr(34)
+    + '), 10)' in src('macros/__init__.py'),
+    'task-29: 无效宏禁用机制 + 214 方向序列修正(不删 id)')
 chk('BUFFER_UKEMI_DIR' in _gg and 'UKEMI_DIR_TOKENS' in _gg
     and 'BUFFER_UKEMI_DIR' in _tt and '_ukemi_dir' in _tt,
     'task-34 2a: 受身方向令牌 + 方向脚本覆盖')
@@ -2335,6 +2339,10 @@ chk('np.isfinite(logp_old)' in src('ppo_gpu.py')
     and 'buf_skipped=' in src('learner_hub.py')
     and "_buf_skip" in _tt,
     'task-49: KL NaN sentinel + isfinite 过滤 + buf_skipped 计数')
+# task-32: 防御取消门控(env 默认0; probe: 防御末 A→330)
+chk('TH123_GUARD_CANCEL' in _gg and 'GUARD_CANCEL_NAMES' in _gg
+    and 'guard_cancel=%d' in _gg,
+    'task-32: 防御取消门控(guard_cancel env 默认0)')
 # task-48: B 批放大 batch_k 可配(env 默认4=逐位等价)
 chk("BATCH_K = int(os.environ.get('TH123_BATCH_K', '4'))"
     in src('learner_hub.py')
@@ -2353,7 +2361,8 @@ chk('class BufferState' in src('buffer_primitives.py')
     and 'def resolve(' in src('buffer_primitives.py')
     and 'TH123_BUFFER' in _gg and 'BUFFER_NAMES' in _gg
     and 'BufferState(' in _tt and 'self._buf_state.register(' in _tt
-    and 'self._buf_state.resolve(' in _tt and '_ukemi_dir' in _tt,
+    and 'self._buf_state.resolve(' in _tt and '_ukemi_dir' in _tt
+    and 'dir_f=%d dir_b=%d dir_n=%d' in src('buffer_primitives.py'),
     'task-29/30: 缓冲原语(gate stun 白名单并集/env 开关/train_tm 登记执行)')
 # task-43(task-41): train_detach 工具 + masked_choice 埋点
 chk('CREATE_BREAKAWAY_FROM_JOB' in src('tools/train_detach.py')

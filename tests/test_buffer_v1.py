@@ -47,6 +47,9 @@ chk('超过 max_wait 丢弃', not st2.active and st2.dropped == 1)
 st.note_outcome(True)
 st.note_outcome(False)
 chk('执行结果 acted 统计', 'acted=1/2' in st.stats_line())
+chk('dir 计数(dir_f/dir_b/dir_n)',
+    st.dir_n >= 1 and st.dir_f == 0
+    and 'dir_f=' in st.stats_line())
 chk('stats_line 格式', '[buffer] registered=' in st.stats_line())
 
 # gate: stun 帧白名单并集/env=0 旧行为
@@ -58,6 +61,15 @@ mg = G.apply_state_gates(np.ones(8, bool), N8,
 chk('受创帧放 受身+跳跃+5A(不含待机/攻击/防御)',
     bool(mg[1]) and bool(mg[2]) and bool(mg[5])
     and not mg[0] and not mg[3] and not mg[4] and not mg[6])
+# task-32: 防御取消白名单(env 开/关)
+os.environ['TH123_GUARD_CANCEL'] = '1'
+importlib.reload(G)
+mgc = G.apply_state_gates(np.ones(8, bool), N8,
+                          {'action': 151, 'airBorne': False})
+chk('防御取消白名单 env=1 放开近战(5A/2A)',
+    bool(mgc[1]) and bool(mgc[2]))
+os.environ['TH123_GUARD_CANCEL'] = '0'
+importlib.reload(G)
 os.environ['TH123_BUFFER'] = '0'
 importlib.reload(G)
 mg0 = G.apply_state_gates(np.ones(8, bool), N8,
@@ -74,5 +86,5 @@ tt = open(os.path.join(WT, 'train_tm.py'), encoding='utf8').read()
 chk('train_tm 接线 BufferState/register/resolve',
     'BufferState(' in tt and 'self._buf_state.register(' in tt
     and 'self._buf_state.resolve(' in tt and 'stats_line()' in tt)
-print('==== buffer v1: %d PASS / %d FAIL ====' % (16 - len(FAIL), len(FAIL)))
+print('==== buffer v1: %d PASS / %d FAIL ====' % (18 - len(FAIL), len(FAIL)))
 sys.exit(1 if FAIL else 0)
