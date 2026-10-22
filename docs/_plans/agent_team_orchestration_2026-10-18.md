@@ -529,6 +529,18 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 40. KL 溢出修复 + 睡眠根治（R220，2026-10-22 上午）
+
+- **问题**：buffer 替换决策把执行动作替换为"待机"→ stored_logp 在 mask 下概率≈1e-9 → ratio 爆炸 → `|KL|` 1.6e7–7.6e7 / 夜间多条 `|KL|=nan`；影响 PPO 语义与 24h 判据。
+- **修复**：`2ba94f7`（task-49：buffer 替换决策 `stored_logp=NaN` sentinel + learner `isfinite` 过滤 + `buf_skipped` 计数）+ `86b9be1`（task-50：KL clamp + nan 时跳过 LR 自适应 + `kl_nan` 计数）。门禁 `gate_klclamp`/`gate_klclamp2`=**719/2W/0**（两跑）；变异 1/1 红（删 isfinite 过滤）。
+- **验收（我实测 09:10）**：`|KL|` 0.15–0.31、`kl_nan=0`、`buf_skipped=1–8` 正常；4 游戏恢复、主臂 7py、对照臂 2py+1、hb 3s、无 alert；`need=2` 保持。
+- **窗口（08:50–09:0x）**：先建 **autorecover 任务**（`th123_autorecover` 09:40 one-shot）再停 main→门禁→变异→commit→WMI 重启→验收；成功后删除 autorecover；**新纪律生效**。
+- **主机睡眠根治（用户令"不浪费时间"）**：连续两晚睡眠损失（10-20 01:44–09:42 7.9h、10-22 02:01–08:49 6.8h）→ 已执行 `powercfg /change standby-timeout-ac 0` + `hibernate-timeout-ac 0` 并复核（AC STANDBYIDLE=0/HIBERNATEIDLE=0），**AC 下不再自动睡眠**。
+- **夜间损失账**：02:01:41→08:49:54 ≈6.8h（训练暂停；marisa learner 单批跨睡眠 24498.9s）；夜间 18 批中 14 条 KL nan（旧代码）→ PPO 主损失被 isfinite 过滤未污染权重；新批正常。
+- **下一步**：push `2ba94f7`+`86b9be1`+§40；**今日合并实现窗**（task-34 2a 方向受身 + task-29 宏覆盖 mask + task-30 actable 逻辑，≤25min，材料齐即开）；24h 观察自本次修复完成起算；明早 09:10 首检。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
