@@ -643,14 +643,22 @@ if HAS_TORCH:
                 _lpk = F.log_softmax(_lk, dim=1)[
                     torch.arange(len(_kidx)), A[_kt]]
                 _kv = valid_t[_kt]
-                kl_val = float(
-                    (torch.abs(_lpk - lp_old_t[_kt]) * _kv).sum()
-                    / _kv.sum().clamp_min(1.0))
+                # task-49: 无效行(NaN sentinel)→0; 且钳制 logp 差≤20(与ratio钳制一致,
+                # 防 masked-action logp=-1e9 类离群污染 KL)
+                _dkl = torch.abs(_lpk - lp_old_t[_kt])
+                _dkl = torch.where(_kv > 0, _dkl, torch.zeros_like(_dkl))
+                _dkl = torch.clamp(_dkl, max=20.0)
+                kl_val = float((_dkl * _kv).sum()
+                               / _kv.sum().clamp_min(1.0))
                 # 熵诊断(同掩码 — numpy R18 P0同源)
                 _Pk = F.softmax(_lk, dim=1).clamp(1e-8, 1.0)
                 ent_diag = float((-(_Pk * _Pk.log()).sum(1)).mean())
             stopped = False
-            if kl_val > self.TARGET_KL * 1.5:
+            _kl_nan = not np.isfinite(kl_val)
+            if _kl_nan:
+                # task-50: KL 非有限 → 跳过 LR 自适应(不误触发), 并计数
+                self._kl_nan_cnt = getattr(self, '_kl_nan_cnt', 0) + 1
+            elif kl_val > self.TARGET_KL * 1.5:
                 self._adaptive_lr_scale = max(0.3,
                     self._adaptive_lr_scale / 1.5)
             elif kl_val < self.TARGET_KL:
@@ -658,7 +666,7 @@ if HAS_TORCH:
                     self._adaptive_lr_scale * 1.2)
             for g in self.pi_opt.param_groups:
                 g['lr'] = self.PI_LR * self._adaptive_lr_scale
-            if kl_val > self.TARGET_KL:
+            if (not _kl_nan) and kl_val > self.TARGET_KL:
                 stopped = True
 
             self._updates += 1
@@ -705,6 +713,8 @@ if HAS_TORCH:
                           'kl_abs': abs(kl_val)}
             if _buf_skipped:
                 _stats_out['buf_skipped'] = _buf_skipped
+            if _kl_nan:
+                _stats_out['kl_nan'] = int(getattr(self, '_kl_nan_cnt', 1))
             return _stats_out
 
         def _gae(self, V, R, ep_lens, ep_terms):
