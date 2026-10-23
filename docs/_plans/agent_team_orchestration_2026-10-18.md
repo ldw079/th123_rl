@@ -586,6 +586,19 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 45. 窗#7：Gen-2 阶段 A 特征开启 + 启动/挂起治理 + 方向受身根因修复（R225，2026-10-23 傍晚）
+
+- **执行**：16:27:13 首停 → 16:39:58 二跑 → 16:50:59 三跑 → **17:08:55 最终重启 / 17:10:22 全部启动**；有效停机 **16:50:59→17:10:22 ≈19.4min**（含两次失败重跑）；commit **`bdca842`**（amend；含 P0 挂起超时）；门禁 `gate_window7_final2`=**737 PASS/0 WARN/0 FAIL**（GEN2=1 双宽）；autorecover 17:15 兜底、成功后删。
+- **内容**：①`bc_io` 哈希缓存（mtime_ns+ctime_ns 戳；**preflight 实测 87s**，此前 ~8min）②`tm_env` boot/accept 超时 env（120/180s）+ stale match flag 清理 ③**`fleet_supervisor` 看门狗**（日志停滞>300s 精确重启；games<4>90s ALERT；启动行 `[看门狗] ON stall=300s games=4`）④`tools/bc_meta_resync.py`（修 `[bc_io] trio代际不一致` RuntimeError）⑤**task-50 双宽断言/测试**（382/391、BC 831/866/846；GEN2=1 门禁 737 全绿）⑥**P0 挂起守卫**：`train_start` preflight `TH123_PREFLIGHT_TIMEOUT_S`(600s)；`gate_selftest_parallel` 改 **Popen+timeout+taskkill /T**（根因：`subprocess.run(timeout)` 只杀子进程，孙进程持管道→父进程等 EOF 永久挂起，正是 15:00/17:23 两次 0 字节日志挂起机制）。
+- **env（bat）**：`TH123_BUFFER_UKEMI_DIR=1`（方向受身根因修复：此前 bat 缺该 env → dir_f/b 恒 0）、**`TH123_FEAT_ACTABLE=1`+`TH123_ACTABLE=1`（Gen-2 A 特征正式开启）**、`TH123_BOOT_ACCEPT_S=180`、`TH123_BOOT_LOCK_S=120`。
+- **验收（实采）**：4 游戏 21000/10/20/80、hb 4–25s、无 alert；`[feat_actable] ON 4D` + `CORE=391 tail9=[0.1935,0.1210,1.0,1.0,0,0,0,0,0] nonzero=4`（actable 已填，天气 5 维待 FEAT_WEATHER）；`[actable] actable=1 avg=19.86`；**`[buffer] dir_f=1 dir_b=46 dir_n=2`（方向受身通道生效）**；BC 831/866/846；池拒载回退；schema/KL/kl_nan 正常；`trio代际不一致` 消失。
+- **变异账（如实）**：两组 3/4 红（`mut_window7.log`，锚点修复后）；**final 组 4/4 于 17:23 判进程级挂起中止（未完成），列待补**（明早低载补 1 条，标注"挂起中止"）；新增 2 条挂起超时断言/变异 drycheck 通过。**第 3 次挂起 → task-53/54 升 P0 并已上守卫**。
+- **A 观察起点 = 17:10**；24h 判据：stun 末决策/受身生存↑、`dir_b/f` 分布、KL/值损不退化；天气待 actable 24h 后。
+- **磁盘**：清 `gate_sandbox` 7.13GB + 旧备份 `133152`；**D 42.1GB**、C 6.21GB；保留 `_135052`/`_plain_135552`。
+- **下一步**：push `bdca842`+§45；变异补 1 条；24h A 观察；task-53/54 结项（挂起守卫 24h 验证）；B 补样本；task-27/31/32/33/35 设计/实现。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
