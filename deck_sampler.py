@@ -84,6 +84,13 @@ def curriculum_ratio(episode: int) -> float:
 # ==== D/C(用户2026-10-07"只做DCB"): 卡组原型 — 流派仪表+对抗性卡组池 ====
 
 ARCHETYPES = ('system', 'skill', 'sc', 'mixed')
+# task-35 stage1: 卡组条件化采样(env 默认0=旧行为; 先验文件缺省=无偏置)
+_DECK_COND = os.environ.get('TH123_DECK_COND', '0') != '0'
+_DECK_PRIOR = os.environ.get(
+    'TH123_DECK_COND_PRIOR',
+    r'D:\temp\th123_models\deck_cond_prior.json')
+_COND_CACHE = {}
+_COND_LOGGED = [False]
 
 
 def sample_archetype_deck(char_engine_id: int, rng: random.Random,
@@ -179,9 +186,42 @@ def archetype_of(deck) -> str:
     return 'mixed'
 
 
+def cond_arch_weights(my_id, opp_id):
+    """task-35: (我,敌)角色对 → 流派先验权重 dict 或 None.
+
+    先验格式: {str(my_id): {str(opp_id): {arch: weight}}} (由 deck_matchup
+    分析工具生成; 缺省文件/缺项 → None = 无偏置).
+    """
+    if not _DECK_COND or my_id is None or opp_id is None:
+        return None
+    try:
+        import json
+        import os as _os
+        mt = _os.path.getmtime(_DECK_PRIOR)
+    except OSError:
+        return None
+    tab = _COND_CACHE.get(mt)
+    if tab is None:
+        try:
+            import json as _json
+            tab = _json.load(open(_DECK_PRIOR, encoding='utf8'))
+        except Exception:
+            tab = {}
+        _COND_CACHE.clear()
+        _COND_CACHE[mt] = tab
+    w = (tab.get(str(my_id)) or {}).get(str(opp_id))
+    if not w:
+        return None
+    out = {a: float(w.get(a, 1.0)) for a in ARCHETYPES}
+    if not _COND_LOGGED[0]:
+        _COND_LOGGED[0] = True
+        print('[deck_cond] ON my=%s opp=%s weights=%s' % (my_id, opp_id, out))
+    return out
+
+
 def sample_deck_weighted(char_engine_id: int, rng: random.Random,
                          arch_stats=None, skill_stats=None,
-                         sc_stats=None, sys_stats=None):
+                         sc_stats=None, sys_stats=None, cond=None):
     """C(对抗性卡组池): 对手卡组按我方各流派败率加权采样。
     arch_stats: {arch: [W, L]} — L1流派比例层(fictitious play)。
     skill_stats/sc_stats/sys_stats: {card_id: [W, L]} — L2/L3逐卡层
@@ -199,6 +239,9 @@ def sample_deck_weighted(char_engine_id: int, rng: random.Random,
             ws.append(max(0.1, league_weight(wl[0], wl[1])))
         else:
             ws.append(0.5)
+    _cw = cond_arch_weights(*cond) if cond else None
+    if _cw:
+        ws = [w * _cw.get(a, 1.0) for a, w in zip(archs, ws)]
     arch = rng.choices(archs, weights=ws)[0]
     if arch == 'skill':
         return (_sample_with_skill_weights(char_engine_id, rng, arch,

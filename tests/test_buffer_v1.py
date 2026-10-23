@@ -52,6 +52,23 @@ chk('dir 计数(dir_f/dir_b/dir_n)',
     and 'dir_f=' in st.stats_line())
 chk('stats_line 格式', '[buffer] registered=' in st.stats_line())
 
+# P1-2: 方向受身接线(extra_allowed) / drop 拆分 / rehit8
+st4 = B.BufferState(NAMES + ['受身'], extra_allowed=('受身',))
+chk('受身 extra_allowed 可登记且带方向',
+    st4.register(NAMES.__len__(), True, direction='back')
+    and st4.dir_b == 1)
+st4.register(NAMES.__len__(), True, direction='forward')
+chk('覆盖计数 drop_ow', st4.drop_ow == 1 and st4.drop_to == 0)
+st4.resolve(False)
+chk('drop 分类独立', st4.drop_to == 0)
+st5 = B.BufferState(NAMES, max_wait=2)
+st5.register(1, True)
+for _ in range(3):
+    st5.resolve(True)
+chk('超时计数 drop_to', st5.drop_to == 1 and st5.drop_ow == 0)
+st5.note_outcome(True, True)
+chk('rehit8 埋点', 'rehit8=1/1' in st5.stats_line()
+    and 'drop_to=' in st5.stats_line())
 # gate: stun 帧白名单并集/env=0 旧行为
 import game_gates as G  # noqa: E402
 importlib.reload(G)
@@ -86,5 +103,5 @@ tt = open(os.path.join(WT, 'train_tm.py'), encoding='utf8').read()
 chk('train_tm 接线 BufferState/register/resolve',
     'BufferState(' in tt and 'self._buf_state.register(' in tt
     and 'self._buf_state.resolve(' in tt and 'stats_line()' in tt)
-print('==== buffer v1: %d PASS / %d FAIL ====' % (18 - len(FAIL), len(FAIL)))
+print('==== buffer v1: %d PASS / %d FAIL ====' % (23 - len(FAIL), len(FAIL)))
 sys.exit(1 if FAIL else 0)

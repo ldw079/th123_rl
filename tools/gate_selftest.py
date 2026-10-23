@@ -76,6 +76,7 @@ FILES = [
          "macros/utsuho.py",
          "macros/suwako.py",
          "deck_sampler.py",
+         "tools/migrate_gen2.py",
          "league.py",
          "teach.py",
          "ppo_gpu.py",
@@ -879,6 +880,31 @@ MUTATIONS = [
      "GUARD_CANCEL = os.environ.get('TH123_GUARD_CANCEL', '0') != '0'",
      'GUARD_CANCEL = False',
      'task-32: 防御取消 env 删除 → 断言必须红'),
+    # task-35: deck_cond env 删除(条件化失效) → 断言必红
+    ('deck_sampler.py',
+     "_DECK_COND = os.environ.get('TH123_DECK_COND', '0') != '0'",
+     '_DECK_COND = False',
+     'task-35: deck_cond env 删除 → 断言必须红'),
+    # task-50: GEN2 闸门删除(扩维失效) → 断言必红
+    ('feat_builder.py',
+     'GEN2 = _os.environ.get("TH123_GEN2", "0") != "0"',
+     'GEN2 = False',
+     'task-50: GEN2 闸门删除 → 断言必须红'),
+    # task-50: actable 填槽删除 → 断言必红
+    ('feat_builder.py',
+     '_actable_feats',
+     '_actable_featsX',
+     'task-50: actable 填槽删除 → 断言必须红'),
+    # P1-2: 方向受身接线删除(受身不可登记) → 断言必红
+    ('buffer_primitives.py',
+     'if n in BUFFER_NAMES or n in _extra}',
+     'if n in BUFFER_NAMES}',
+     'P1-2: 方向受身接线删除 → 断言必须红'),
+    # P1-2: 覆盖计数删除 → 断言必红
+    ('buffer_primitives.py',
+     'self.drop_ow += 1',
+     'pass  # drop_ow removed',
+     'P1-2: 覆盖计数删除 → 断言必须红'),
 ]
 
 

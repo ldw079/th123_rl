@@ -1073,7 +1073,9 @@ class TMTrainer:
                 getattr(self, '_deck_arch_stats', None),
                 skill_stats=getattr(self, '_opp_skill_stats', None),
                 sc_stats=getattr(self, '_opp_sc_stats', None),
-                sys_stats=getattr(self, '_opp_sys_stats', None))
+                sys_stats=getattr(self, '_opp_sys_stats', None),
+                cond=(CHAR_LIBS[self.char]['id'],
+                      CHAR_LIBS[self.opp.char]['id']))
             self._opp_skillset = skillset_key(_opp_deck)
             self._opp_deck_scids = tuple(sorted(
                 {c for c in _opp_deck if c >= 200}))
@@ -1535,15 +1537,22 @@ class TMTrainer:
         feats, sides, acts, rews, masks_hist, bc_targets = [], [], [], [], [], []
         ep_logps = []       # R60(F-11): 采样时行为策略logP(a)(本地路径;
                             # fleet actor走_fleet_logp_rec闭包, 此表留空)
+        _udir = bool(getattr(_dd_gate, 'BUFFER_UKEMI_DIR', False)) \
+            if _dd_gate is not None else False
         self._buf_state = (_buf_prims.BufferState(
-            [m[0] for m in self.macros])
+            [m[0] for m in self.macros],
+            extra_allowed=(('受身',) if _udir else None))
             if (_buf_prims is not None and _buf_prims.BUFFER) else None)
         self._buf_idle = next(
             (i for i, m in enumerate(self.macros) if m[0] == '待机'), None)
         self._ukemi_dir = 'back'   # task-34 2a 方向令牌状态
+        _feat_actable = (os.environ.get('TH123_FEAT_ACTABLE', '0')
+                         != '0')
         self._actable = (_actable_mod.ActableTracker()
                          if (_actable_mod is not None
-                             and _actable_mod.ACTABLE) else None)
+                             and (_actable_mod.ACTABLE or _feat_actable))
+                         else None)
+        self._feat_actable = _feat_actable
         self._mem_hist = []    # Gen-1: 决策历史窗口 (8,3)
         self._mem_steps = []   # Gen-1: 最近8步单步编码缓冲
         opp_acts = []          # R17④: 每决策拍对手动作类(action//128) —
@@ -2020,18 +2029,30 @@ class TMTrainer:
                                     and not (150 <= _a_now2 <= 166)
                                     and not getattr(self, '_buf_hit', False)):
                                 self._buf_hit = True
+                            # P1-2: 执行后 8 决策内是否受创(HP 下降)
+                            if (float(left.get('hp', 0)) <
+                                    float(getattr(self, '_buf_hp0',
+                                                  left.get('hp', 0)))):
+                                self._buf_rehit = True
                             _bc -= 1
                             self._buf_check = _bc
                             if _bc == 0:
                                 self._buf_state.note_outcome(
-                                    bool(getattr(self, '_buf_hit', False)))
+                                    bool(getattr(self, '_buf_hit', False)),
+                                    bool(getattr(self, '_buf_rehit', False)))
                                 self._buf_hit = False
+                                self._buf_rehit = False
                         _act_now = int(left.get('action', 0) or 0)
                         _buf_in_stun = (
                             _act_now in range(50, 79)
                             or 150 <= _act_now <= 166)
                         if self._actable is not None:
-                            self._actable.update(_act_now)
+                            _afeat = self._actable.update(_act_now)
+                            if self._feat_actable:
+                                try:
+                                    self.feat_builder._actable_feats = _afeat
+                                except Exception:
+                                    pass
                             self._act_cnt = getattr(
                                 self, '_act_cnt', 0) + 1
                             if self._act_cnt % 200 == 0:
@@ -2126,6 +2147,9 @@ class TMTrainer:
                                         self._ukemi_dir = _dir
                                     self._buf_check = 8
                                     self._buf_hit = False
+                                    self._buf_rehit = False
+                                    self._buf_hp0 = float(
+                                        left.get('hp', 0))
                                 elif self._buf_state.register(
                                         mid, _buf_in_stun,
                                         direction=(self._ukemi_dir

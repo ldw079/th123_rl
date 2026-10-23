@@ -107,10 +107,17 @@ class FeatureBuilder:
     # =0→回滚358(旧模型/旧BC可用; env/档不符由 ppo load 响亮拒绝).
     import os as _os
     FEAT_SPACE = _os.environ.get("TH123_FEAT_SPACE", "1") != "0"
+    # Gen-2(2026-10-22): TH123_GEN2=1 → 391(=382+actable4+weather5);
+    # 默认0=旧宽(不迁移不生效, 兼容当前模型/BC)
+    GEN2 = _os.environ.get("TH123_GEN2", "0") != "0"
+    FEAT_ACTABLE = _os.environ.get("TH123_FEAT_ACTABLE", "0") != "0"
+    FEAT_WEATHER = _os.environ.get("TH123_FEAT_WEATHER", "0") != "0"
+    GEN2_TAIL = 9
     # Gen-1(2026-10-20): §15 k4 改 corner_urgency(复用槽位, 不扩维);
     # 默认0=旧 my_y 语义(逐位等价), 实验窗=1
     K4_URGENCY = _os.environ.get("TH123_K4_URGENCY", "0") != "0"
-    CORE_DIMS = 382 if FEAT_SPACE else 358
+    CORE_DIMS = ((382 + GEN2_TAIL) if (FEAT_SPACE and GEN2)
+                 else (382 if FEAT_SPACE else 358))
     LEGACY_CORE = 358  # JZ-1(2026-10-15): 343+15(A档字段段[343..357])
     #                # S-2(合并终版方案2026-10-14): 330+13(变招6+心理4
     #                # +风格2+K5池外1)
@@ -1031,6 +1038,26 @@ class FeatureBuilder:
             _ocd = 120.0 - min(min(_ox - _X0, _X1 - _ox), 120.0)
             s[o + 23] = float(np.clip(_ocd / 120.0, 0, 1))
             o += 24
+
+        # === 16. Gen-2 尾部 9 维(TH123_GEN2=1) ===
+        # k0..3 actable(frames_in_stun/est_left/near_end/actable), k4..8 天气5D
+        if self.CORE_DIMS > self.LEGACY_CORE + 24:
+            _af = getattr(self, '_actable_feats', None)
+            if self.FEAT_ACTABLE and _af:
+                s[o + 0] = float(np.clip(_af.get('frames_in_stun', 0) / 62.0,
+                                         0, 1))
+                s[o + 1] = float(np.clip(_af.get('est_left', 0.0) / 62.0,
+                                         0, 1))
+                s[o + 2] = float(_af.get('near_end', 0))
+                s[o + 3] = float(_af.get('actable', 0))
+            # k4..8 天气 5D(EffectEmbed 4D+timer 1D) — stage A2 接入前恒 0
+            if self.FEAT_WEATHER:
+                _wf = getattr(self, '_weather_feats', None)
+                if _wf:
+                    for _i in range(4):
+                        s[o + 4 + _i] = float(_wf[_i])
+                    s[o + 8] = float(_wf[4])
+            o += 9
 
         assert o <= self.CORE_DIMS, (o, self.CORE_DIMS)
 

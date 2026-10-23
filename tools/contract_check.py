@@ -2109,6 +2109,10 @@ _BEHAVIOR_TESTS = [
      "task-29/30: 统一 mask 层(地空/不可动/DD 150-157)"),
     ("test_val_deact_v1.py",
      "task-46: 值头 deact(GPU/numpy 等价/env=0 回滚/[val] 行)"),
+    ("test_gen2_v1.py",
+     "task-50: Gen-2 A(CORE 391 闸门/迁移纯函数/BC 填充)"),
+    ("test_deck_cond_v1.py",
+     "task-35: deck_cond(env/先验/偏置/缺省)"),
     ("test_actable_v1.py",
      "task-30: actable 状态估计(env/stun/近末/line)"),
     ("test_buffer_v1.py",
@@ -2214,7 +2218,8 @@ chk("CHARMGR_CHAR_IDX = 0x34C" in _hm_src
 # 逐要素: env 开关/CORE_DIMS、24 维写点、归一化公式、奖励 env/默认值/调用点.
 _fb21 = src("feat_builder.py")
 chk("TH123_FEAT_SPACE" in _fb21
-    and "CORE_DIMS = 382 if FEAT_SPACE else 358" in _fb21,
+    and ("CORE_DIMS = 382 if FEAT_SPACE else 358" in _fb21
+         or "GEN2_TAIL" in _fb21),
     "task-21: FEAT_SPACE env 开关(382/回滚358)")
 chk("task-21 v1 空间 24 维" in _fb21
     and "if self.CORE_DIMS > self.LEGACY_CORE:" in _fb21
@@ -2339,6 +2344,18 @@ chk('np.isfinite(logp_old)' in src('ppo_gpu.py')
     and 'buf_skipped=' in src('learner_hub.py')
     and "_buf_skip" in _tt,
     'task-49: KL NaN sentinel + isfinite 过滤 + buf_skipped 计数')
+# task-50: Gen-2 A(特征 382→391, env TH123_GEN2 默认0)
+chk('TH123_GEN2' in src('feat_builder.py')
+    and 'GEN2_TAIL' in src('feat_builder.py')
+    and '_actable_feats' in src('feat_builder.py')
+    and 'TH123_FEAT_ACTABLE' in _tt
+    and 'expand_side_arrays' in src('tools/migrate_gen2.py'),
+    'task-50: Gen-2 A(特征闸门/迁移工具/actable 接线)')
+# task-35 stage1: 卡组条件化采样(env 默认0)
+chk('TH123_DECK_COND' in src('deck_sampler.py')
+    and 'cond_arch_weights' in src('deck_sampler.py')
+    and 'cond=(CHAR_LIBS[self.char]' in _tt,
+    'task-35: deck_cond 条件化采样(env 默认0/先验缺省无偏置)')
 # task-32: 防御取消门控(env 默认0; probe: 防御末 A→330)
 chk('TH123_GUARD_CANCEL' in _gg and 'GUARD_CANCEL_NAMES' in _gg
     and 'guard_cancel=%d' in _gg,
@@ -2362,7 +2379,11 @@ chk('class BufferState' in src('buffer_primitives.py')
     and 'TH123_BUFFER' in _gg and 'BUFFER_NAMES' in _gg
     and 'BufferState(' in _tt and 'self._buf_state.register(' in _tt
     and 'self._buf_state.resolve(' in _tt and '_ukemi_dir' in _tt
-    and 'dir_f=%d dir_b=%d dir_n=%d' in src('buffer_primitives.py'),
+    and 'dir_f=%d dir_b=%d dir_n=%d' in src('buffer_primitives.py')
+    and 'extra_allowed' in src('buffer_primitives.py')
+    and 'drop_ow' in src('buffer_primitives.py')
+    and 'rehit8=%d/%d' in src('buffer_primitives.py')
+    and 'extra_allowed' in _tt,
     'task-29/30: 缓冲原语(gate stun 白名单并集/env 开关/train_tm 登记执行)')
 # task-43(task-41): train_detach 工具 + masked_choice 埋点
 chk('CREATE_BREAKAWAY_FROM_JOB' in src('tools/train_detach.py')
