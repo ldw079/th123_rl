@@ -575,6 +575,17 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 44. 窗#6：Gen-2 阶段 A 迁移上线（R224，2026-10-23 下午）：CORE 382→391 + BC 831/866/846
+
+- **执行**：13:31:49 停 main（autorecover 14:00/14:12 兜底）→ 备份 `p2gen2_backup_20261023_135052` → `migrate_gen2` 9 文件（三模型+三 `_v`+三 BC）→ W_mem/nnz 保持 → `verify_gen2_equiv --forward` **logit/value maxdiff=0.000e+00 ×3** → `test_gen2(GEN2=1)` **13/13** → 默认 env 门禁 `gate_window6` 728/2W/0（迁移前同树代码）→ commit **`9441669`**（verify 工具+migrate（含 plain 模型迁移）+test_gen2+deck_sampler 日志修复）→ 重启 `GEN2=1`（FEAT_ACTABLE=0）→ 14:14:36 4 游戏齐 → 14:34 最终验收。
+- **首跑失败与回滚（如实）**：首跑"迁移后跑默认门禁"→旧宽断言 FAIL（顺序错）→13:37:23 备份还原/移除 GEN2/单次回滚；13:48 清理误启 main；13:52 preflight 发现 **plain 模型 `model_ppo_<ch>.npz` 未迁移（822≠831）**→ 补迁 plain 6 文件（备份 `p2gen2_backup_plain_135552`）→ `test_fleet_protocol` 24/24 → 13:56:39 最终重启。**总停机 ≈31.9min**（含一次计划外失败回滚；未二次重启纪律→plain/meta 修复为重启用）。
+- **验收（实采）**：`[feat_space] CORE_DIMS=391 n_side=831`（reimu）/866（marisa）/846（suika）；`[BC] bc_<ch>(trio) S宽831/866/846 ✓`；`[deck_cond] ON prior=missing my=0 opp=0`（窗#5 缺失项补验）；`[对手池] 池快照全被维度守卫拒载 — 回退生产模型`（不崩，换代期正常）；4 游戏/MAIN=7 单实例/hb 17–47s/无 alert/对照臂在位；learner 消费 831 新档（`|KL|` 0.04–0.22、kl_nan=0、queue 0、无 822 拒绝循环；旧档已隔离 failed/）。
+- **门禁口径（裁定沿用）**：迁移后 store 变 831，默认 env 全量门禁的旧宽断言会 FAIL（预期非回归）→ 三证据：①gate_window6（树代码）728 ②test_gen2 13/13 ③verify maxdiff=0；**task-50 双宽断言清理**后 GEN2=1 全量门禁须 0 FAIL。
+- **窗后事件（open）**：14:4x 起 marisa/suika 游戏启动失败（`游戏实例90s内未连接`；重建 `boot锁等待超时 r=258 err=183 — 拒绝无锁启动`）→ 仅 reimu/对照游戏在跑；疑 boot 锁残留/慢 boot（GEN2 宽度增大后加载变慢）→ 施工清理 stale 锁/孤儿游戏并评估 90s 超时是否需调大；与 task-53 看门狗合并治理。
+- **下一步**：push `9441669`+§44；修复游戏启动（优先）；**A 开启（`FEAT_ACTABLE=1` env-only 5min）须训练稳定 4 游戏后**再开；task-50 双宽清理；task-53 停滞看门狗；B 补样本。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
