@@ -562,6 +562,19 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 43. 窗#5：deck_cond 管线 + Gen-2 A 惰性代码 + P1-2 方向受身接线修复（R223，2026-10-23 中午）
+
+- **背景**：10-22 夜间 02:19 sleep（DC/合盖触发，AC 已关但 DC 未关）→ 11:42 醒（9.4h）；marisa/suika actor 自 21:20 静默停滞（进程活、日志冻结、游戏缺失，supervisor 仅 PID 检查未识别）→ 实际仅 reimu 训练。**电源已补：AC/DC/合盖动作全 0**；**task-53 停滞看门狗**立项（含 auditor `data_quality_gate.py` 数据质量门）。
+- **恢复**：11:44:38 supervisor → 11:45:54 全部启动（7py+4 游戏/对照 2py+1/hb fresh）；autorecover 用后删除。
+- **窗口**：autorecover 12:47 建 → stop 12:07:34 → 门禁 `gate_window5` **728/2W/0**（含 P1-2 新代码）→ 变异 `mut_window5.log` **2红/0漏网**（方向受身接线删除/覆盖计数删除）→ commit **`7b3431a`**（15 文件）→ WMI 重启 **12:19:09** → 验收 12:20:47；**停机 ≈13.2min**（硬线 12:40 内）；失败回滚 `540628a`。
+- **内容**：①deck_cond stage1（env 默认0、先验缺省无行为变化）；②`frame_calibrate.py` 帧表工具；③**Gen-2 A 惰性代码**（`TH123_GEN2=1`→CORE 391，默认 0=旧宽 382，不迁移不生效）；④**task-52 P1-2 修复**：方向受身接线（`BufferState(extra_allowed=('受身',))`）、drop 拆 `drop_to/drop_ow`、`rehit8` 埋点。
+- **验收行（实采）**：`[buffer] reg=4 exec=0 drop_to=1 drop_ow=3 rehit8=0/0 dir_f=0 dir_b=0 dir_n=4`；`[feat_space] feat_space=1 CORE_DIMS=382 n_side=837`（GEN2 惰性）；`masked_choice=0/18155`、pref 33.79%、`[val] deact=1`、`[mem] on mem_dim=8`、`kl_nan=0`、4 游戏/对照 2py+1/hb 13s/无 alert。
+- **如实缺口**：`[deck_cond] ON` 行未出现（`cond_arch_weights` 仅在有先验文件时打日志）→ 已修（env 开启即打 `prior=missing`），并入窗#6 commit、窗#6 重启后补验；`dir_f/b` 短窗 0 属预期，**24h 需见 dir_b/f>0** 否则重开接线 bug。
+- **磁盘**：窗内 gate 并行沙箱 7.13GB 临时占用（D 45.5→41.9GB，窗后清理回 46.4GB）；C 盘 2.33GB 告急→清 10-20 遗留 `sbx_chk_*` 3.55GB → **C 5.88GB**；清理纪律：临时沙箱窗后即清、C/D 双盘监控。
+- **下一步**：push `7b3431a`+§43；**窗#6 13:15**（GEN2 迁移 9 文件→等价 maxdiff<1e-6→test_gen2→门禁→重启 GEN2=1/FEAT_ACTABLE=0）；A 开启（FA=1）明早 env-only 5min；B 补样本再判；task-50 双宽清理；task-53 看门狗。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
