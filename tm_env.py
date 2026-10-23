@@ -47,9 +47,44 @@ _BOOT_TAIL_GRACE_S = 15.0    # 连接后继续持锁的余量: 实测排他窗�
                              # accept之后(开局序列title→battle期间), accept+5s
                              # 放锁会让下一个游戏撞进尾段秒死(marisa 5连败根因);
                              # 错峰20s的探针全连 → 尾段<14.5s, 取15s
-_BOOT_ACCEPT_TIMEOUT_S = 90.0  # 持锁期间的accept上限(空闲boot≈6~12s;
-                               # 其他trainer更新期的重载下可超35s — 实测
-                               # marisa被35s误杀; 90s兼顾锁占用与慢boot)
+# 2026-10-23(GEN2 P1): 宽档(831/866/846)下 BC/模型加载更慢, 90s 仍会误杀
+# → env 可调, 默认 180s; boot 锁等待默认 120s(原 60s)。
+_BOOT_ACCEPT_TIMEOUT_S = float(
+    os.environ.get('TH123_BOOT_ACCEPT_S', '180'))
+_BOOT_LOCK_TIMEOUT_S = float(
+    os.environ.get('TH123_BOOT_LOCK_S', '120'))
+
+
+def _clean_stale_match_flags():
+    """task-54: 清理死进程遗留的 th123_match_*.flag(防幽灵卡闸门/慢boot)."""
+    try:
+        import glob as _g
+        n = 0
+        for f in _g.glob(os.path.join(tempfile.gettempdir(),
+                                      'th123_match_*.flag')):
+            try:
+                pid = int(os.path.basename(f).split('_')[-1].split('.')[0])
+            except (ValueError, IndexError):
+                continue
+            if pid == os.getpid():
+                continue
+            try:
+                if k32.OpenProcess(0x1000, False, pid):
+                    continue
+            except Exception:
+                pass
+            try:
+                os.remove(f)
+                n += 1
+            except OSError:
+                pass
+        if n:
+            print('[boot] 清理 stale match flag %d 个' % n)
+    except Exception:
+        pass
+
+
+_clean_stale_match_flags()
 
 
 class _BootLock:
@@ -244,7 +279,7 @@ class TMEnv:
             _forced = not _wait_match_free()
         _set_match_flag(True)           # R16: 即刻宣布"忙"(boot+开局+对局整段)
         try:
-            _bl = _BootLock(timeout_s=60.0)   # R16: boot窗口串行化(锁超时=异常, 不降级)
+            _bl = _BootLock(timeout_s=_BOOT_LOCK_TIMEOUT_S)   # R16: boot窗口串行化(锁超时=异常, 不降级)
             try:
                 # 持锁期accept(90s): 空闲boot 6~12s; 重载下可超35s(实测)
                 self.inst = SokuTrainerInstance(

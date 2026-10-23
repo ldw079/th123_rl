@@ -77,6 +77,7 @@ FILES = [
          "macros/suwako.py",
          "deck_sampler.py",
          "tools/migrate_gen2.py",
+         "tools/bc_meta_resync.py",
          "league.py",
          "teach.py",
          "ppo_gpu.py",
@@ -905,6 +906,36 @@ MUTATIONS = [
      'self.drop_ow += 1',
      'pass  # drop_ow removed',
      'P1-2: 覆盖计数删除 → 断言必须红'),
+    # task-53: 看门狗停滞检测删除 → 断言必红
+    ('fleet_supervisor.py',
+     'def watchdog_stalled(',
+     'def watchdog_stalledX(',
+     'task-53: 看门狗停滞检测删除 → 断言必须红'),
+    # task-54: BC 哈希缓存删除 → 断言必红
+    ('bc_io.py',
+     'TH123_BC_HASH_CACHE',
+     'TH123_BC_HASH_CACHEX',
+     'task-54: BC 哈希缓存删除 → 断言必须红'),
+    # task-54: stale match flag 清理删除 → 断言必红
+    ('tm_env.py',
+     '\n_clean_stale_match_flags()\n',
+     '\npass  # cleanup removed\n',
+     'task-54: stale 锁清理删除 → 断言必须红'),
+    # task-52: UKEMI_DIR env 删除(方向令牌失效) → 断言必红
+    ('game_gates.py',
+     "TH123_BUFFER_UKEMI_DIR'",
+     "TH123_BUFFER_UKEMI_DIRX'",
+     'task-52: UKEMI_DIR env 删除 → 断言必须红'),
+    # task-53: preflight 挂起超时删除 → 断言必红
+    ('tools/train_start.py',
+     "TH123_PREFLIGHT_TIMEOUT_S'",
+     "TH123_PREFLIGHT_TIMEOUT_SX'",
+     'task-53: preflight 挂起超时删除 → 断言必须红'),
+    # task-53: 变异超时树杀删除 → 断言必红
+    ('tools/gate_selftest_parallel.py',
+     "TH123_MUT_TIMEOUT_S'",
+     "TH123_MUT_TIMEOUT_SX'",
+     'task-53: 变异挂起树杀删除 → 断言必须红'),
 ]
 
 

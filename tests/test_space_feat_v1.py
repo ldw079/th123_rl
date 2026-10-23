@@ -74,11 +74,13 @@ def check_new24(s, tag):
 
 
 if fb.FeatureBuilder.FEAT_SPACE:
-    ck(fb.FeatureBuilder.CORE_DIMS == 382, 'CORE_DIMS=382 (env 默认 1)')
+    _core = fb.FeatureBuilder.CORE_DIMS
+    ck(_core in (382, 391),
+       'CORE_DIMS=382/391 (env默认1; task-50 双宽: %d)' % _core)
     ck(fb.FeatureBuilder.LEGACY_CORE == 358, 'LEGACY_CORE=358 存档')
     s = build_once()
-    ck(len(s) == 382 and np.all(np.isfinite(s[358:382])),
-       '382 维; 新 24 维存在且有限')
+    ck(len(s) == _core and np.all(np.isfinite(s[358:382])),
+       'CORE 维; 新 24 维存在且有限')
     check_new24(s, 'env1')
     # BC 旧宽库零填充(窗口要求): 抽 100 行, 新 24 列必须全 0
     try:

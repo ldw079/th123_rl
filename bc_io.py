@@ -53,6 +53,69 @@ def _arr_sha256(a):
     return h.hexdigest()[:16]
 
 
+_VCACHE_VER = 1
+
+
+def _stat_stamp(paths):
+    out = []
+    for x in paths:
+        try:
+            st = os.stat(x)
+            out.append([os.path.basename(x), int(st.st_size),
+                        int(st.st_mtime_ns), int(st.st_ctime_ns)])
+        except OSError:
+            return None
+    return out
+
+
+def _verify_cache_path(base):
+    return base + '_verify.json'
+
+
+def _try_cached_verify(base, meta):
+    """启动加速: 文件(大小+mtime)未变且缓存哈希一致 → 跳过全量哈希。
+
+    env `TH123_BC_HASH_CACHE=0` 可关闭(强制全量校验)。缓存在替换三数组时
+    因 mtime/大小变化自动失效 → 不会掩盖混代际。
+    """
+    if os.environ.get('TH123_BC_HASH_CACHE', '1') == '0':
+        return False
+    cp = _verify_cache_path(base)
+    paths = [base + '_X.npy', base + '_S.npy', base + '_Y.npy']
+    if meta.get('seq_aware') or meta.get('hashes', {}).get('I'):
+        paths.append(base + '_I.npy')
+    stamp = _stat_stamp(paths)
+    if stamp is None:
+        return False
+    try:
+        with open(cp, encoding='utf8') as f:
+            c = json.load(f)
+    except Exception:
+        return False
+    if (c.get('ver') != _VCACHE_VER or c.get('stamp') != stamp
+            or c.get('hashes') != meta.get('hashes')):
+        return False
+    return True
+
+
+def _write_cached_verify(base, meta):
+    cp = _verify_cache_path(base)
+    paths = [base + '_X.npy', base + '_S.npy', base + '_Y.npy']
+    if meta.get('seq_aware') or meta.get('hashes', {}).get('I'):
+        paths.append(base + '_I.npy')
+    stamp = _stat_stamp(paths)
+    if stamp is None:
+        return
+    try:
+        tmp = cp + '.tmp'
+        with open(tmp, 'w', encoding='utf8') as f:
+            json.dump({'ver': _VCACHE_VER, 'stamp': stamp,
+                       'hashes': meta.get('hashes')}, f)
+        os.replace(tmp, cp)
+    except Exception:
+        pass
+
+
 def verify_trio(base):
     """trio代际契约(P1修复, bug_2026-10-14_bc_trio_swap_lock):
 
@@ -74,6 +137,8 @@ def verify_trio(base):
     X = np.load(base + '_X.npy', mmap_mode='r')
     S = np.load(base + '_S.npy', mmap_mode='r')
     Y = np.load(base + '_Y.npy', mmap_mode='r')
+    if _try_cached_verify(base, meta):
+        return meta
     if len(Y) != meta.get('rows') or X.shape[0] != len(Y):
         raise RuntimeError(
             '[bc_io] trio行数与meta不符(%d vs %s) — %s'
@@ -92,6 +157,7 @@ def verify_trio(base):
                 '[bc_io] meta含I哈希但缺_I.npy — %s*' % base)
         if _arr_sha256(np.load(ipath, mmap_mode='r')) != hs['I']:
             raise RuntimeError('[bc_io] I列代际不一致 — %s' % mp)
+    _write_cached_verify(base, meta)
     return meta
 
 

@@ -92,11 +92,13 @@ def pre_flight():
     # (env=8 时 fixture 旧档会因缺 mem 键拒载, 曾致首发点火失败)
     _pre_env = dict(os.environ)
     _pre_env['TH123_MEM_DECISIONS'] = '0'
-    r = subprocess.run([PY, '-X', 'utf8',
-                        os.path.join(ROOT, 'tests', 'test_fleet_protocol.py')],
-                       capture_output=True, cwd=ROOT, env=_pre_env)
-    ok = r.returncode == 0
-    print('[前置] fleet协议测试 %s' % ('21+ PASS' if ok else '!!FAIL — 先修'))
+    ok, _out = _run_preflight(
+        [PY, '-X', 'utf8',
+         os.path.join(ROOT, 'tests', 'test_fleet_protocol.py')], env=_pre_env)
+    if not ok:
+        print(_out.strip()[-400:])
+    print('[前置] fleet协议测试 %s'
+          % ('21+ PASS' if ok else '!!FAIL/挂起 — 继续启动(记录)'))
     # P0(从零#4, bug_bc_width_asymmetry): BC库宽度硬门禁 — 代际迁移期
     # "BC未重建+fleet已点火"=actor连环崩→重启耗尽→静默减员(16:12事故
     # 根因链)。部署序列(迁移→重建→换装→点火)从此是硬顺序。
@@ -175,6 +177,21 @@ def stop_all():
     print('[停机] 树杀全部训练进程(游戏仅限th123_train族)...')
     subprocess.run(_cleanup_ps_cmd(os.getpid()), capture_output=True)
     print('[停机] 完成')
+
+
+def _run_preflight(cmd, env=None, timeout_s=None):
+    """P0(2026-10-23): preflight 挂起检测 — 超时杀进程树并返回 False."""
+    import subprocess as _sp
+    timeout_s = (timeout_s if timeout_s is not None else float(
+        os.environ.get('TH123_PREFLIGHT_TIMEOUT_S', '600')))
+    try:
+        r = _sp.run(cmd, capture_output=True, text=True,
+                    timeout=timeout_s, cwd=ROOT, env=env)
+        return (r.returncode == 0,
+                (r.stdout or '') + (r.stderr or ''))
+    except _sp.TimeoutExpired as e:
+        return (False, '[前置] preflight 挂起超时(%.0fs) — 已中止'
+                % timeout_s)
 
 
 def main():

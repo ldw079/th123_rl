@@ -43,7 +43,8 @@ chk('window_hist (8,3) 左补零', _wh.shape == (8, 3)
 
 # 2) episode schema v3 hist roundtrip + v2 兼容
 import episode_core as E  # noqa: E402
-N, n_side, n_macros = 6, 5 * 88 + 382, 88
+from feat_builder import FeatureBuilder as _FB
+N, n_side, n_macros = 6, 5 * 88 + _FB.CORE_DIMS, 88
 tmp = tempfile.mkdtemp(prefix='gen1_ep_')
 arrs = dict(
     feats=np.zeros((N, E.FEAT_DIMS), np.uint8),
@@ -88,7 +89,7 @@ importlib.reload(M)
 import torch  # noqa: E402
 import ppo_gpu as G  # noqa: E402
 n_out = 88
-n_side = 5 * n_out + 382
+n_side = 5 * n_out + _FB.CORE_DIMS
 tmp2 = tempfile.mkdtemp(prefix='gen1_h_')
 pi = os.path.join(tmp2, 'model_ppo_reimu_fleet.npz')
 vv = os.path.join(tmp2, 'model_ppo_reimu_fleet_v.npz')

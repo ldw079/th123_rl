@@ -508,6 +508,70 @@ LEAGUE_INTERVAL = 3600  # league重分配周期(秒)
 ACTOR_EPISODES = 1000000
 
 
+# ---- task-53(2026-10-23): 进程存活但日志停滞看门狗 ----
+WATCHDOG_STALL_S = float(os.environ.get('TH123_WATCHDOG_STALL_S', '300'))
+WATCHDOG_GAMES = int(os.environ.get('TH123_WATCHDOG_GAMES', '4'))
+_WD_GAME_STATE = {'low_since': 0.0, 'last_check': 0.0}
+
+
+def _child_log_path(kind, key):
+    if kind == 'learner':
+        return r'D:\temp\learner_%s.log' % key
+    ch, aid = key
+    return r'D:\temp\actor_%s_%d.log' % (ch, aid)
+
+
+def watchdog_stalled(actors, learners, now=None):
+    """返回 [(kind, key, age_s)] — 进程活着但日志超过阈值未更新."""
+    now = now or time.time()
+    out = []
+    for key, p in list(actors.items()):
+        if p.poll() is not None:
+            continue
+        try:
+            age = now - os.path.getmtime(_child_log_path('actor', key))
+        except OSError:
+            continue
+        if age > WATCHDOG_STALL_S:
+            out.append(('actor', key, age))
+    for ch, p in list(learners.items()):
+        if p.poll() is not None:
+            continue
+        try:
+            age = now - os.path.getmtime(_child_log_path('learner', ch))
+        except OSError:
+            continue
+        if age > WATCHDOG_STALL_S:
+            out.append(('learner', ch, age))
+    return out
+
+
+def games_alert(now=None):
+    """th123.exe 数量 < WATCHDOG_GAMES 连续>90s → 告警(不杀)."""
+    now = now or time.time()
+    if now - _WD_GAME_STATE['last_check'] < 60.0:
+        return False
+    _WD_GAME_STATE['last_check'] = now
+    try:
+        r = subprocess.run(
+            ['powershell', '-NoProfile', '-Command',
+             '(Get-Process th123 -ErrorAction SilentlyContinue).Count'],
+            capture_output=True, text=True, timeout=15)
+        n = int((r.stdout or '0').strip() or 0)
+    except Exception:
+        return False
+    if n < WATCHDOG_GAMES:
+        if not _WD_GAME_STATE['low_since']:
+            _WD_GAME_STATE['low_since'] = now
+        elif now - _WD_GAME_STATE['low_since'] > 90.0:
+            log('!!ALERT!! 看门狗: th123 游戏数=%d<%d 持续>90s — 需检查 actor/boot'
+                % (n, WATCHDOG_GAMES))
+            _WD_GAME_STATE['low_since'] = 0.0
+        return True
+    _WD_GAME_STATE['low_since'] = 0.0
+    return False
+
+
 def log(msg):
     """监督日志 — P1-8(从零#5): 写盘失败**不得**掀翻监督器。
 
@@ -798,6 +862,8 @@ def main():
                 time.sleep(STAGGER_S)
 
         log('全部启动 — 监督模式')
+        log('[看门狗] ON stall=%.0fs games=%d'
+            % (WATCHDOG_STALL_S, WATCHDOG_GAMES))
 
         # 监督循环
         restarts = {k: 0 for k in list(actors) + [
@@ -819,6 +885,21 @@ def main():
         _exhausted = set()   # P0(从零#4): 重启耗尽减员账(告警重播源)
         while actors or learners:
             time.sleep(10)
+            # task-53 看门狗: 进程活着但日志停滞 → 精确重启
+            for _kind, _key, _age in watchdog_stalled(actors, learners):
+                log('!!ALERT!! 看门狗停滞: %s %s 日志%.0fs未更新(>%.0fs)'
+                    ' — 精确重启' % (_kind, str(_key), _age,
+                                    WATCHDOG_STALL_S))
+                try:
+                    if _kind == 'actor':
+                        _p = actors.pop(_key, None)
+                    else:
+                        _p = learners.pop(_key, None)
+                    if _p is not None:
+                        _kill_tree(_p.pid)
+                except Exception as _e:
+                    log('看门狗重启异常(%r)' % (_e,))
+            games_alert()
             if win_end is not None:
                 _now = time.localtime()
                 _now_s = _now.tm_hour * 3600 + _now.tm_min * 60 + _now.tm_sec

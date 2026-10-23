@@ -16,10 +16,12 @@ sys.path.insert(0, WT)
 os.chdir(WT)
 os.environ['TH123_MEM_DECISIONS'] = '0'
 import ppo_gpu as G  # noqa: E402
+from feat_builder import FeatureBuilder  # noqa: E402
 
 PI = r'D:\temp\th123_models\model_ppo_reimu_fleet.npz'
 VV = r'D:\temp\th123_models\model_ppo_reimu_fleet_v.npz'
-N_OUT, N_SIDE = 88, 5 * 88 + 382
+N_OUT = 88
+N_SIDE = 5 * N_OUT + FeatureBuilder.CORE_DIMS  # task-50: 双宽(GEN2=391)
 
 tr = G.PPOTrainerGPU(n_side=N_SIDE, n_out=N_OUT)
 net = tr.net

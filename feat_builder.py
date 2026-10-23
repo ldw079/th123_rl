@@ -1043,6 +1043,11 @@ class FeatureBuilder:
         # k0..3 actable(frames_in_stun/est_left/near_end/actable), k4..8 天气5D
         if self.CORE_DIMS > self.LEGACY_CORE + 24:
             _af = getattr(self, '_actable_feats', None)
+            if self.FEAT_ACTABLE and not getattr(
+                    FeatureBuilder, '_fa_logged', False):
+                FeatureBuilder._fa_logged = True
+                print('[feat_actable] ON 4D(frames_in_stun/'\
+                      'est_left/near_end/actable) feats=%r' % (_af,))
             if self.FEAT_ACTABLE and _af:
                 s[o + 0] = float(np.clip(_af.get('frames_in_stun', 0) / 62.0,
                                          0, 1))

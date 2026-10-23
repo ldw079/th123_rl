@@ -69,16 +69,33 @@ def run_one(args):
         _ml = os.path.join(sb, 'ModLoaderSettings.json')
         if os.path.exists(_ml):
             env['TH123_ML'] = _ml
+        _to = float(os.environ.get('TH123_MUT_TIMEOUT_S',
+                                   str(GATE_TIMEOUT)))
+        _cf = getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0)
+        _p = subprocess.Popen(
+            [PY, '-X', 'utf8', os.path.join(sb, 'tools',
+                                            'contract_check.py')],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            env=env, cwd=sb, creationflags=_cf,
+            encoding='utf-8', errors='replace')
         try:
-            r = subprocess.run(
-                [PY, '-X', 'utf8', os.path.join(sb, 'tools',
-                                                 'contract_check.py')],
-                capture_output=True, text=True, timeout=GATE_TIMEOUT,
-                encoding='utf-8', errors='replace', env=env,
-                cwd=sb)
-            rc, out = r.returncode, (r.stdout or '') + (r.stderr or '')
+            out, _ = _p.communicate(timeout=_to)
+            rc = _p.returncode
         except subprocess.TimeoutExpired:
-            return why, None, '超时未判定'
+            # P0(2026-10-23): 挂起 → 杀整棵进程树(含孙进程), 防父进程等管道 EOF 卡死
+            try:
+                subprocess.run(['taskkill', '/F', '/T', '/PID',
+                                str(_p.pid)], capture_output=True,
+                               timeout=30)
+            except Exception:
+                pass
+            try:
+                _p.communicate(timeout=10)
+            except Exception:
+                pass
+            return why, None, '挂起超时(%.0fs)未判定' % _to
+        if out is None:
+            out = ''
         ok = rc != 0 and ('  FAIL' in out or 'FAIL项' in out)
         return why, ok, 'exit=%d %.0fs' % (rc, time.time() - t0)
     except Exception as e:

@@ -128,7 +128,9 @@ chk(feat_builder.FeatureBuilder.CORE_DIMS >= 343,
 # 必须==343+jz1宽(单源: N_DIMS=15)
 import jz1_features as _jz1
 _core_exp = ((343 + _jz1.N_DIMS) + (24 if getattr(
-    feat_builder.FeatureBuilder, 'FEAT_SPACE', True) else 0))
+    feat_builder.FeatureBuilder, 'FEAT_SPACE', True) else 0)
+             + (9 if getattr(feat_builder.FeatureBuilder, 'GEN2',
+                             False) else 0))
 chk(feat_builder.FeatureBuilder.CORE_DIMS == _core_exp,
     "CORE_DIMS==343+JZ-1段账本(+task-21 空间24; env开关)",
     "got %r != %d" % (feat_builder.FeatureBuilder.CORE_DIMS, _core_exp))
@@ -2344,6 +2346,29 @@ chk('np.isfinite(logp_old)' in src('ppo_gpu.py')
     and 'buf_skipped=' in src('learner_hub.py')
     and "_buf_skip" in _tt,
     'task-49: KL NaN sentinel + isfinite 过滤 + buf_skipped 计数')
+# task-53(2026-10-23 P0): 启动期/变异期进程挂起超时
+chk("TH123_PREFLIGHT_TIMEOUT_S'" in src('tools/train_start.py')
+    and '_run_preflight' in src('tools/train_start.py'),
+    'task-53: preflight 挂起超时中止(启动不被挂起阻塞)')
+chk("TH123_MUT_TIMEOUT_S'" in src('tools/gate_selftest_parallel.py')
+    and 'taskkill' in src('tools/gate_selftest_parallel.py'),
+    'task-53: 变异沙箱挂起→杀进程树超时')
+# task-53/54(2026-10-23): 看门狗/BC哈希缓存/stale锁/boot超时env
+chk('TH123_WATCHDOG_STALL_S' in src('fleet_supervisor.py')
+    and 'def watchdog_stalled(' in src('fleet_supervisor.py')
+    and 'games_alert' in src('fleet_supervisor.py'),
+    'task-53: 看门狗(日志停滞→重启 / games<4 告警)')
+chk('TH123_BC_HASH_CACHE' in src('bc_io.py')
+    and '_try_cached_verify' in src('bc_io.py'),
+    'task-54: BC trio 哈希缓存(mtime_ns+ctime_ns 戳)')
+chk('\n_clean_stale_match_flags()\n' in src('tm_env.py')
+    and 'TH123_BOOT_ACCEPT_S' in src('tm_env.py')
+    and '_BOOT_LOCK_TIMEOUT_S' in src('tm_env.py'),
+    'task-54: stale match flag 清理 + boot 超时 env')
+chk("TH123_BUFFER_UKEMI_DIR'" in src('game_gates.py'),
+    'task-52: 方向受身 env(UKEMI_DIR)接线')
+chk('bc_meta_resync' in src('tools/bc_meta_resync.py'),
+    'task-54: BC meta 重算工具(迁移换代后修复)')
 # task-50: Gen-2 A(特征 382→391, env TH123_GEN2 默认0)
 chk('TH123_GEN2' in src('feat_builder.py')
     and 'GEN2_TAIL' in src('feat_builder.py')

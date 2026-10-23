@@ -12,6 +12,8 @@ import tempfile
 
 import numpy as np
 
+os.environ['TH123_BC_HASH_CACHE'] = '0'   # 篡改检测测试: 关缓存
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 try:
