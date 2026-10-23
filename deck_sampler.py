@@ -192,7 +192,14 @@ def cond_arch_weights(my_id, opp_id):
     先验格式: {str(my_id): {str(opp_id): {arch: weight}}} (由 deck_matchup
     分析工具生成; 缺省文件/缺项 → None = 无偏置).
     """
-    if not _DECK_COND or my_id is None or opp_id is None:
+    if not _DECK_COND:
+        return None
+    if not _COND_LOGGED[0]:
+        _COND_LOGGED[0] = True
+        print('[deck_cond] ON prior=%s my=%s opp=%s'
+              % (_DECK_PRIOR if os.path.exists(_DECK_PRIOR) else 'missing',
+                 my_id, opp_id))
+    if my_id is None or opp_id is None:
         return None
     try:
         import json
@@ -213,9 +220,8 @@ def cond_arch_weights(my_id, opp_id):
     if not w:
         return None
     out = {a: float(w.get(a, 1.0)) for a in ARCHETYPES}
-    if not _COND_LOGGED[0]:
-        _COND_LOGGED[0] = True
-        print('[deck_cond] ON my=%s opp=%s weights=%s' % (my_id, opp_id, out))
+    print('[deck_cond] weights my=%s opp=%s weights=%s'
+          % (my_id, opp_id, out))
     return out
 
 
