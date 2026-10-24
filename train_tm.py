@@ -1535,13 +1535,18 @@ class TMTrainer:
         self._setup_capture()   # 按局重启换PID → 重建捕获
         macro_queue = []       # [(keys, frames_left)]
         feats, sides, acts, rews, masks_hist, bc_targets = [], [], [], [], [], []
+        sampled_mids = []   # task-56: 仪器 — buffer 替换前采样原值
+        skip_reasons = []   # task-56: -1=非skip / 0=direction / 1=register
         ep_logps = []       # R60(F-11): 采样时行为策略logP(a)(本地路径;
                             # fleet actor走_fleet_logp_rec闭包, 此表留空)
         _udir = bool(getattr(_dd_gate, 'BUFFER_UKEMI_DIR', False)) \
             if _dd_gate is not None else False
         self._buf_state = (_buf_prims.BufferState(
             [m[0] for m in self.macros],
-            extra_allowed=(('受身',) if _udir else None))
+            extra_allowed=(('受身',) if _udir else None),
+            once=(os.environ.get('TH123_BUFFER_ONCE', '0') != '0'),
+            no_overwrite=(os.environ.get(
+                'TH123_BUFFER_NO_OVERWRITE', '0') != '0'))
             if (_buf_prims is not None and _buf_prims.BUFFER) else None)
         self._buf_idle = next(
             (i for i, m in enumerate(self.macros) if m[0] == '待机'), None)
@@ -2020,6 +2025,8 @@ class TMTrainer:
                     # (DD 仅 150-157 + 地空门控 + 不可动门控; env=0 逐位旧行为)
                     _buf_in_stun = False
                     _buf_skip = False   # task-49: buffer 替换决策→logp NaN(不参与PPO)
+                    _buf_blocked = False   # task-56: ONCE/NO_OVERWRITE → mask屏蔽
+                    _skip_reason = None    # task-56: 仪器(方向/登记)
                     if self._buf_state is not None:
                         # task-45: 执行后 8 决策内是否出现非待机动作
                         _bc = getattr(self, '_buf_check', 0)
@@ -2046,6 +2053,9 @@ class TMTrainer:
                         _buf_in_stun = (
                             _act_now in range(50, 79)
                             or 150 <= _act_now <= 166)
+                        if self._buf_state is not None:
+                            self._buf_state.update_stun(_buf_in_stun)
+                            _buf_blocked = self._buf_state.mask_blocked()
                         if self._actable is not None:
                             _afeat = self._actable.update(_act_now)
                             if self._feat_actable:
@@ -2061,7 +2071,8 @@ class TMTrainer:
                             self, '_act_mask_ok', True):
                         try:
                             mask = _dd_gate.apply_state_gates(
-                                mask, [m[0] for m in self.macros], left)
+                                mask, [m[0] for m in self.macros], left,
+                                buf_block=_buf_blocked)
                         except Exception as _ame:
                             # task-39: 配置异常 → 关 gate 回旧行为(不崩 actor)
                             self._act_mask_ok = False
@@ -2131,6 +2142,7 @@ class TMTrainer:
                                 _dd_gate, 'BUFFER_UKEMI_DIR', False))
                             _mname = self.macros[mid][0]
                             if (_udir_on and _buf_in_stun
+                                    and not _buf_blocked
                                     and _mname in ('前冲', '后冲')):
                                 # 方向令牌: 只记录方向, 吞决策
                                 self._ukemi_dir = (
@@ -2138,6 +2150,7 @@ class TMTrainer:
                                 mid = (self._buf_idle
                                        if self._buf_idle is not None else mid)
                                 _buf_skip = True
+                                _skip_reason = 'direction'
                             else:
                                 _mid_res = self._buf_state.resolve(
                                     _buf_in_stun)
@@ -2159,8 +2172,13 @@ class TMTrainer:
                                            if self._buf_idle is not None
                                            else mid)
                                     _buf_skip = True
+                                    _skip_reason = 'register'
+                            if _buf_blocked:
+                                self._buf_state.note_block(
+                                    self._buf_idle is not None
+                                    and mid == self._buf_idle)
                             self._buf_cnt = getattr(
-                                self, '_buf_cnt', 0) + 1
+                                self._buf_cnt, 0) + 1
                             if self._buf_cnt % 200 == 0:
                                 print(self._buf_state.stats_line())
                         if _dd_gate is not None:
@@ -2266,6 +2284,10 @@ class TMTrainer:
                     feats.append(feat.astype(np.uint8))
                     sides.append(side)
                     acts.append(mid)
+                    sampled_mids.append(int(_sampled_mid) if
+                                        _sampled_mid is not None else int(mid))
+                    skip_reasons.append(-1 if _skip_reason is None else
+                                        (0 if _skip_reason == 'direction' else 1))
                     opp_acts.append(min(int(right["action"]) // 128, 7))
                     masks_hist.append(mask)      # 更新用同掩码(PPO比率干净)
                     # R47(可行性天花板3): _expert_rec手写弱启发式已删 —
@@ -2481,6 +2503,8 @@ class TMTrainer:
                                 masks_hist, bc_targets,
                                 truncated=truncated, opp_acts=opp_acts,
                                 logps=ep_logps,
+                                sampled_mids=sampled_mids,
+                                skip_reasons=skip_reasons,
                                 hist=(np.stack(self._mem_hist)
                                       if self._mem_hist else None))
             # 宏计数持久化
@@ -2516,7 +2540,8 @@ class TMTrainer:
 
     def _submit_update(self, feats, acts, rews, sides, distill_rows, frames,
                        masks_hist=None, bc_targets=None, truncated=False,
-                       opp_acts=None, logps=None):
+                       opp_acts=None, logps=None,
+                       sampled_mids=None, skip_reasons=None):
         # R60(F-10): 喂活回报-胜率看门狗 — 原self._last_ret从未赋值,
         # corrcoef读全0永不报警(该表专为"擦弹收入碾压KO"退化建, 从零
         # 审计F-10抓出)。同步记局回报(无异步滞后, _settle_match即读)。
@@ -2554,7 +2579,11 @@ class TMTrainer:
         pend.append((np.stack(feats), np.array(acts),
                      np.array(rews, dtype=np.float32), np.stack(sides),
                      M, B, BM, EP_TERMS, frames, OPP_NEXT,
-                     np.array(logps, dtype=np.float32) if logps else None))
+                     np.array(logps, dtype=np.float32) if logps else None,
+                     np.asarray(sampled_mids, dtype=np.int64)
+                     if sampled_mids is not None else None,
+                     np.asarray(skip_reasons, dtype=np.int8)
+                     if skip_reasons is not None else None))
         # 基准树数据落盘(增量合并, 旁路无需等更新)
         self._save_distill(distill_rows)
         # 视觉供帧健康: 本局特征帧间方差

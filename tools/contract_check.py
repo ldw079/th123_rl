@@ -2111,6 +2111,10 @@ _BEHAVIOR_TESTS = [
      "task-29/30: 统一 mask 层(地空/不可动/DD 150-157)"),
     ("test_val_deact_v1.py",
      "task-46: 值头 deact(GPU/numpy 等价/env=0 回滚/[val] 行)"),
+    ("test_detach_v1.py",
+     "task-47: detach allow-batch/启动校验/WMI 回退"),
+    ("test_ent_env_v1.py",
+     "task-57: C1 熵/温度 env 化(默认等价/覆盖)"),
     ("test_gen2_v1.py",
      "task-50: Gen-2 A(CORE 391 闸门/迁移纯函数/BC 填充)"),
     ("test_deck_cond_v1.py",
@@ -2346,6 +2350,38 @@ chk('np.isfinite(logp_old)' in src('ppo_gpu.py')
     and 'buf_skipped=' in src('learner_hub.py')
     and "_buf_skip" in _tt,
     'task-49: KL NaN sentinel + isfinite 过滤 + buf_skipped 计数')
+# task-33(2026-10-24 数据修复): 连段A/B/C/版边连A 退出 branch(branch 单帧读 d_deal
+#   → 门前 1-3 帧的命中被误判 whiff; confirm 4F 伤害窗可续)
+chk('task-33' in src('macros_branch.py')
+    and '"连段A": _2B_PRESSURE' not in src('macros_branch.py')
+    and 'combo_replay_check' in src('tools/combo_replay_check.py'),
+    'task-33: 连段取消步时序修复(4宏 confirm 化 + replay 工具)')
+
+# task-47(2026-10-24): detach --allow-batch 透传 + 启动校验/WMI 回退
+chk('--allow-batch' in src('tools/train_detach.py')
+    and 'filter_batch_env' in src('tools/train_detach.py')
+    and 'verify_started' in src('tools/train_detach.py')
+    and 'launch_wmi' in src('tools/train_detach.py'),
+    'task-47: detach allow-batch 透传 + Queued→WMI 回退校验')
+# task-57(C1): 熵系数/温度 env 化(默认不变)
+chk('TH123_BETA_ENT_MIN' in src('ppo_gpu.py')
+    and 'TH123_TEMP_INIT' in src('ppo_gpu.py')
+    and 'TH123_TEMP_MIN' in src('ppo_gpu.py')
+    and "if 'TH123_BETA_ENT_MIN' in os.environ" in src('ppo_gpu.py'),
+    'task-57: C1 熵系数/温度 env 化(默认不变/载入覆盖)')
+# task-56: buffer 过注册修复(ONCE/NO_OVERWRITE/mask/仪器)
+chk('TH123_BUFFER_ONCE' in src('buffer_primitives.py')
+    and 'mask_blocked' in src('buffer_primitives.py')
+    and "self.once and self._reg_seg" in src('buffer_primitives.py')
+    and 'buf_block' in src('game_gates.py')
+    and 'mask_blocked()' in _tt
+    and 'skip_reasons' in _tt
+    and 'sampled_mid' in src('actor_worker.py')
+    and 'blk_idle' in src('buffer_primitives.py')
+    and 'def note_block(' in src('buffer_primitives.py')
+    and 'note_block(' in _tt
+    and 'skip_reason' in src('actor_worker.py'),
+    'task-56: buffer 过注册修复(ONCE/NO_OVERWRITE/mask/仪器/blk_idle)')
 # task-53(2026-10-23 P0): 启动期/变异期进程挂起超时
 chk("TH123_PREFLIGHT_TIMEOUT_S'" in src('tools/train_start.py')
     and '_run_preflight' in src('tools/train_start.py'),

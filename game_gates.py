@@ -187,8 +187,12 @@ def _is_ground_only(n):
             or (is_dd_macro(n) and '空' not in str(n)))
 
 
-def apply_state_gates(mask, names, left):
-    """统一 mask 层; env=0 时原样返回(逐位旧行为)。"""
+def apply_state_gates(mask, names, left, buf_block=False):
+    """统一 mask 层; env=0 时原样返回(逐位旧行为).
+
+    buf_block=True(task-56): 本段已登记过/pending 存在 → 屏蔽
+    方向令牌/受身/跳跃/5A(决策正常进 PPO, 不再吞).
+    """
     if not ACT_MASK:
         return mask
     globals()['_GATE_DECISIONS'] = _GATE_DECISIONS + 1
@@ -211,19 +215,22 @@ def apply_state_gates(mask, names, left):
             allow = UKEMI | WAKE
         elif act in HIT_ACTS:
             allow = set(UKEMI)
-            if _buf_ok:
+            if _buf_ok and not buf_block:
                 allow = allow | set(BUFFER_NAMES)
-            if BUFFER_UKEMI_DIR:
+            if BUFFER_UKEMI_DIR and not buf_block:
                 allow = allow | set(UKEMI_DIR_TOKENS)
+            if buf_block:
+                allow = set()   # 只剩待机(方向/受身/跳跃/5A 全屏蔽)
             if GUARD_CANCEL:
                 allow = allow | set(GUARD_CANCEL_NAMES)
         elif GUARD_STUN_LO <= act <= GUARD_STUN_HI:
             allow = set(GUARD_MACROS) | set(CARDS_GROUND) | {
                 n for n in names if is_dd_macro(n)}
-            if _buf_ok:
+            if _buf_ok and not buf_block:
                 allow = allow | set(BUFFER_NAMES)
         elif act == AIR_DEF_STUN or MISGUARD_LO <= act <= MISGUARD_HI:
-            allow = set(BUFFER_NAMES) if _buf_ok else set()
+            allow = (set(BUFFER_NAMES) if (_buf_ok and not buf_block)
+                     else set())
         if allow is not None:
             for i, n in enumerate(names):
                 if n not in allow:

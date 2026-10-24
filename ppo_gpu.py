@@ -219,9 +219,13 @@ if HAS_TORCH:
         MINIBATCH = 64
         PI_LR = 3e-4
         VF_LR = 3e-3        # R54: 值头独立lr(原共用3e-4=慢10倍)
-        BETA_ENT_0 = 0.02
-        BETA_ENT_MIN = 0.001
-        ENT_DECAY = 0.97
+        # task-57(2026-10-24 C1): 熵系数/温度 env 化(默认不变; 无env逐位等价)
+        BETA_ENT_0 = float(os.environ.get('TH123_BETA_ENT0', '0.02'))
+        BETA_ENT_MIN = float(os.environ.get(
+            'TH123_BETA_ENT_MIN', '0.001'))
+        ENT_DECAY = float(os.environ.get('TH123_ENT_DECAY', '0.97'))
+        TEMP_INIT = float(os.environ.get('TH123_TEMP_INIT', '2.0'))
+        TEMP_MIN = float(os.environ.get('TH123_TEMP_MIN', '0.5'))
         # CPU-H P-A/task-13(2026-10-18 用户裁定 bcw=B1 长期开): env 化,
         # **BC_W_MIN 代码默认 0.05**(任何重启不带 env 也长期生效);
         # 回滚=`TH123_BCW_MIN=0`; TH123_BCW_START 默认 0.12(历史起始)。
@@ -249,7 +253,7 @@ if HAS_TORCH:
                                   'W3v', 'b3v'))],
                 lr=self.VF_LR)
             self.rng = np.random.default_rng(0)
-            self._temp = 2.0
+            self._temp = self.TEMP_INIT
             self._beta = self.BETA_ENT_0
             self._bcw = self.BC_W
             self._updates = 0
@@ -673,7 +677,8 @@ if HAS_TORCH:
             self._bcw = max(self.BC_W_MIN, self._bcw * self.ENT_DECAY)
             self._beta = max(self.BETA_ENT_MIN,
                              self._beta * self.ENT_DECAY)
-            self._temp = max(0.5, self._temp * self.ENT_DECAY)
+            self._temp = max(self.TEMP_MIN,
+                             self._temp * self.ENT_DECAY)
 
             # 从零#2(鲁棒修复2): 更新后参数有限性守卫 — 拒绝让NaN网
             # 继续留在内存(learner捕获→隔离批; save守卫是最后防线)
@@ -969,6 +974,26 @@ if HAS_TORCH:
                 # (镜像ppo.py:309-311的len守卫, 缺省1.0)
                 self._adaptive_lr_scale = (float(m[5])
                                            if len(m) >= 6 else 1.0)
+                # task-57 C1: env 覆盖(仅在 env 显式设置时; 默认=meta 不变)
+                if 'TH123_BETA_ENT_MIN' in os.environ:
+                    self._beta = max(self.BETA_ENT_MIN, self._beta)
+                if 'TH123_TEMP_INIT' in os.environ:
+                    self._temp = self.TEMP_INIT
+                if 'TH123_TEMP_MIN' in os.environ:
+                    self._temp = max(self.TEMP_MIN, self._temp)
+                if ('TH123_BETA_ENT0' in os.environ
+                        and self._updates == 0):
+                    self._beta = self.BETA_ENT_0
+                _ent_env = any(k.startswith('TH123_BETA_ENT')
+                               or k.startswith('TH123_TEMP')
+                               or k == 'TH123_ENT_DECAY'
+                               for k in os.environ)
+                print('[ent_env] effective beta=%.4f temp=%.3f '
+                      'beta_min=%.4f beta0=%.4f decay=%.2f '
+                      'temp_min=%.2f env_override=%s'
+                      % (self._beta, self._temp, self.BETA_ENT_MIN,
+                         self.BETA_ENT_0, self.ENT_DECAY,
+                         self.TEMP_MIN, _ent_env))
 
 else:
     class PPOTrainerGPU:

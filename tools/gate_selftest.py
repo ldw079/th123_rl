@@ -32,6 +32,7 @@ FILES = [
          "buffer_primitives.py",
          "actable_state.py",
          "tools/train_detach.py",
+         "tools/combo_replay_check.py",
          "mem_v1.py",
          "atk_v1.py",
          "game_gates.py",
@@ -936,6 +937,37 @@ MUTATIONS = [
      "TH123_MUT_TIMEOUT_S'",
      "TH123_MUT_TIMEOUT_SX'",
      'task-53: 变异挂起树杀删除 → 断言必须红'),
+    # task-56: ONCE 段判定删除 → 断言必红
+    ('buffer_primitives.py',
+     'if self.once and self._reg_seg == self.seg_id:',
+     'if False and self._reg_seg == self.seg_id:',
+     'task-56: ONCE 段判定删除 → 断言必须红'),
+    # task-56: note_block(blk_idle) 删除 → 断言必红
+    ('buffer_primitives.py',
+     'def note_block(',
+     'def note_blockX(',
+     'task-56: note_block 删除 → 断言必须红'),
+    # task-56: mask_blocked 接线删除 → 断言必红
+    ('train_tm.py',
+     '_buf_blocked = self._buf_state.mask_blocked()',
+     '_buf_blocked = False',
+     'task-56: mask_blocked 接线删除 → 断言必须红'),
+    # task-57: C1 beta 下限覆盖删除 → 断言必红
+    ('ppo_gpu.py',
+     "if 'TH123_BETA_ENT_MIN' in os.environ:",
+     "if False:",
+     'task-57: C1 beta 覆盖删除 → 断言必须红'),
+    # task-33: 连段A 回退 branch 升级(取消步时序回归) → 断言必红
+    ('macros_branch.py',
+     '    "原子·确认5A": _2B_PRESSURE,',
+     '    "原子·确认5A": _2B_PRESSURE,\n'
+     '    "连段A": _2B_PRESSURE,',
+     'task-33: 连段A 回退 branch → 断言必须红'),
+    # task-47: allow-batch 透传删除(回归剔除) → 断言必红
+    ('tools/train_detach.py',
+     'env = filter_batch_env(env, a.allow_batch)',
+     'env = filter_batch_env(env, False)',
+     'task-47: allow-batch 透传删除 → 断言必须红'),
 ]
 
 

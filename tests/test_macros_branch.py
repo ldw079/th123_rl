@@ -21,9 +21,10 @@ import macro_executor as me                    # noqa: E402
 from macros import MACROS                      # noqa: E402
 
 PASS, FAIL = [], []
-UPGRADED = ['5A确认', '2A确认', '连段A', '连段B', '连段C',
-            '压制A', '压制B', '空连A', '版边连A',
+UPGRADED = ['5A确认', '2A确认',
+            '压制A', '压制B', '空连A',
             'TM·2a连', 'TM·4a连', '原子·确认5A']
+# task-33: 连段A/B/C/版边连A 退出 branch(confirm 4F 伤害窗修复取消步时序)
 
 
 def _no_sc(left):

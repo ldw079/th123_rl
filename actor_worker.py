@@ -147,7 +147,8 @@ def run_actor(char, actor_id, port, tps=480, episodes=1000,
 
     def submit(feats, acts, rews, sides, distill_rows, frames,
                masks_hist=None, bc_targets=None, truncated=False,
-               opp_acts=None, logps=None, hist=None):
+               opp_acts=None, logps=None, hist=None,
+               sampled_mids=None, skip_reasons=None):
         # logps参数(本地路径的ep_logps)忽略 — actor真源=fleet_logps闭包
         # (R60-F11后train_tm恒传此kwarg, 参数名须保留logps)
         if not feats:
@@ -179,6 +180,13 @@ def run_actor(char, actor_id, port, tps=480, episodes=1000,
                      if distill_rows else
                      np.zeros((0, 11), dtype=np.float32)),
         )
+        # task-56 仪器: 采样原值 + skip 原因(-1/0=direction/1=register)
+        if sampled_mids is not None:
+            arrays['sampled_mid'] = np.asarray(
+                sampled_mids, dtype=np.int64)
+        if skip_reasons is not None:
+            arrays['skip_reason'] = np.asarray(
+                skip_reasons, dtype=np.int8)
         if hist is not None:
             arrays['hist'] = np.asarray(hist, dtype=np.int8)
         meta = episode_meta(char, actor_id, state['ep'],

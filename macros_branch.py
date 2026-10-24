@@ -32,13 +32,14 @@ BLOCKED_ROUTES = {
     "5A确认": _2B_PRESSURE,
     "2A确认": _2B_PRESSURE,
     "原子·确认5A": _2B_PRESSURE,
-    "连段A": _2B_PRESSURE,
-    "连段B": _2B_PRESSURE,
-    "连段C": _B_GRIND,
+    # task-33(2026-10-24 数据修复): 连段A/B/C/版边连A 退出 branch 升级 ——
+    # 根因: branch 只在门那一帧读 d_deal, 而 A 起手命中发生在门前 1-3 帧
+    # (2 中性帧后) → 命中被误判 whiff → 连段截断(replay 0% 命中
+    # dmg≥300). 原 confirm 门有 4 帧伤害窗口 → 保留确认语义更可靠.
+    # 版边连A 已被 BLOCKED_ROUTES 覆盖(见下) — 同步退出.
     "压制A": _2B_PRESSURE,          # 被防: 2A头换2B磨防(原走6A连段)
     "压制B": _B_GRIND,             # 被防: C压制换B磨灵
     "空连A": [(("left",), 8)],      # 被防: 空防保持(空防left段片段)
-    "版边连A": _B_GRIND,           # 被防: 磨灵循环(版边B-C片段)
     "TM·2a连": None,               # 被防: 截断(计划A-2表)
     "TM·4a连": None,
 }

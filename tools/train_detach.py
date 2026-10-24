@@ -67,6 +67,60 @@ def stop_cmd():
             '--stop']
 
 
+# task-47(2026-10-24): schtasks 曾出现"Queued 不触发"→ 启动后校验 + WMI 回退
+_BATCH_KEYS = ('TH123_BATCH_K', 'TH123_BATCH_MIN_GAMES',
+               'TH123_BATCH_MIN_DECISIONS', 'TH123_BATCH_WAIT_MAX')
+
+
+def filter_batch_env(env, allow_batch):
+    """--allow-batch=1 保留 TH123_BATCH_*; 默认剔除(旧行为)."""
+    out = dict(env)
+    if not allow_batch:
+        for k in _BATCH_KEYS:
+            out.pop(k, None)
+    return out
+
+
+def verify_started(timeout_s=60.0, log_path=None, poll_s=2.0):
+    """启动后校验: 日志出现"监督模式" 或 fleet_supervisor 进程存在."""
+    t0 = time.time()
+    while time.time() - t0 < float(timeout_s):
+        if log_path and os.path.exists(log_path):
+            try:
+                tail = open(log_path, 'rb').read()[-200000:].decode(
+                    'utf-8', 'ignore')
+                if '监督模式' in tail:
+                    return True
+            except OSError:
+                pass
+        r = subprocess.run(
+            ['powershell', '-NoProfile', '-Command',
+             '(Get-CimInstance Win32_Process | Where-Object '
+             '{ $_.CommandLine -match "fleet_supervisor" }).Count'],
+            capture_output=True, text=True, timeout=30)
+        try:
+            if int((r.stdout or '0').strip() or 0) > 0:
+                return True
+        except ValueError:
+            pass
+        time.sleep(poll_s)
+    return False
+
+
+def launch_wmi(bat_path):
+    """schtasks 未触发时的回退: WMI 直接起 bat; 返回 (ok, detail)."""
+    ps = ("Invoke-CimMethod -ClassName Win32_Process -MethodName Create "
+          "-Arguments @{CommandLine='cmd.exe /c \"%s\"'} | "
+          "ForEach-Object { 'ret=' + $_.ReturnValue }" % bat_path)
+    try:
+        r = subprocess.run(['powershell', '-NoProfile', '-Command', ps],
+                           capture_output=True, text=True, timeout=60)
+        ok = r.returncode == 0 and 'ret=0' in (r.stdout or '')
+        return ok, ((r.stdout or '') + (r.stderr or ''))[-200:]
+    except Exception as e:
+        return False, repr(e)
+
+
 def write_launcher_bat(bat_path, env, cmd, log_path):
     """写计划任务用 bat: TH123_* env + cd ROOT + 训练命令 >> 日志."""
     def q(s):
@@ -139,7 +193,8 @@ def launch_popen(cmd, cwd, env, log_path, dry=False):
     return {'pid': None, 'mode': 'fail', 'line': line}
 
 
-def launch(cmd, cwd, env, log_path, dry=False, via='auto'):
+def launch(cmd, cwd, env, log_path, dry=False, via='auto',
+           verify_timeout=60.0):
     """统一入口; via ∈ auto|popen|schtasks."""
     if dry:
         line = ' '.join('"%s"' % c if ' ' in c else c for c in cmd)
@@ -157,12 +212,28 @@ def launch(cmd, cwd, env, log_path, dry=False, via='auto'):
         bat = write_launcher_bat(DEFAULT_BAT, env, cmd, log_path)
         ok, detail = launch_schtasks(bat)
         if ok:
-            print('[detach] schtasks 启动成功:', detail)
-            return {'pid': -1, 'mode': 'schtasks', 'line': ' '.join(cmd),
-                    'task': TASK_NAME}
-        print('[detach] schtasks 失败(%s) — 回退 Popen' % detail)
-        if via == 'schtasks':
-            return {'pid': None, 'mode': 'fail', 'line': ' '.join(cmd)}
+            print('[detach] schtasks 创建/触发:', detail)
+            # task-47: 启动后校验(Queued 不触发 → WMI 回退), 不再"报成功却空转"
+            if verify_started(timeout_s=verify_timeout, log_path=log_path):
+                print('[detach] 启动校验通过')
+                return {'pid': -1, 'mode': 'schtasks',
+                        'line': ' '.join(cmd), 'task': TASK_NAME}
+            print('[detach] schtasks 未在 %.0fs 内启动(QUEUED/未触发) — '
+                  '回退 WMI' % verify_timeout)
+            wok, wdet = launch_wmi(bat)
+            if wok and verify_started(timeout_s=verify_timeout,
+                                      log_path=log_path):
+                print('[detach] WMI 回退启动校验通过')
+                return {'pid': -1, 'mode': 'schtasks+wmi',
+                        'line': ' '.join(cmd), 'task': TASK_NAME}
+            print('[detach] WMI 回退失败(%s) — 回退 Popen' % wdet)
+            if via == 'schtasks':
+                return {'pid': None, 'mode': 'fail',
+                        'line': ' '.join(cmd)}
+        else:
+            print('[detach] schtasks 失败(%s) — 回退 Popen' % detail)
+            if via == 'schtasks':
+                return {'pid': None, 'mode': 'fail', 'line': ' '.join(cmd)}
     res = launch_popen(cmd, cwd, env, log_path)
     if res['mode'] == 'popen_fallback':
         print('[detach] WARN: breakaway 被 Job 限制 — 已回退 detached Popen'
@@ -180,16 +251,23 @@ def main():
     ap.add_argument('--via', choices=['auto', 'popen', 'schtasks'],
                     default='auto')
     ap.add_argument('--stop', action='store_true')
+    ap.add_argument('--allow-batch', action='store_true',
+                    help='保留 TH123_BATCH_* env(默认剔除)')
+    ap.add_argument('--verify-timeout', type=float,
+                    default=60.0,
+                    help='启动后校验超时(秒), 失败回退 WMI')
     ap.add_argument('--dry', action='store_true')
     a = ap.parse_args()
     if a.stop:
         return subprocess.run(stop_cmd()).returncode
     env = build_env(os.environ, a.env)
-    for k in ('TH123_BATCH_MIN_GAMES', 'TH123_BATCH_MIN_DECISIONS',
-              'TH123_BCW_MIN', 'TH123_BCW_START'):
+    # task-47: --allow-batch 显式透传(默认剔除旧行为)
+    env = filter_batch_env(env, a.allow_batch)
+    for k in ('TH123_BCW_MIN', 'TH123_BCW_START'):
         env.pop(k, None)
     cmd = build_cmd(a.mode, a.actors, a.tps)
-    res = launch(cmd, ROOT, env, a.log, dry=a.dry, via=a.via)
+    res = launch(cmd, ROOT, env, a.log, dry=a.dry, via=a.via,
+                 verify_timeout=a.verify_timeout)
     if a.dry:
         return 0
     if res['pid'] is None:
