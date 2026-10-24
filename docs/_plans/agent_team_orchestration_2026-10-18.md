@@ -612,6 +612,21 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 47. 10-24 下午：非部署交付批（buffer/C1 惰性提交 + task-47/33/31/32/35 材料 + 裁定）
+
+- **背景**：A′ 判据（v5）：skip/KL/P50/timeout/dir 修复，**ent 真降（.531/.553/.719 vs pre-A .650/.616/.886）→ 完整效率修复不成立**；用户裁定：**Gen-2 动作残差层（task-27）暂停实现**、task-23（批/LR 旧实验）**结项**（B 批+C1 覆盖）、task-35 deck prior **今日生成不投放**；"能今天做的都今天做"。
+- **commit `84fd6d1`（code，env 默认0 未部署）**：task-56 buffer 过注册修复（ONCE/NO_OVERWRITE/blk_idle/`sampled_mid+skip_reason` 仪器）+ task-57 C1 熵/温度 env 化（BETA_ENT0/MIN、ENT_DECAY、TEMP_INIT/MIN 默认不变）+ task-47 detach `--allow-batch`/启动校验/WMI 回退 + task-33 连段取消步时序修复（数据 4 宏 confirm 化）+ `combo_replay_check.py` + tests/C15/变异/docs（commit 全部材料以保持 contract 树一致；**窗#9/#10 因此变为纯 env 窗，无需再 commit**）。
+- **commit `edd1218`（docs-only）**：auditor `behavior_diag_2026-10-23.md`（v1–v5，43KB）归档。
+- **验证**：门禁 `gate_task47_33`=**743 PASS/0 WARN/0 FAIL**（GEN2 双宽）；test_buffer 29/29、test_ent_env 13/13、test_detach 11/11、test_macros_branch 48/48；MUT **264**；drycheck task-33/47 OK（正式变异待窗/低载）。
+- **task-33 连段修复证据**：根因=branch 单帧读 d_deal 漏判门前 1–3 帧命中→whiff 截断；修复=连段 A/B/C/版边连A 退出 branch 升级、保留 confirm 4F；replay 地面连段集 **27/32=0.844→31/32=0.97 ≥0.8**（全 combo 30/50→35/50=0.70）；残留 B 起手/空中/压起身/投 → **task-33b（executor 伤害记忆）**。
+- **task-31 天气材料**：probe active/displayed/timer/切换/极光遮蔽可读；20 类语义表+验证状态；5D 特征/奖励设计（env 默认0 不实施）。
+- **task-32 系统卡材料**：SC/SW 在防御硬直/自由态均无卡动作；候选根因 cardGauge=0/手牌不可见/引擎拒绝；下一步先攒 gauge 再测（**未证实**）。
+- **task-35 材料**：`deck_cond_prior_skeleton.json`（uniform，校验 PASS、无行为变化）+ 材料；**数据缺口**：`_deck_arch_stats` 仅内存、D 仪表 matchup 全 error → 真实 prior 需先持久化 arch 战绩（下一步）；未投放。
+- **明日（env-only）**：10:30 窗#9 = `BUFFER_ONCE=1`+`BUFFER_NO_OVERWRITE=1`+`UKEMI_DIR=0`+`WAIT_MAX=240`；14:00 窗#10 = `BETA_ENT_MIN=0.01`（`[ent_env] env_override=True` 生效证据）；两窗无 commit。
+- **下一步**：push `84fd6d1`+`edd1218`+§47；两窗后判据（skip/exec-reg/drop_ow、ent≥0.75、KL≤0.30、锐化、P50≥2）；C1 稳定→重开 UKEMI 的单独 env 窗→task-55 B 窗（n_out）；task-33b/24/31-激活/32-实现/35-数据持久化按序。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
