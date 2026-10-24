@@ -4,6 +4,10 @@
 
 > **2026-10-18 交接快照（R170-R195 收口；另一智能体接手时先读这段）**
 >
+> **GEN2→0 回滚备份保护(2026-10-24 判裁)**: `D:\temp\th123_models\p2gen2_backup_20261023_135052`(3.38GB, fleet 822/857/837 + BC 798/833/813)
+> = **唯一完整回滚备份** — 不得删除/移动/覆盖；保留至用户确认 A 永久生效
+> (至少过 C1 两窗+24h 观察)。`p2gen2_backup_plain_135552` 仅 plain 模型(12MB)也保留。
+> 磁盘清理**不得碰备份/模型/BC**；D<36 只清 frame_logs>3d/gate_sandbox/临时档，D<32 报 Lead。
 > **已知问题(2026-10-24)**: git push 偶发 `SSL certificate ... unable to get local issuer certificate`
 > → 先查系统 CA/代理/凭据；临时 workaround 仅一次性 `git -c http.sslVerify=false push`（不改全局配置；不得作为常规路径）。
 > **门禁**: 743 PASS / 0 WARN / 0 FAIL（裸跑看退出码，勿用管道吞码；TH123_GEN2=1 口径 `D:\temp\gate_window7_final2.txt`）；变异 **264** 条；行为测试 117 档。

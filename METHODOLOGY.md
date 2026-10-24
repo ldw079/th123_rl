@@ -2823,6 +2823,9 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     并区分 post/held/pre 三种注入语义后才得到真实 ≈2F。同类探针须同时输出判定轨迹供人工核对。
   - **停 main 前必须建一次性自动恢复任务(2026-10-21)**: `schtasks one-shot` 在窗硬线+5min 执行
     `train_batch_launch.bat`; 窗成功重启后删除。2.84h 静默停机(停臂后会话 failed)教训.
+  - **备份保护(2026-10-24)**: `p2gen2_backup_20261023_135052` = 唯一完整 GEN2→0 回滚备份
+    (fleet 模型+BC)，禁删/禁移；磁盘清理不碰备份/模型/BC；D<36 仅清 3 天前 frame_logs/
+    gate_sandbox/临时档，D<32 报 Lead(删旧 BC 副本需用户批)。
   - **Gen-2 A(2026-10-22)**: `TH123_GEN2=1`→CORE 391(actable4D+天气5D); 默认0旧宽;
     迁移 `tools/migrate_gen2.py`(备份/插零/BC尾零列/value-only); env=0 回滚需备份档.
   - **deck_cond/frame(2026-10-22)**: `TH123_DECK_COND` 卡组条件化(先验缺省无偏置);
