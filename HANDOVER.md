@@ -4,6 +4,8 @@
 
 > **2026-10-18 交接快照（R170-R195 收口；另一智能体接手时先读这段）**
 >
+> **已知问题(2026-10-24)**: git push 偶发 `SSL certificate ... unable to get local issuer certificate`
+> → 先查系统 CA/代理/凭据；临时 workaround 仅一次性 `git -c http.sslVerify=false push`（不改全局配置；不得作为常规路径）。
 > **门禁**: 737 PASS / 0 WARN / 0 FAIL（裸跑看退出码，勿用管道吞码；TH123_GEN2=1 口径 `D:\temp\gate_window7_final2.txt`）；变异 **258** 条；行为测试 114 档。
 > **W1 验收门禁**: `D:\temp\gate_r197_final.txt`（12:12:51, exit=0, 原始末行 `668 PASS / 0 WARN / 0 FAIL`）。
 > **R200 门禁**: `D:\temp\gate_r200.txt`（14:29:59, exit=0, 原始末行 `671 PASS / 0 WARN / 0 FAIL`；
