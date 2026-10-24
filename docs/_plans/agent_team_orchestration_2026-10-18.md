@@ -599,6 +599,19 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 46. 窗#8：A′ 效率修复（env-only：关方向令牌 + 批等待 150）（R226，2026-10-24 上午）
+
+- **背景**：v4 诊断（auditor task-51 v4）确认窗#7（17:10，UKEMI_DIR=1+A）后 **buf_skipped 均值 23–26%（p90 31–37%、max 42–51%）≈ stun 决策占比**（skip/stun=0.94–0.99），熵 0.650→0.590（reimu）/0.886→0.769（suika）/marisa 尾段 0.616→0.520，KL 0.157→0.281/0.158→0.368/0.209→0.382；根因=**方向令牌/受身登记在 stun 帧重复吞决策**（reg 200–467、exec 11–25、drop_ow≈90%），非 A 特征数值；A 期 normal 攻击率 3.1→8.8/11.0/3.6% 属策略锐化（可能正向）。
+- **窗口**：autorecover 10:20 → stop **09:33:51** → **变异补 1 条** `task-54 stale 锁清理删除` = **1红/0漏网**（`mut_window8.log` 174s；停训后 load_gate 通过）→ bat env **`TH123_BUFFER_UKEMI_DIR=0` + `TH123_BATCH_WAIT_MAX=150`**（K/need 不动）→ WMI 重启 **09:41:40** → 验收 **停机 ≈9.75min**；autorecover 已删。
+- **验收**：4 游戏、hb 9s、MAIN=7、无 alert；`[feat_actable] ON`（A 保留）、CORE=391、BC 831/866/846、`[deck_cond]`、池拒载回退；**preflight 6s**（缓存后）；`dir_*` 预期回 0（记录，方向令牌证据已留档 dir_b 主导/dir_f 已现）。
+- **裁定依据**：A′ = `BUFFER_UKEMI_DIR=0` 同时移除方向令牌分支+受身登记入口（game_gates HIT_ACTS + train_tm extra_allowed），等价覆盖 v4 候选 1+2，无需改 BUFFER_NAMES；B=WAIT_MAX=150 提升 P50 games/降 timeout。
+- **判据（窗后 1–2h，均值口径）**：skip <10%、ent ≥0.6、KL <0.30、P50 games≥2、timeout<35%；未达标→代码窗（熵系数/temp env 化）。
+- **buffer 修复设计已批（明窗实现）**：`BUFFER_ONCE`（每硬直段仅 1 次 register）+ `BUFFER_NO_OVERWRITE` + pending 时 mask 令牌/受身 + **`sampled_mid`/`skip_reason` 仪器**；目标 skip<10%、exec/reg>0.7、drop_ow≈0；实现后可重开 `UKEMI_DIR=1`。
+- **docs**：`c0f7e6b`（HANDOVER 已知问题：push SSL 证书校验失败一次性 workaround `git -c http.sslVerify=false`；建议排查系统 CA/代理）。
+- **下一步**：push `c0f7e6b`+§46；10:10/10:40 复测 A′ 判据；明窗 buffer 修复；task-55 B 窗（n_out）待效率修复+稳定后再排；task-31 天气/32/33/35/27/47/23/24 按序。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
