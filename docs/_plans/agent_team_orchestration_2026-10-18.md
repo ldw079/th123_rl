@@ -651,6 +651,20 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 50. 10-25 晚：R15 红线 + task-58 连段执行器修复部署（`HITMEM=24`）
+
+- **用户观察根因（用户长期"连段无改善"）**：执行器两个叠加 bug——①连段门在攻击命中前 2F 评估（门前缀 6F < 5A 命中≈8F）；②命中帧与 hitStop 同帧，主循环 frozen 帧跳过执行器 → `d_deal` 永久丢失 → confirm 4F 超时 → **首段命中即截断**；影响所有 confirm 门宏（marisa/suika 全部连段、连段A/B/C、版边/压起身/择）；此前的 replay "0.97" 为宽松判据+同源自证（replay 与训练共用 bug 逻辑），已如实纠正。
+- **修复（分支 `p1-hitmem`，7 commits，ff merge 到 main）**：`macro_executor.advance_queue` 增 hit_mem 记忆窗 + frozen 帧伤害累计；`train_tm`/`side_driver` 接线；记忆开启时 confirm 观察窗 4F→18F；`combo_replay_check` 修 `d_deal` 恒 0 harness bug + 严格判据（dmg≥300 或 ≥2 段）；**harness P0 修正**：旧版用 reimu-reimu 游戏跑 marisa/suika 宏（动作/伤害全错）→ 每角色独立游戏；env `TH123_EXEC_HITMEM` 默认 0=旧行为逐位等价。
+- **离线验证（隔离游戏）**：reimu 连段A **200→1510 dmg（=手动连打基准）**、连段B 1510、版边连A 1651、suika 连段C 1861；严格全 combo **env0 39/50=0.78 → env24 46/50=0.92**（reimu .88 / marisa .88 / suika 1.00）；剩余 4 项（压起身空/穿、原子确认5A）归 phase-3b 场景台。
+- **测试/门禁**：`test_executor_hitmem_v1` 14/14（真实帧 frozen 序列复现 bug+修复/等价/接线）；merge 后门禁 `gate_task58_deploy`=**745 PASS/0 WARN/0 FAIL**（GEN2=1）；变异"命中记忆删除"→红；MUT 265、C15 118。
+- **部署（用户批"今晚立即部署"）**：merge `f0c365b`（ahead7）→备份 `p2gen2b_backup_20261025_201948`（模型 6 + BC 硬链 12，~25MB）→ stop 20:19:54 → WMI 重启 20:19:59 → 4 游戏 20:21:30；**停机账：进程级 ~5s、恢复 4 游戏 ~1.6min**；验收 `[exec] hitmem=24` ×3 actor/learner、4 游戏/hb、CORE=391/BC/池回退/schema、C2 保持（`[ent_env] temp=0.8`）、无新 Traceback。
+- **R15 红线（用户令"禁止添加无意义自检与门禁"）**：已写入 `METHODOLOGY §0 R15`+HANDOVER（分支 `2c7cd8f`）+ auditor `docs/audit_protocol.md §四`+报告模板；禁止纯串断言无行为基座/同源自证/计数断言/装饰断言；新增门禁须附真实帧 golden（frozen/hit/blocked/whiff）或手动基准证据；变异须致行为测试红。
+- **门禁复核**：主检出 331 chk / **纯 src 76 / 纯行为 7**；auditor 裁定 **71 可转行为 / 2 账本保留（须登记消费者+不变式）/ 3 建议删除**（066/124/237）+ 重复副本 3 组；P1=76 条不合规，phase-2 逐条转换须附行为测试名/fixture/变异红证据；**删除 3 条+合并 3 组重复已获 Lead 批**（部署后执行）。
+- **观察**：部署后 30–60min 连段专项（选择率/完成率/空挥/BH fates/ent/KL/4 游戏）；P1 判据=连段选择/完成率无改善（即使 replay 绿）；night note：learner `v_loss` target/input 尺寸 warning 需排查是否新引入。
+- **下一步**：push `f0c365b`+auditor docs+§50；10-26 10:30 **UKEMI 重开 env 窗**（task-58 已提前部署）→ 13:30 观察；10-27 上午 task-55 B 窗；phase-3b/门禁清理 phase-2/timeout 试验 按序。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
