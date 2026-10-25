@@ -957,6 +957,12 @@ MUTATIONS = [
      "if 'TH123_BETA_ENT_MIN' in os.environ:",
      "if False:",
      'task-57: C1 beta 覆盖删除 → 断言必须红'),
+    # task-58: 命中记忆窗删除(门退回单帧 d_deal) → 行为测试必红
+    ('macro_executor.py',
+     '    _dd = (float(d_deal) if hit_mem is None\n'
+     '           else max(float(d_deal), float(hit_mem)))',
+     '    _dd = float(d_deal)',
+     'task-58: 命中记忆窗删除 → 断言必须红'),
     # task-33: 连段A 回退 branch 升级(取消步时序回归) → 断言必红
     ('macros_branch.py',
      '    "原子·确认5A": _2B_PRESSURE,',

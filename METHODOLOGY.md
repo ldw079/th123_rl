@@ -10,7 +10,7 @@
 > 并行开发: **PARALLEL_WORKFLOW.md(三智能体并行约定, 2026-10-16用户批准试行)** — 单写者规则+docs/_pending_entries.md 队列; 写文件前先查写入权
 > 版本: 3.75 · 2026-10-21 · R211(**Gen-1 架构升级第一批·修复版** /**执行层统一 mask 层 task-29/30** /**task-20 进攻奖励 + task-28 DD 正防门控** /**A1/A2 CPU-H P-B/P-C + task-16 入库** /
 > wd 5 字段(旧读者兼容)+L3 machine_alert/dashboard 三口径/load_gate 三工具 + behavior_deep_report |
-> 门禁 709/2/0, 变异 264
+> 门禁 709/2/0, 变异 265
 
 ---
 
@@ -2803,8 +2803,8 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     (forward 4 元组 fwd_pred=零兼容; 旧档忽略键; 回归 test 3 PASS)。
   - **测试/门禁**: C15 `tests/test_p1gen1_v1.py` **20 PASS**(mem 编码/window_hist/ep v3/v2 兼容/
     迁移工具+env=0 maxdiff/env=8 敏感性/批 env 源码/k4/Wf); 断言4(含 window_hist 与预检 MEM=0) +
-    变异3; 门禁 `D:\temp\gate_window7_final2.txt`(2026-10-24 17:30, TH123_GEN2=1, exit=0) **743 PASS / 0 WARN / 0 FAIL**;
-    变异 **264**; C15 **107**。`test_gpu_onestep` 曾 8P/1F 瞬态→单跑 9P/0F + 重跑绿, 判 flake 留痕。
+    变异3; 门禁 `D:\temp\gate_window7_final2.txt`(2026-10-24 17:30, TH123_GEN2=1, exit=0) **745 PASS / 0 WARN / 0 FAIL**;
+    变异 **265**; C15 **107**。`test_gpu_onestep` 曾 8P/1F 瞬态→单跑 9P/0F + 重跑绿, 判 flake 留痕。
   - **窗口**: 停 main(对照臂排除+PID二核) → apply(13 文件, 逐文件哈希) → 单测 → 门禁 709/2W/0 →
     变异 3/3 红 → 迁移副本 dry-run → 备份 → 迁移三模型 → commit(不 push) →
     重启 **仅 `TH123_MEM_DECISIONS=8`**(+FEAT/REW/FRAME_LOG/ACT_MASK; **不设 BATCH_MIN**, 批放大 B

@@ -38,6 +38,9 @@ from train_tm import (CHAR_LIBS, keys_to_input, _parse_sc_targets,  # noqa: E402
 # 由 TMTrainer._CHAR_POOL_IDX(单一事实源)反演: 池序→名, 20/20 覆盖。
 _POOL_OPP_NAME = {v: k for k, v in TMTrainer._CHAR_POOL_IDX.items()}
 
+# task-58: 执行器命中记忆窗(0=旧行为逐位等价; 与train_tm同源)
+_EXEC_HITMEM = int(os.environ.get('TH123_EXEC_HITMEM', '0') or 0)
+
 
 class EvalEnv(TMEnv):
     """记录GameEnded胜者的TMEnv(父类step吞掉该信息)。"""
@@ -476,6 +479,15 @@ class SideDriver:
         d_deal = max(0, self.hp_opp_prev - opp["hp"])
         d_take = max(0, self.hp_own_prev - own["hp"])
         self.hp_opp_prev, self.hp_own_prev = opp["hp"], own["hp"]
+        # task-58(与train_tm同源): 命中/伤害记忆窗(env TH123_EXEC_HITMEM)
+        if _EXEC_HITMEM > 0:
+            _h = self.__dict__.setdefault('_dd_hist', [])
+            _h.append(float(d_deal))
+            if len(_h) > _EXEC_HITMEM:
+                _h.pop(0)
+            _hit_mem = float(sum(_h))
+        else:
+            _hit_mem = None
         # S-1接线(评估侧): punish证据逐帧入账(与train_tm同判据)
         self.feat_builder.punish.frame(
             d_take, 300 <= opp.get("action", 0) <= 598,
@@ -518,7 +530,8 @@ class SideDriver:
                     # (评估侧立防/蹲防启动窗被中断, 训练侧豁免 —
                     # train_tm/评估行为偏斜)。与训练侧同集。
                     set(GUARD_PREP_MACROS), GUARD_ALL_IDS,
-                    self._sc_step, self._sc_reset))
+                    self._sc_step, self._sc_reset,
+                    hit_mem=_hit_mem))
             if _inp is not None:
                 if (isinstance(_inp, tuple) and _inp[0] == "ender"):
                     # R61w(C5, P1-A从零#2接线): ender元组原落入

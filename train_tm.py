@@ -333,6 +333,11 @@ R_SPACE_ESCAPE = float(os.environ.get('TH123_REW_SPACE_ESCAPE', '0.03'))
 R_SPACE_SURVIVE = float(os.environ.get('TH123_REW_SPACE_SURVIVE', '0.02'))
 R_SPACE_DIV = float(os.environ.get('TH123_REW_SPACE_DIV', '0.01'))
 R_SPACE_CROSS = float(os.environ.get('TH123_REW_SPACE_CROSS', '0.05'))
+
+# task-58(2026-10-25 P1): 执行器命中/伤害记忆窗帧数. 0=旧行为(逐位等价).
+# >0: 门评估读最近 N 帧 d_deal(含 hitStop 冻结帧) — 修"命中帧被丢弃导致
+# confirm 4F 超时→首段即截断"的 bug(task-33 只修了分支误判, 未修此).
+EXEC_HITMEM = int(os.environ.get('TH123_EXEC_HITMEM', '0') or 0)
 SPACE_EDGE_X0 = 120.0
 # task-20 Phase1 进攻类奖励(R-a 惩罚窗命中结算 / R-d 空挥再平衡 / R-e 窗口攻击bias)
 try:
@@ -1534,6 +1539,7 @@ class TMTrainer:
         frozen = False   # R52: 帧级事件需此值, 首帧前初始化(防爆)
         self._setup_capture()   # 按局重启换PID → 重建捕获
         macro_queue = []       # [(keys, frames_left)]
+        self._dd_hist = []     # task-58: 命中记忆窗(frame_logs per ep)
         feats, sides, acts, rews, masks_hist, bc_targets = [], [], [], [], [], []
         sampled_mids = []   # task-56: 仪器 — buffer 替换前采样原值
         skip_reasons = []   # task-56: -1=非skip / 0=direction / 1=register
@@ -1788,6 +1794,13 @@ class TMTrainer:
                         if hasattr(self, '_prev_pot') else 0.0)
             self._prev_pot = _pot
             d_deal = max(0, hp_r_prev - right["hp"])
+            if EXEC_HITMEM > 0:
+                self._dd_hist.append(float(d_deal))
+                if len(self._dd_hist) > EXEC_HITMEM:
+                    self._dd_hist.pop(0)
+                _hit_mem = float(sum(self._dd_hist))
+            else:
+                _hit_mem = None
             d_take = max(0, hp_l_prev - left["hp"])
             # task-21 Phase1 空间奖励(env TH123_REW_SPACE; 小奖)
             if REW_SPACE:
@@ -1930,7 +1943,8 @@ class TMTrainer:
                         left, right, d_deal, d_take,
                         frozen, left["spirit"], dx_guard, dec_name,
                         GUARD_PREP_MACROS, GUARD_ALL_IDS,
-                        self._sc_step, self._sc_reset))
+                        self._sc_step, self._sc_reset,
+                        hit_mem=_hit_mem))
                 if _cur_inp is not None:
                     if (isinstance(_cur_inp, tuple)
                             and _cur_inp[0] == "ender"):

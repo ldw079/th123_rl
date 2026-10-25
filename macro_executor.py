@@ -115,7 +115,7 @@ def evaluate_position_gate(payload, left, right):
 
 def advance_queue(macro_queue, gate_frames, left, right, d_deal, d_take,
                   frozen, spirit, dx, dec_name, GUARD_PREP_SET,
-                  GUARD_ALL_IDS, sc_step_fn, sc_reset_fn):
+                  GUARD_ALL_IDS, sc_step_fn, sc_reset_fn, hit_mem=None):
     """统一宏队列推进 — train_tm和side_driver共同调用.
 
     参数:
@@ -135,6 +135,12 @@ def advance_queue(macro_queue, gate_frames, left, right, d_deal, d_take,
     返回: (macro_queue, gate_frames, dec_name, current_input)
       current_input: dict 本帧要发的键(None=不发)
     """
+    # task-58: 命中/伤害记忆窗(env TH123_EXEC_HITMEM>0 时由调用方提供)
+    # 背景(2026-10-25 P1): 命中帧与 hitStop 同帧, 主循环 frozen 帧跳过本函数
+    # → 该帧 d_deal 永久丢失; confirm 4F 窗永远读不到 → 首段命中即截断.
+    # hit_mem = 最近 N 帧 d_deal (含 frozen 帧), None=旧行为逐位等价.
+    _dd = (float(d_deal) if hit_mem is None
+           else max(float(d_deal), float(hit_mem)))
     # 受击中止
     if macro_queue and not frozen:
         if d_take > 80:
@@ -190,7 +196,7 @@ def advance_queue(macro_queue, gate_frames, left, right, d_deal, d_take,
                 macro_queue.pop(0)
                 branch_dict = fl  # fl stores the branch dict
                 result = evaluate_branch(
-                    branch_dict, left, right, d_deal, d_take)
+                    branch_dict, left, right, _dd, d_take)
                 if result is None:
                     # 截断(whiff默认)
                     # P1-4(从零#4): **保留dec_name** — 交还决策权的正常
@@ -262,7 +268,7 @@ def advance_queue(macro_queue, gate_frames, left, right, d_deal, d_take,
             elif isinstance(keys, str):
                 # confirm/cconfirm 门(既有语义)
                 gate_frames += 1
-                if d_deal > 0:
+                if _dd > 0:
                     macro_queue.pop(0)
                     gate_frames = 0
                 elif gate_frames >= 4:

@@ -1858,6 +1858,8 @@ _BEHAVIOR_TESTS = [
      "R17: 对手子网辅助梯度有限差分+回环"),
     ("test_macros_branch.py",
      "R4: 12宏branch四路升级(名/前缀不变/路由步归一)72项"),
+    ("test_executor_hitmem_v1.py",
+     "task-58: 执行器命中记忆窗(frozen帧伤害/confirm/branch/等价)14项"),
     ("test_bc_match_v3.py",
      "A1-3③: v3匹配器掩码位/变长截断/镜像/SC词汇"),
     ("test_bc_align_r38.py",
@@ -2356,6 +2358,19 @@ chk('task-33' in src('macros_branch.py')
     and '"连段A": _2B_PRESSURE' not in src('macros_branch.py')
     and 'combo_replay_check' in src('tools/combo_replay_check.py'),
     'task-33: 连段取消步时序修复(4宏 confirm 化 + replay 工具)')
+
+# task-58(2026-10-25 P1): 执行器命中/伤害记忆窗 — 修"命中帧与 hitStop
+# 同帧→主循环 frozen 跳过执行器→d_deal 永久丢失→confirm 4F 超时→首段
+# 命中即截断"(连段 200dmg/19F vs 手动 A 连打 1510dmg). env 默认0等价.
+chk('hit_mem=None' in src('macro_executor.py')
+    and '_dd = (float(d_deal) if hit_mem is None' in src('macro_executor.py')
+    and 'if _dd > 0:' in src('macro_executor.py')
+    and 'TH123_EXEC_HITMEM' in src('train_tm.py')
+    and 'hit_mem=_hit_mem' in src('train_tm.py')
+    and 'TH123_EXEC_HITMEM' in src('side_driver.py')
+    and 'hit_mem=_hit_mem' in src('side_driver.py')
+    and 'strict_ok' in src('tools/combo_replay_check.py'),
+    'task-58: 执行器命中/伤害记忆窗 + 严格 replay 判据')
 
 # task-47(2026-10-24): detach --allow-batch 透传 + 启动校验/WMI 回退
 chk('--allow-batch' in src('tools/train_detach.py')
