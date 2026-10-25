@@ -2354,10 +2354,19 @@ chk('np.isfinite(logp_old)' in src('ppo_gpu.py')
     'task-49: KL NaN sentinel + isfinite 过滤 + buf_skipped 计数')
 # task-33(2026-10-24 数据修复): 连段A/B/C/版边连A 退出 branch(branch 单帧读 d_deal
 #   → 门前 1-3 帧的命中被误判 whiff; confirm 4F 伤害窗可续)
-chk('task-33' in src('macros_branch.py')
-    and '"连段A": _2B_PRESSURE' not in src('macros_branch.py')
-    and 'combo_replay_check' in src('tools/combo_replay_check.py'),
-    'task-33: 连段取消步时序修复(4宏 confirm 化 + replay 工具)')
+# 行为化(2026-10-25 清理): 原为 macros_branch 源码字符串断言 → 改读真实
+# 宏库(CHAR_LIBS)断言 4 宏结构, 防\"串存在但结构错\"的自证式检查.
+try:
+    import train_tm as _tt33
+    _m33 = dict(_tt33.CHAR_LIBS['reimu']['macros'])
+    _ok33 = all(
+        not any(isinstance(k, str) and k == 'branch' for k, _f in _m33[n])
+        and any(isinstance(k, str) and k == 'confirm' for k, _f in _m33[n])
+        for n in ('连段A', '连段B', '连段C', '版边连A'))
+except Exception:
+    _ok33 = False
+chk(_ok33 and 'combo_replay_check' in src('tools/combo_replay_check.py'),
+    'task-33: 连段A/B/C/版边连A 行为断言(非branch+含confirm) + replay工具')
 
 # task-58(2026-10-25 P1): 执行器命中/伤害记忆窗 — 修"命中帧与 hitStop
 # 同帧→主循环 frozen 跳过执行器→d_deal 永久丢失→confirm 4F 超时→首段
