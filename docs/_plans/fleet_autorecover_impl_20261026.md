@@ -46,3 +46,29 @@
 - 恢复仅 WMI spawn，无 kill 与无 shell 子孙（根除 00:43 事故模式）；
 - watcher 单实例+租约锁防双 watcher/永久锁；退避防重启风暴；
 - 过渡：`--auto-recover` 默认关闭，15:00 起显式开启；窗口脚本用锁避免误恢复。
+
+## 5. AR-2/AR-6 增量（2026-10-26 02:55，auditor 02:47/02:51 要求）
+### AR-2 维护锁增强
+- stale 锁→写 `fleet_heartbeat.fleet_alert`（不只 log）；`fleet_lock.status()` 检测到过期即通知。
+- **CAS 原子创建**：`os.open(LOCK, O_CREAT|O_EXCL)`；并发窗抢锁仅一个成功（测试线程并发）。
+- TTL 显式：窗脚本 `--ttl 7200`；默认 1800；`--release --owner X` 默认 owner 校验，`--force` 显式强制。
+- 窗脚本：`--acquire` 失败 **abort**（检查 rc，禁 Out-Null 继续）；停进程前写锁、健康 PASS 后 owner 释放；
+  所有 exit 路径先 release（防崩溃留锁；TTL 兜底）。
+### AR-6 仅 supervisor 死/子进程存活（不重复整队）
+- 分支：sup 死且 main 子进程存活 → `recover_ar6`：
+  1. watcher acquire 维护锁(owner=watcher, ttl=600)；
+  2. `proc_list` 定位 **仅 main 孤儿**（cmdline=learner_hub/actor_worker、**排除 control**、父 PID 已死）；
+  3. **二次快照+PID 存活+命令行校验**（清理竞态）→ 按 PID `taskkill /T /F`（禁 kill-by-name）；
+  4. WMI 启动整队 → health 复核 → release 锁；记录 old_orphans/killed/launch_ok/new。
+- sup 存活但 ≥2 必需缺 → **不整队 launch**，仅告警（交 supervisor 自身恢复）。
+- 测试：`AR-6` 真实 dummy（launcher 退出成孤儿）→ 恢复后 main 子进程恰 3+3、control 未动、锁释放、
+  recovery 记录旧孤儿 PID；`AR-4` 源码无 Stop-Process/无 /IM，仅 /PID。
+- 变异计划：`_valid_orphan` 放宽为 True → control 被清 → AR-6 行为红（15:00 前入 gate_selftest）。
+### 15:00 现场（已更新脚本）
+1. 停 main→WMI 启→`.health/.wd.health`；
+2. 锁演示（acquire/status/release，rc 检查）；
+3. WMI 启 watcher `--loop 60 --auto-recover`（pid/parent）；
+4. **AR-9a 无锁停 supervisor（子进程存活）→ watcher AR-6 恢复**；核 no-duplicate main py=6/games=4、control 未动；
+5. **AR-9b 有锁停 supervisor→180s 不恢复**；解锁→恢复；
+6. **stall 演练**（suspend learner>300s→kill+spawn）；
+7. health/fleet_alert/parent-check→postmortem 状态更新。

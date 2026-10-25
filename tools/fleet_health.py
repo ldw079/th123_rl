@@ -185,6 +185,118 @@ def release_single_instance():
         pass
 
 
+def proc_list(marker=None):
+    """进程列表(pid/ppid/name/cmdline); marker 用于 dummy 测试隔离."""
+    m = ''
+    if marker:
+        m = (" -and $_.CommandLine -match '%s'" % marker.replace("'", ""))
+    script = (
+        "$out=@(); "
+        "Get-CimInstance Win32_Process | ? {$_.Name -eq 'python.exe' -or "
+        "$_.Name -eq 'th123.exe'} | ? {$true" + m + "} | % { "
+        "$out += [pscustomobject]@{pid=$_.ProcessId; ppid=$_.ParentProcessId; "
+        "name=$_.Name; cmd=$_.CommandLine} }; "
+        "if($out.Count -eq 0){'[]'}else{$out | ConvertTo-Json -Compress}")
+    out = _ps_json(script)
+    try:
+        d = json.loads(out)
+        return d if isinstance(d, list) else [d]
+    except Exception:
+        return []
+
+
+def _is_main_child(p):
+    cmd = str(p.get('cmd') or '')
+    if 'th123_rl_control' in cmd:
+        return False
+    return ('learner_hub' in cmd or 'actor_worker' in cmd) and \
+        str(p.get('name', '')).lower() == 'python.exe'
+
+
+def _valid_orphan(p, sup_pids):
+    if not _is_main_child(p):
+        return False
+    try:
+        pid, ppid = int(p['pid']), int(p['ppid'])
+    except (KeyError, TypeError, ValueError):
+        return False
+    if not _pid_alive(pid):
+        return False
+    if ppid in sup_pids:
+        return False
+    if _pid_alive(ppid):      # 仍有活父进程 → 保守不清
+        return False
+    return True
+
+
+def kill_pid(pid):
+    """仅按 PID+命令行校验后清理(禁止 kill-by-name)."""
+    try:
+        r = subprocess.run(['taskkill', '/F', '/T', '/PID', str(int(pid))],
+                           capture_output=True, text=True, encoding='utf-8',
+                           errors='replace', timeout=30)
+        ok = int(getattr(r, 'returncode', 1)) == 0
+        _log('kill_orphan pid=%d ok=%s' % (int(pid), ok))
+        return ok
+    except Exception as e:
+        _log('kill_orphan pid=%d exception=%r' % (int(pid), e))
+        return False
+
+
+def recover_ar6(snap, snap_fn=None, launch_fn=None, kill_fn=None,
+                now=None, marker=None):
+    """AR-6: 仅 supervisor 死/子进程存活 → 锁+孤儿 PID 清理+WMI 整队+复核."""
+    now = time.time() if now is None else now
+    ok, code, lk = fleet_lock.acquire('watcher', 'AR-6 orphan recovery',
+                                      ttl=600, pid=os.getpid(), now=now)
+    if not ok:
+        _log('AR-6 lock_failed code=%s' % code)
+        return {'code': 'lock_failed'}
+    kill_fn = kill_fn or kill_pid
+    try:
+        plist = proc_list(marker)
+        sup_pids = [int(p['pid']) for p in plist
+                    if 'fleet_supervisor.py' in str(p.get('cmd') or '')]
+        if sup_pids:
+            return {'code': 'sup_appeared'}       # race: supervisor 已恢复
+        orphans = [p for p in plist if _valid_orphan(p, set())]
+        if not orphans:
+            return {'code': 'no_orphans'}
+        # 二次快照 + PID 存活 + 命令行校验（清理竞态）
+        plist2 = {int(p['pid']): p for p in proc_list(marker)}
+        for o in orphans:
+            p2 = plist2.get(int(o['pid']))
+            if not p2 or not _valid_orphan(p2, set()):
+                _log('AR-6 abort_race pid=%s' % o['pid'])
+                return {'code': 'abort_race'}
+        old = [int(o['pid']) for o in orphans]
+        killed = [pid for pid in old if kill_fn(pid)]
+        new = (snap_fn or snapshot)()
+        launch_ok = False
+        try:
+            import fleet_launch_wmi as L
+            launch_ok = bool(launch_fn() if launch_fn else L.launch())
+        except Exception as e:
+            _log('AR-6 launch exception %r' % (e,))
+        st = _load_recovery()
+        st['last'] = {'ts': now, 'code': 'recovered_ar6',
+                      'old_orphans': old, 'killed': killed,
+                      'launch_ok': launch_ok, 'new': new}
+        st['last_ts'] = now
+        _save_recovery(st)
+        try:
+            io.open(HB + '.recovery', 'w', encoding='utf-8').write(
+                json.dumps(st['last'], ensure_ascii=False))
+        except OSError:
+            pass
+        _log('AR-6 recovered old=%s killed=%s launch_ok=%s new=%s'
+             % (old, killed, launch_ok, json.dumps(new, ensure_ascii=False)))
+        return {'code': 'recovered_ar6', 'old_orphans': old,
+                'killed': killed, 'launch_ok': launch_ok}
+    finally:
+        fleet_lock.release(owner='watcher', pid=os.getpid(), force=True)
+
+
 def do_recover(reason, snap_fn=None, launch_fn=None, now=None):
     """WMI 限流恢复（只 spawn，不 kill）；返回 dict 记录."""
     now = time.time() if now is None else now
@@ -226,7 +338,7 @@ def do_recover(reason, snap_fn=None, launch_fn=None, now=None):
     return {'code': 'recovered' if ok else 'failed', **entry}
 
 
-def loop_tick(state, now=None, snap_fn=None, launch_fn=None, auto_recover=True):
+def loop_tick(state, now=None, snap_fn=None, launch_fn=None, auto_recover=True, proc_fn=None):
     """看门狗单拍（可测试）: 返回 (ok, detail, actions)."""
     now = time.time() if now is None else now
     snap = (snap_fn or snapshot)()
@@ -286,8 +398,19 @@ def loop_tick(state, now=None, snap_fn=None, launch_fn=None, auto_recover=True):
         acts.append('recover_skipped_no_flag')
         state['critical_since'] = 0
         return ok, d, acts
-    r = do_recover('critical_missing', snap_fn=snap_fn,
-                   launch_fn=launch_fn, now=now)
+    sup_alive = int(snap.get('sup', -1)) >= 1
+    if sup_alive:
+        # sup 存活但 ≥2 必需缺: 不整队 launch（避免重复 fleet），告警交 supervisor
+        acts.append('sup_alive_children_missing_alert_only')
+        state['critical_since'] = 0
+        return ok, d, acts
+    plist = (proc_fn() if proc_fn else proc_list())
+    main_children = [p for p in plist if _is_main_child(p)]
+    if main_children:
+        r = recover_ar6(snap, snap_fn=snap_fn, launch_fn=launch_fn, now=now)
+    else:
+        r = do_recover('critical_missing', snap_fn=snap_fn,
+                       launch_fn=launch_fn, now=now)
     acts.append(r.get('code', 'recover'))
     state['critical_since'] = 0
     return ok, d, acts
@@ -320,7 +443,7 @@ def main():
     ap.add_argument('--auto-recover', action='store_true')
     ap.add_argument('--clear', action='store_true')
     ap.add_argument('--lock', nargs=2, metavar=('OWNER', 'REASON'))
-    ap.add_argument('--unlock', action='store_true')
+    ap.add_argument('--unlock', nargs='?', const='', default=None, metavar='OWNER')
     ap.add_argument('--status', action='store_true')
     ap.add_argument('--parent-check', action='store_true')
     a = ap.parse_args()
@@ -343,8 +466,9 @@ def main():
         ok, code, lk = fleet_lock.acquire(a.lock[0], a.lock[1])
         print(json.dumps({'ok': ok, 'code': code}, ensure_ascii=False))
         return 0 if ok else 1
-    if a.unlock:
-        ok, code = fleet_lock.release(force=True)
+    if a.unlock is not None:
+        ok, code = fleet_lock.release(owner=(a.unlock or None),
+                                      pid=None, force=False)
         print(json.dumps({'ok': ok, 'code': code}, ensure_ascii=False))
         return 0 if ok else 1
     if a.check:

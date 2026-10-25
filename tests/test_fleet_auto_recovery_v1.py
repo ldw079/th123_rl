@@ -27,6 +27,9 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import fleet_health as FH  # noqa: E402
 import fleet_lock  # noqa: E402
 
+import uuid  # noqa: E402
+MARKER = 'dummy_fleet_' + uuid.uuid4().hex[:8]
+
 PASS, FAIL = [], []
 
 
@@ -44,6 +47,7 @@ def _ctx():
     FH.RECOVERY_LOG = os.path.join(d, 'fleet_recovery.log')
     FH.WATCH_LOCK = os.path.join(d, 'fleet_watcher.lock')
     FH.fleet_lock.LOCK = os.path.join(d, 'fleet_maintenance.lock')
+    FH.fleet_lock.ALERT = os.path.join(d, 'fleet_alert')
     io.open(FH.HB, 'w').write(str(time.time()))
     return d
 
@@ -65,8 +69,8 @@ def test_AR1_trigger():
     calls = []
     launch = lambda: (calls.append(1), True)[1]
     st = {}
-    FH.loop_tick(st, now=1000.0, snap_fn=_critical, launch_fn=launch)
-    FH.loop_tick(st, now=1120.0, snap_fn=_critical, launch_fn=launch)
+    FH.loop_tick(st, now=1000.0, snap_fn=_critical, launch_fn=launch, proc_fn=lambda: [])
+    FH.loop_tick(st, now=1120.0, snap_fn=_critical, launch_fn=launch, proc_fn=lambda: [])
     check('AR-1: 关键缺员连续2检查→触发', len(calls) == 1, str(calls))
     _ctx()
     calls2 = []
@@ -77,6 +81,18 @@ def test_AR1_trigger():
                                launch_fn=launch2)
     check('AR-1: 单 learner 缺不触发(alert_only)',
           calls2 == [] and 'alert_only' in acts, str(acts))
+    _ctx()
+    calls3 = []
+    st3 = {}
+    FH.loop_tick(st3, now=1000.0, snap_fn=_critical,
+                 launch_fn=lambda: (calls3.append(1), True)[1],
+                 auto_recover=False)
+    ok3, d3, acts3 = FH.loop_tick(st3, now=1130.0, snap_fn=_critical,
+                                   launch_fn=lambda: (calls3.append(1),
+                                                      True)[1],
+                                   auto_recover=False)
+    check('AR-1: --auto-recover 未开→不恢复', calls3 == [] and
+          'recover_skipped_no_flag' in acts3, str(acts3))
 
 
 def test_AR2_lock():
@@ -85,9 +101,9 @@ def test_AR2_lock():
     launch = lambda: (calls.append(1), True)[1]
     st = {}
     FH.fleet_lock.acquire('ukemi-window', 'window', pid=99999)
-    FH.loop_tick(st, now=1000.0, snap_fn=_critical, launch_fn=launch)
+    FH.loop_tick(st, now=1000.0, snap_fn=_critical, launch_fn=launch, proc_fn=lambda: [])
     ok, d, acts = FH.loop_tick(st, now=1200.0, snap_fn=_critical,
-                               launch_fn=launch)
+                               launch_fn=launch, proc_fn=lambda: [])
     check('AR-2: 有效锁→抑制恢复(maintenance)',
           calls == [] and 'maintenance' in acts, str(acts))
     # stale 锁(过期) → 可接管
@@ -96,9 +112,9 @@ def test_AR2_lock():
     calls2 = []
     launch2 = lambda: (calls2.append(1), True)[1]
     st2 = {}
-    FH.loop_tick(st2, now=2000.0, snap_fn=_critical, launch_fn=launch2)
+    FH.loop_tick(st2, now=2000.0, snap_fn=_critical, launch_fn=launch2, proc_fn=lambda: [])
     ok, d, acts = FH.loop_tick(st2, now=2130.0, snap_fn=_critical,
-                               launch_fn=launch2)
+                               launch_fn=launch2, proc_fn=lambda: [])
     check('AR-2: stale 锁→告警+可接管恢复',
           len(calls2) == 1 and 'stale_lock_takeover' in acts, str(acts))
 
@@ -110,7 +126,7 @@ def test_AR3_rate_backoff():
     launch = lambda: (calls.append(1), True)[1]
     st = {'critical_since': 1300.0}
     ok, d, acts = FH.loop_tick(st, now=1420.0, snap_fn=_critical,
-                               launch_fn=launch)
+                               launch_fn=launch, proc_fn=lambda: [])
     check('AR-3: 10min 限流', calls == [] and 'rate_limited' in acts,
           str(acts))
     _ctx()
@@ -118,22 +134,26 @@ def test_AR3_rate_backoff():
                        'fail_count': 3})
     st2 = {'critical_since': 900.0}
     ok, d, acts = FH.loop_tick(st2, now=1100.0, snap_fn=_critical,
-                               launch_fn=lambda: False)
+                               launch_fn=lambda: False, proc_fn=lambda: [])
     check('AR-3: 失败退避(仅告警)', 'backoff' in acts, str(acts))
 
 
 def test_AR4_no_kill():
     src = io.open(os.path.join(ROOT, 'tools', 'fleet_health.py'),
                   encoding='utf-8').read()
-    check('AR-4: watcher 源码无 taskkill/Stop-Process',
-          'taskkill' not in src and 'Stop-Process' not in src)
+    check('AR-4: 无 Stop-Process(禁 shell kill)', 'Stop-Process' not in src)
+    check('AR-4: 无 kill-by-name(/IM)',
+          "'/IM'" not in src and '"IM"' not in src)
+    check('AR-4: 孤儿清理仅按 /PID', "'/PID'" in src)
     _ctx()
     calls = []
     st = {}
     FH.loop_tick(st, now=1000.0, snap_fn=_critical,
-                 launch_fn=lambda: (calls.append(1), True)[1])
+                 launch_fn=lambda: (calls.append(1), True)[1],
+                 proc_fn=lambda: [])
     ok, d, acts = FH.loop_tick(st, now=1130.0, snap_fn=_critical,
-                               launch_fn=lambda: (calls.append(1), True)[1])
+                               launch_fn=lambda: (calls.append(1), True)[1],
+                               proc_fn=lambda: [])
     rec = json.load(io.open(FH.RECOVERY, encoding='utf-8'))
     check('AR-4: 恢复记录仅 launch/snapshot(无 kill)',
           'kill' not in json.dumps(rec).lower() and len(calls) == 1)
@@ -169,17 +189,27 @@ def test_AR6_single_instance():
 def _spawn_dummy(role):
     return subprocess.Popen(
         [sys.executable, '-c', 'import time; time.sleep(120)',
-         'dummy_fleet_marker', role])
+         MARKER, role])
 
 
 def test_AR8_real_dummy_fleet():
     _ctx()
+    # 清理历史 dummy(marker 前缀匹配, PID 方式)
+    try:
+        out = FH._ps_json("Get-CimInstance Win32_Process | ? {$_.Name -eq 'python.exe' -and $_.CommandLine -match 'dummy_fleet_marker'} | % {$_.ProcessId}")
+        for pid_s in out.split():
+            try:
+                subprocess.run(['taskkill', '/F', '/T', '/PID', pid_s.strip()], capture_output=True)
+            except Exception:
+                pass
+    except Exception:
+        pass
     procs = {'sup': [_spawn_dummy('fleet_supervisor')],
              'learners': [_spawn_dummy('learner_hub') for _ in range(3)],
              'actors': [_spawn_dummy('actor_worker') for _ in range(3)]}
     try:
         time.sleep(1.0)
-        snap = FH.snapshot('dummy_fleet_marker')
+        snap = FH.snapshot(MARKER)
         snap['games'] = 4
         check('AR-8: 真实 dummy 进程计数(sup/learners/actors)',
               int(snap.get('sup', 0)) >= 1
@@ -191,7 +221,7 @@ def test_AR8_real_dummy_fleet():
         procs['learners'][0].kill()
         procs['learners'][0].wait(timeout=10)
         time.sleep(0.5)
-        snap2 = FH.snapshot('dummy_fleet_marker')
+        snap2 = FH.snapshot(MARKER)
         snap2['games'] = 4
         calls = []
         st = {}
@@ -207,16 +237,18 @@ def test_AR8_real_dummy_fleet():
         procs['sup'][0].kill()
         procs['sup'][0].wait(timeout=10)
         time.sleep(0.5)
-        snap3 = FH.snapshot('dummy_fleet_marker')
+        snap3 = FH.snapshot(MARKER)
         snap3['games'] = 4
         calls2 = []
         st2 = {}
         FH.loop_tick(st2, now=2000.0, snap_fn=lambda: snap3,
-                     launch_fn=lambda: (calls2.append(1), True)[1])
+                     launch_fn=lambda: (calls2.append(1), True)[1],
+                     proc_fn=lambda: [])
         ok4, d4, acts4 = FH.loop_tick(st2, now=2130.0,
                                       snap_fn=lambda: snap3,
                                       launch_fn=lambda: (calls2.append(1),
-                                                         True)[1])
+                                                         True)[1],
+                                      proc_fn=lambda: [])
         check('AR-8: 真实杀 sup→关键缺→触发恢复',
               len(calls2) == 1 and 'recovered' in acts4, str(acts4))
     finally:
@@ -228,6 +260,133 @@ def test_AR8_real_dummy_fleet():
                     pass
 
 
+
+def test_AR2_additions():
+    _ctx()
+    # stale 锁→fleet_alert 通知
+    FH.fleet_lock.acquire('old', 'stale', ttl=-1, pid=99999)
+    FH.fleet_lock.status()
+    check('AR-2: stale 锁写 fleet_alert',
+          os.path.exists(FH.fleet_lock.ALERT))
+    # TTL 字段
+    _ctx()
+    ok, code, lk = FH.fleet_lock.acquire('win', 'ttl', ttl=7200)
+    check('AR-2: 窗可显式 ttl(7200)', ok and
+          abs(float(lk['expires']) - float(lk['created']) - 7200) < 2)
+    # owner 校验释放
+    ok2, code2 = FH.fleet_lock.release(owner='wrong')
+    check('AR-2: 释放 owner 不匹配→拒绝', (not ok2) and code2 == 'owner_mismatch')
+    ok3, code3 = FH.fleet_lock.release(owner='win')
+    check('AR-2: owner 匹配→释放', ok3 and code3 == 'released')
+    # CAS 并发: 两个线程抢锁, 恰好一个成功
+    import threading
+    res = []
+
+    def _try(i):
+        r = FH.fleet_lock.acquire('t%d' % i, 'cas', pid=1000 + i)
+        res.append(r[0])
+    ts = [threading.Thread(target=_try, args=(i,)) for i in range(2)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join()
+    check('AR-2: CAS 并发仅一个成功', sum(1 for x in res if x) == 1,
+          str(res))
+
+
+def test_AR6_orphan_recovery():
+    """真实 dummy: 仅 sup 死/子进程活 → 孤儿 PID 清理+整队+control 不动."""
+    import subprocess as sp
+    d = _ctx()
+    marker = 'ar6dummy_' + uuid.uuid4().hex[:8]
+    launcher = sp.Popen(
+        [sys.executable, '-c',
+         'import subprocess,sys,time;'
+         'sp=subprocess; m=sys.argv[1];'
+         'ps=[sp.Popen([sys.executable,"-c","import time;time.sleep(120)",'
+         'm,"fleet_supervisor"]) ]'
+         '+ [sp.Popen([sys.executable,"-c","import time;time.sleep(120)",'
+         'm,"learner_hub"]) for _ in range(3)]'
+         '+ [sp.Popen([sys.executable,"-c","import time;time.sleep(120)",'
+         'm,"actor_worker"]) for _ in range(3)]'
+         '+ [sp.Popen([sys.executable,"-c","import time;time.sleep(120)",'
+         'm,"th123_rl_control"]) ]'
+         '', marker])
+    launcher_pid = launcher.pid
+    launcher.wait(timeout=10)
+    launcher = None
+    import gc
+    gc.collect()
+    time.sleep(2)
+    try:
+        plist = [p for p in FH.proc_list(marker)
+                 if int(p['pid']) != int(launcher_pid)]
+        check('AR-6: dummy 进程就绪', len(plist) >= 8, 'n=%d' % len(plist))
+        sup = [p for p in plist
+               if 'fleet_supervisor' in str(p['cmd'])][0]
+        old_main = [int(p['pid']) for p in plist
+                    if FH._is_main_child(p)]
+        ctl = [p for p in plist if 'th123_rl_control' in str(p['cmd'])]
+        check('AR-6: control 进程在', len(ctl) == 1)
+        # 验证 control 不是合法孤儿
+        check('AR-6: control 不被当孤儿', not FH._valid_orphan(ctl[0], set()))
+        os.kill(int(sup['pid']), 9)
+        time.sleep(1)
+        old_pids = [int(p['pid']) for p in FH.proc_list(marker)
+                    if FH._is_main_child(p)
+                    and int(p['pid']) != int(launcher_pid)]
+        launched = []
+
+        def _launch():
+            for role, n in (('fleet_supervisor', 1), ('learner_hub', 3),
+                            ('actor_worker', 3)):
+                for _ in range(n):
+                    launched.append(sp.Popen(
+                        [sys.executable, '-c',
+                         'import time;time.sleep(60)', marker, role]))
+            return True
+
+        def _snap():
+            pl = FH.proc_list(marker)
+            return {'sup': sum(1 for p in pl if 'fleet_supervisor'
+                               in str(p['cmd'])),
+                    'learners': sum(1 for p in pl if
+                                    'learner_hub' in str(p['cmd'])),
+                    'actors': sum(1 for p in pl if
+                                  'actor_worker' in str(p['cmd'])),
+                    'ctl': 1, 'games': 4}
+
+        r = FH.recover_ar6(_snap(), snap_fn=_snap, launch_fn=_launch,
+                           now=time.time(), marker=marker)
+        check('AR-6: 恢复码=recovered_ar6', r.get('code') == 'recovered_ar6',
+              str(r.get('code')))
+        remaining = [p for p in FH.proc_list(marker)
+                     if FH._is_main_child(p)
+                     and int(p['pid']) != int(launcher_pid)]
+        check('AR-6: 旧孤儿已清理(无重复 main 子进程)',
+              len(remaining) == 6, 'n=%d' % len(remaining))
+        check('AR-6: launch 被调用一次', len(launched) == 7)
+        s2 = _snap()
+        check('AR-6: 恢复后无重复 fleet(3/3)',
+              s2['learners'] == 3 and s2['actors'] == 3, str(s2))
+        check('AR-6: control 未动', FH._pid_alive(int(ctl[0]['pid'])))
+        check('AR-6: 维护锁已释放',
+              not FH.fleet_lock.status().get('active'))
+        rec = FH._load_recovery().get('last') or {}
+        check('AR-6: recovery 记录旧孤儿 PID',
+              len(rec.get('old_orphans') or []) >= 5,
+              str(rec.get('old_orphans')))
+    finally:
+        for p in FH.proc_list(marker):
+            try:
+                sp.run(['taskkill', '/F', '/T', '/PID', str(p['pid'])],
+                       capture_output=True)
+            except Exception:
+                pass
+        if launcher is not None:
+            launcher.kill()
+
+
 def main():
     test_AR1_trigger()
     test_AR2_lock()
@@ -236,6 +395,8 @@ def main():
     test_AR5_alert_dedupe()
     test_AR6_single_instance()
     test_AR8_real_dummy_fleet()
+    test_AR2_additions()
+    test_AR6_orphan_recovery()
     print('\n==== fleet_auto_recovery AR: %d PASS / %d FAIL ===='
           % (len(PASS), len(FAIL)))
     return 0 if not FAIL else 1
