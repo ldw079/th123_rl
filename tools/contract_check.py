@@ -1841,6 +1841,8 @@ _BEHAVIOR_TESTS = [
      "R4: 12宏branch四路升级(名/前缀不变/路由步归一)72项"),
     ("test_executor_hitmem_v1.py",
      "task-58: 执行器命中记忆窗(frozen帧伤害/confirm/branch/等价)14项"),
+    ("test_bc_anchor_v1.py",
+     "task-60: BC 补锚工具逻辑(finalize去重/上限/5N+391布局/manifest)12项"),
     ("test_bc_match_v3.py",
      "A1-3③: v3匹配器掩码位/变长截断/镜像/SC词汇"),
     ("test_bc_align_r38.py",
