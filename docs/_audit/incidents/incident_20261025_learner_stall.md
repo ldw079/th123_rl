@@ -60,3 +60,9 @@
 - 修复统一 spawn 路径（boot/重启/停滞）消除"三条路径"债；不引入一次性补丁。
 - 不再以"supervisor 存活=健康"作为判据；以进程完整性+日志新鲜度行为指标为准（R17-5）。
 - 心跳/监督增强纳入 W1/W2 前的运维项；control 臂监督纳入监督器正式职责。
+
+## 附: 同 bug 第二例（suika learner, 2026-10-25 23:20）
+- 23:20:06 旧 supervisor 看门狗检测 `learner suika 日志312s未更新` → kill（无 spawn）→ suika learner 消失，主日志 age 811s。
+- 23:28:31 手动恢复 PID=3472（初始 v2367、hitmem=24；输出 `learner_suika_restart.log`）。
+- 结论：同一 P0 根因在 marisa（21:57→23:15）后再次发生；**修复代码已提交 0c4bec1 但运行中 supervisor 仍旧代码**，必须尽快重启 supervisor（窗）才能闭环。
+- 第二例影响：suika learner ~23:07→23:28 约 21min 无学习；v8 数据标注作废段。
