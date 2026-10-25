@@ -338,6 +338,9 @@ R_SPACE_CROSS = float(os.environ.get('TH123_REW_SPACE_CROSS', '0.05'))
 # >0: 门评估读最近 N 帧 d_deal(含 hitStop 冻结帧) — 修"命中帧被丢弃导致
 # confirm 4F 超时→首段即截断"的 bug(task-33 只修了分支误判, 未修此).
 EXEC_HITMEM = int(os.environ.get('TH123_EXEC_HITMEM', '0') or 0)
+if EXEC_HITMEM > 0:
+    print('[exec] hitmem=%d (damage/hit memory window)'
+          % EXEC_HITMEM, flush=True)
 SPACE_EDGE_X0 = 120.0
 # task-20 Phase1 进攻类奖励(R-a 惩罚窗命中结算 / R-d 空挥再平衡 / R-e 窗口攻击bias)
 try:
