@@ -6,6 +6,9 @@
 > 验收：auditor 三份 AC 合同（`docs/_audit/acceptance_c1_artifacts_20261026.md`、
 > `acceptance_c2_env_20261026.md`、`acceptance_c3_gate_20261026.md`）+ R15（行为基座/独立真值）。
 
+> 代码地图/env 统计/事故映射见 **docs/_plans/gen3_appendix_codemap_20261026.md**
+> （98 个 TH123_* 唯一名、62 个跨文件重复名；关键模块/事故→债务映射）。
+
 ## 0. 结论与总路线
 | Wave | 主题 | AC 合同 | 目标 | 风险 | 窗口 |
 |---|---|---|---|---|---|
