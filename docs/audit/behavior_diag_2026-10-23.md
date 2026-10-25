@@ -474,3 +474,40 @@ TEMP_MIN     = float(os.environ.get('TH123_TEMP_MIN',     '0.5'))
 - **注意**：beta/temp 下限提高会让策略更"软"，可能损失 A 的攻击锐化收益；需用行为+胜率（league/验证）一起看，不能只看 ent。
 
 ---
+
+
+## v7 增量（C1 熵窗#10：11:39:21 全启 + 12:29 恢复；数据 13:05；v7b 2h 观察待 15:05）
+
+> 窗#10 实际 `11:39:21 全部启动`（Lead 起点 11:37:52 近似）；**12:29 恢复启动**、12:30:55 全启。C1 env：`[ent_env] effective beta=0.0100 temp=0.500 beta_min=0.0100 ... env_override=True`（三 learner，meta beta=0.010 已持久化）。**P0：无**。
+
+### 1) 恢复段 ent / KL / skip / timeout（12:30–13:05，learner）
+| 角色 | n_batch | ent mean/median | h1→h2（段内趋势） | slope/批 | KL | skip mean | timeout | P50 games / waited |
+|---|---|---|---|---|---|---|---|---|
+| reimu | 15 | **0.504 / 0.500** | .516→.494 | +0.00014 | 0.111 | 0.51% | 0% | 2 / — |
+| marisa | 17 | **0.584 / 0.610** | .660→.516 | **-0.0115** | 0.143 | 0.72% | 0% | 2 / — |
+| suika | 10 | **0.730 / 0.750** | .744→.716 | **-0.0132** | 0.196 | 1.42% | 23.1% | 2 / 241s |
+
+- C1 窗段（11:39–12:29）ent：.522/.577/.650；**恢复段 reimu 仍 .504（<0.6）、marisa/suika 虽 >0.55/0.69 但段内 h1→h2 在下降** → **C1 beta=0.01 未见 ent 回升趋势**；KL 均 <0.30、skip<10%、timeout≤23%（suika waited≈241s 与 WAIT_MAX=240 一致）。
+- 对比 A′（.500/.555/.691、KL .138/.145/.242、skip 4.0/3.2/6.2%）：reimu 无变化；marisa 略升但趋势向下；suika 略升但趋势向下 → **C1 早期未达"ent 回升"**。
+
+### 2) Buffer 修复（窗#9 hotfix 后）——本轮首次可用
+- 新格式：`segs/once_block/ow_block/blk_idle` 已出现；exe/reg **98.5/99.3/99.4%**，drop_ow **0**，drop_to 0/1/0，once_block=ow_block=0；dir_f/b=0（last60 全 0）；rehit8 正常。
+- episode 新键：reimu/suika 最新 episode 已含 **`sampled_mid` + `skip_reason`**；marisa 13:05 时无新 episode（待补）。
+- 结论：**buffer 过注册/覆盖问题在 hotfix 后已修复**（exe≈99%、drop_ow=0），无 P1。
+
+### 3) 锐化保持（统一 probe 口径：normal_atk / strict / punish）
+| 角色 | PRE 10-25 09:30–11:37:52 | POST 12:30–13:05 | v5 A′（参考） |
+|---|---|---|---|
+| reimu | normal 14.67 / strict 9.86 / punish 3.02 | **13.02 / 9.56 / 3.09** | 8.79 / 5.82 / 2.33 |
+| marisa | 5.36 / 4.44 / 1.79 | 0.80 / 0.66 / 0.10（**帧样本过小，不作结论**） | 10.98 / 6.21 / 2.40 |
+| suika | 2.67 / 2.12 / 1.11 | **2.91 / 2.48 / 0.32** | 3.62 / 2.39 / 1.33 |
+
+- reimu/suika **锐化保持**（normal/strict 与 PRE 同量级，仍高于 v5 A′）；marisa frame 仅极少量档，POST .80/.66 与 PRE 5.36/4.44 差异判为**小样本噪声**，需 v7b 更多帧档复核。
+
+### 4) 数据质量门
+- 窗#10 段 `--since 11:37:52` 与恢复段 `--since 12:30:55` 均 **PASS 19/0/0**；30min 帧间隔为正常采样。
+
+### 5) 结论与 v7b（15:05）
+- **C1 早期未达**（reimu .504<0.6；marisa/suika 早期小幅升但段内下降）；**beta=0.01 生效但 ent 无响应趋势** → 按 Lead 规则进 2h 观察，15:05 v7b 复检；若 reimu 仍<0.6 → 备 C2（TEMP_MIN=0.8）或回滚材料。
+- Buffer 修复验证通过（exe≈99%/drop_ow=0/新键落盘）；锐化在 reimu/suika 保持（marisa 待复核）。
+- 报告 untracked；v7b 摘要后追加。
