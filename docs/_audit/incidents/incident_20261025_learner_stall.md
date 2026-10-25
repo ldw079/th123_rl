@@ -1,7 +1,7 @@
 # 事故 Postmortem: marisa learner 停摆 78min（2026-10-25，P0；R17-12）
 
-> 状态：修复已实现（未部署，待 15:00 监督修复窗）；行为测试已入 C15。
-> 影响：v8 2h/4h 中 **marisa learner 与 control 相关段作废**；总训练时间损失约 78min。
+> 状态：**已部署并验收**（2026-10-25 23:30 监督修复窗：新 supervisor PID=6852、23:30:09 起、23:31:08 全启；live kill 7.3s；alert 已清；commit `0c4bec1`/`01316f4`）。**R17-12 条件通过**：⑤ 待明日 15:00 live 停滞演练 + auditor 核验。
+> 影响：v8 2h/4h 中 marisa learner（21:57–23:15，78min）与 suika learner（23:07–23:28，21min）及 23:30–23:31 重启段作废；control 相关段按 auditor 分段标注。
 
 ## 1. 时间线（实证）
 | 时间 | 事件 | 证据 |
