@@ -25,7 +25,7 @@ def _ps_json(script):
     import base64
     enc = base64.b64encode(script.encode('utf-16-le')).decode('ascii')
     r = subprocess.run(['powershell', '-NoProfile', '-EncodedCommand', enc],
-                       capture_output=True, text=True, timeout=120)
+                       capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=120)
     return (r.stdout or '').strip()
 
 
@@ -96,10 +96,14 @@ def main():
     if a.loop:
         misses = 0
         while True:
-            ok, d = check()
+            try:
+                ok, d = check()
+            except Exception as e:
+                ok, d = False, {'bad': ['exception:' + repr(e)[:120]]}
+            print('[health]', 'PASS' if ok else 'FAIL',
+                  json.dumps(d, ensure_ascii=False), flush=True)
             if not ok:
                 misses += 1
-                print('[health] FAIL', json.dumps(d, ensure_ascii=False))
                 if misses >= 2:
                     write_alert('fleet_health: ' + '; '.join(d['bad']))
             else:

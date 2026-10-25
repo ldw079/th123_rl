@@ -18,7 +18,7 @@ BAT = r'D:\temp\train_batch_launch.bat'
 def _ps(script):
     enc = base64.b64encode(script.encode('utf-16-le')).decode('ascii')
     r = subprocess.run(['powershell', '-NoProfile', '-EncodedCommand', enc],
-                       capture_output=True, text=True, timeout=120)
+                       capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=120)
     return (r.stdout or '').strip(), (r.stderr or '').strip()
 
 

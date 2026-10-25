@@ -249,7 +249,7 @@ def fleet_process_snapshot():
         "@($g).Count")
     try:
         r = subprocess.run(['powershell', '-NoProfile', '-Command', script],
-                           capture_output=True, text=True, timeout=15)
+                           capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=15)
         parts = (r.stdout or '').strip().split('|')
         sup, lr, ac, ctl, games = [int(x) for x in parts[:5]]
     except Exception:
@@ -637,7 +637,7 @@ def games_alert(now=None):
         r = subprocess.run(
             ['powershell', '-NoProfile', '-Command',
              '(Get-Process th123 -ErrorAction SilentlyContinue).Count'],
-            capture_output=True, text=True, timeout=15)
+            capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=15)
         n = int((r.stdout or '0').strip() or 0)
     except Exception:
         return False
@@ -763,7 +763,7 @@ def reap_orphans():
          "'actor_worker|learner_hub|exploiter' -and $_.CommandLine "
          "-notmatch 'th123_rl_control' } "
          "| ForEach-Object { '{0}|{1}' -f $_.ProcessId, $_.ParentProcessId }"],
-        capture_output=True, text=True, timeout=30)
+        capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30)
     live = {os.getpid()}   # P1-D belt-and-braces: 本进程入存活集 —
     workers = []           # 即便reap被误置于boot后, 车队之父(本进程)也算活
     for line in (out.stdout or '').strip().splitlines():
