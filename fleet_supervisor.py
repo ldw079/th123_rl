@@ -231,9 +231,73 @@ HEARTBEAT = os.path.join(STORE, 'fleet_heartbeat')
 HEARTBEAT_EVERY = 3   # 每3个监督循环(30s)写一次
 
 
-def write_heartbeat(alert=None):
+FLEET_ALERT = HEARTBEAT + '.fleet_alert'
+
+
+def fleet_process_snapshot():
+    """P0 预防: 轻量 WMI 快照 — main/control 进程数与游戏数(每心跳一次)."""
+    script = (
+        "$p=Get-CimInstance Win32_Process | ? {$_.Name -eq 'python.exe'}; "
+        "$g=Get-CimInstance Win32_Process | ? {$_.Name -eq 'th123.exe'}; "
+        "'{0}|{1}|{2}|{3}|{4}' -f "
+        "@($p|?{$_.CommandLine -match 'fleet_supervisor'}).Count,"
+        "@($p|?{$_.CommandLine -match 'learner_hub' -and "
+        "$_.CommandLine -notmatch 'th123_rl_control'}).Count,"
+        "@($p|?{$_.CommandLine -match 'actor_worker' -and "
+        "$_.CommandLine -notmatch 'th123_rl_control'}).Count,"
+        "@($p|?{$_.CommandLine -match 'th123_rl_control'}).Count,"
+        "@($g).Count")
+    try:
+        r = subprocess.run(['powershell', '-NoProfile', '-Command', script],
+                           capture_output=True, text=True, timeout=15)
+        parts = (r.stdout or '').strip().split('|')
+        sup, lr, ac, ctl, games = [int(x) for x in parts[:5]]
+    except Exception:
+        return {'sup': -1, 'learners': -1, 'actors': -1, 'ctl': -1,
+                'games': -1}
+    return {'sup': sup, 'learners': lr, 'actors': ac, 'ctl': ctl,
+            'games': games}
+
+
+def fleet_health_now(learners=None, actors=None):
+    """P0 预防: 归一化健康字段 + 缺员/停滞判定(供心跳/看门狗/告警)."""
+    snap = fleet_process_snapshot()
+    if learners is not None:
+        snap['learners'] = len(learners)
+    if actors is not None:
+        snap['actors'] = len(actors)
+    exp = {'sup': 1, 'learners': 3, 'actors': 3, 'ctl': 2, 'games': 4}
+    bad = ['%s %d<%d' % (k, int(snap.get(k, -1)), v)
+           for k, v in exp.items() if int(snap.get(k, -1)) < v]
+    # max log age（learner/actor 子进程日志）
+    ages = []
+    for key in list(learners or {}):
+        try:
+            ages.append(time.time() - os.path.getmtime(
+                os.path.join(r'D:\temp', 'learner_%s.log' % key)))
+        except OSError:
+            pass
+    for key in list(actors or {}):
+        try:
+            ages.append(time.time() - os.path.getmtime(
+                os.path.join(r'D:\temp', 'actor_%s_%d.log' % key)))
+        except OSError:
+            pass
+    max_age = round(max(ages), 1) if ages else 0.0
+    if ages and max_age > 300:
+        bad.append('log_age %.0fs>300s' % max_age)
+    return {'ts': round(time.time(), 3), 'sup': snap.get('sup', -1),
+            'learners': snap.get('learners', -1),
+            'actors': snap.get('actors', -1), 'ctl': snap.get('ctl', -1),
+            'games': snap.get('games', -1), 'max_log_age': max_age,
+            'bad': bad}
+
+
+def write_heartbeat(alert=None, health=None):
     """P0(从零#4): alert≠None时同步写异常标记文件(耗尽减员等事故),
-    恢复调用(alert=None)清除 — 主时间戳格式不变(offline-gap读数兼容)。"""
+    恢复调用(alert=None)清除 — 主时间戳格式不变(offline-gap读数兼容)。
+    P0 预防(2026-10-26): health 字段写 sidecar(fleet_heartbeat.health),
+    缺员/停滞时写 fleet_heartbeat.fleet_alert, 恢复清除; 主文件格式不变。"""
     try:
         tmp = HEARTBEAT + '.tmp'
         with open(tmp, 'w') as f:
@@ -245,6 +309,18 @@ def write_heartbeat(alert=None):
                 f.write('%s %s' % (time.strftime('%m-%d %H:%M:%S'), alert))
         elif os.path.exists(ap):
             os.remove(ap)
+        if health is not None:
+            tmp2 = HEARTBEAT + '.health.tmp'
+            with open(tmp2, 'w', encoding='utf8') as f:
+                json.dump(health, f, ensure_ascii=False)
+            os.replace(tmp2, HEARTBEAT + '.health')
+            if health.get('bad'):
+                with open(FLEET_ALERT, 'w', encoding='utf8') as f:
+                    f.write('%s %s' % (
+                        time.strftime('%m-%d %H:%M:%S'),
+                        ';'.join(health['bad'])))
+            elif os.path.exists(FLEET_ALERT):
+                os.remove(FLEET_ALERT)
     except OSError:
         pass
 
@@ -431,7 +507,7 @@ def l3_check(machine, family, now=None):
 
 
 def write_watchdog_status(pct, now=None, n_rej=0, rejected=False,
-                        machine=None, aux=None):
+                        machine=None, aux=None, health=None):
     """写看门狗存活+读数 sidecar(`<ts> <pct|-> <n_rej>`)。
 H-1(2026-10-19): 第 3 字段=累计拒收数(0.00 哨兵), 旧读者取 split()[1]
     完全兼容; 发生拒收时另 append `STORE/watchdog_rejects.log`(sidecar 单行
@@ -448,6 +524,11 @@ H-1(2026-10-19): 第 3 字段=累计拒收数(0.00 哨兵), 旧读者取 split()
                 '-' if machine is None else '%.2f' % machine,
                 '-' if aux is None else '%.2f' % aux))
         os.replace(tmp, WD_STATUS)
+        if health is not None:
+            _hp = WD_STATUS + '.health'
+            with open(_hp + '.tmp', 'w', encoding='utf8') as hf:
+                json.dump(health, hf, ensure_ascii=False)
+            os.replace(_hp + '.tmp', _hp)
     except OSError:
         pass
     if rejected:
@@ -462,7 +543,7 @@ H-1(2026-10-19): 第 3 字段=累计拒收数(0.00 哨兵), 旧读者取 split()
 def report_offline_gap():
     """启动时读上次心跳 → 间隙>90s=离线时段(睡眠/关机/灭队), 入账。"""
     try:
-        last = float(open(HEARTBEAT).read().strip())
+        last = float(open(HEARTBEAT).read().split()[0])
     except (OSError, ValueError):
         return
     gap = time.time() - last
@@ -945,7 +1026,7 @@ def main():
                           % ','.join(sorted(map(str, _exhausted)))
                           ) if _exhausted else None
             if _hb % HEARTBEAT_EVERY == 0:
-                write_heartbeat(alert=_alert_txt)
+                write_heartbeat(alert=_alert_txt, health=fleet_health_now(learners, actors))
             # P0: 耗尽减员节流重播(每18循环≈3min) — 静默事故不再
             if _exhausted and _hb % 18 == 0:
                 log('!!ALERT!! 车队减员在案: %s (需人工介入)'

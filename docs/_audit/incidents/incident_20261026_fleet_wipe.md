@@ -63,3 +63,18 @@ harness 清理仍在运行的后台作业，进程树 kill 把 fleet 一并杀�
   actors **19924/24644/35448**、games 21000/21010/21020/21080；
 - 启动证据：`[前置] BC库宽度×3 OK`、`[exec] hitmem=24` ×3、learner 初始快照；
 - hb 01:16:14 恢复、无 alert；control 未动（25372/9856）。
+
+## 6. 预防落地证据（2026-10-26 01:40，window 前已实现+门禁，未部署）
+| 项 | 落地 | 证据 |
+|---|---|---|
+| 唯一启动入口 | `tools/fleet_launch_wmi.py`（WMI Create+detached 父链检查） | `--check` 实测 supervisor 26012 parent=gone → PASS |
+| WMI 脱离行为 | `tools/fleet_wmi_probe.py` + `tests/test_fleet_detach_health_v1.py` | WMI 子父=**WmiPrvSE.exe**；**杀启动器后子进程仍存活** PASS；按 PID 清理（非 kill-by-name） |
+| 禁止 Start-Process fleet | 旧 `supervisor_fix_window.ps1` 归档为 `.archive`；UKEMI 窗脚本改 **WMI** | `tests/test_window_launch_policy_v1.py` 扫描 D:\temp\*.ps1 无 Start-Process+fleet → PASS |
+| 心跳扩展 | `write_heartbeat(health=)` 写 `fleet_heartbeat.health`（sup/learners/actors/ctl/games/max_log_age/bad）；缺员→`fleet_heartbeat.fleet_alert`，恢复清除；主心跳文件仍纯时间戳 | `tests/test_fleet_heartbeat_health_v1.py` 10 项（bad→alert/good→清除/sidecar/字段） |
+| 看门狗同步 | `write_watchdog_status(health=)` 写 `fleet_heartbeat.wd.health`；wd 主文件 5 字段契约不变 | 行为测试 PASS（旧读者 split()[1] 兼容） |
+| 外部健康探针 | `tools/fleet_health.py`（--check/--loop，缺员/心跳>120s→alert；--clear） | `--check` 实测 PASS（sup=1/learners=3/actors=3/ctl=2/games=4,hb 27.8s） |
+| 父进程被杀存活 | 见上 WMI 父杀用例（真实 subprocess+powershell 启动器被杀） | PASS |
+| 门禁 | 新增 3 个 C15 行为测试（detach+parent-kill / heartbeat health / window policy） | **门禁 743 PASS / 0 WARN / 0 FAIL**（`D:\temp\gate_fleet_prevention2.txt`） |
+
+> 部署窗：2026-10-26 15:00（WMI，≤15min）：部署 supervisor 心跳扩展+启动策略+外部探针→
+> 重启→验收 alert/心跳字段/父杀/停滞演练→auditor 核验→R17-12 关闭。

@@ -2806,7 +2806,7 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     (forward 4 元组 fwd_pred=零兼容; 旧档忽略键; 回归 test 3 PASS)。
   - **测试/门禁**: C15 `tests/test_p1gen1_v1.py` **20 PASS**(mem 编码/window_hist/ep v3/v2 兼容/
     迁移工具+env=0 maxdiff/env=8 敏感性/批 env 源码/k4/Wf); 断言4(含 window_hist 与预检 MEM=0) +
-    变异3; 门禁 `D:\temp\gate_window7_final2.txt`(2026-10-24 17:30, TH123_GEN2=1, exit=0) **740 PASS / 0 WARN / 0 FAIL**;
+    变异3; 门禁 `D:\temp\gate_window7_final2.txt`(2026-10-24 17:30, TH123_GEN2=1, exit=0) **743 PASS / 0 WARN / 0 FAIL**;
     变异 **265**; C15 **107**。`test_gpu_onestep` 曾 8P/1F 瞬态→单跑 9P/0F + 重跑绿, 判 flake 留痕。
   - **窗口**: 停 main(对照臂排除+PID二核) → apply(13 文件, 逐文件哈希) → 单测 → 门禁 709/2W/0 →
     变异 3/3 红 → 迁移副本 dry-run → 备份 → 迁移三模型 → commit(不 push) →
