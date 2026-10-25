@@ -2177,8 +2177,7 @@ class TMTrainer:
                                 self._buf_state.note_block(
                                     self._buf_idle is not None
                                     and mid == self._buf_idle)
-                            self._buf_cnt = getattr(
-                                self._buf_cnt, 0) + 1
+                            self._buf_cnt = getattr(self, '_buf_cnt', 0) + 1
                             if self._buf_cnt % 200 == 0:
                                 print(self._buf_state.stats_line())
                         if _dd_gate is not None:
