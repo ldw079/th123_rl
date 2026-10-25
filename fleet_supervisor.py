@@ -703,6 +703,48 @@ def reap_orphans():
     return n
 
 
+def _spawn_learner_proc(ch):
+    """spawn 一个 learner 进程（boot/死亡重启/看门狗重生共用单一路径）."""
+    cmd = [PY, '-X', 'utf8', '-u', 'learner_hub.py', '--char', ch]
+    return subprocess.Popen(
+        cmd, cwd=HERE, creationflags=CG | PRIORITY,
+        stdout=open(r'D:\temp\learner_%s.log' % ch, 'a', encoding='utf8'),
+        stderr=subprocess.STDOUT)
+
+
+def restart_stalled(kind, key, actors, learners, opp_specs, tps,
+                    restarts, last_restart):
+    """task-53 P0: 日志停滞看门狗 — 杀后**必须重生**（原实现只 kill 不 spawn）.
+
+    返回新进程；失败返回 None（由调用方记日志，不掀翻监督器）。
+    """
+    try:
+        from portmap import fleet_port
+        if kind == 'actor':
+            _p = actors.pop(key, None)
+            if _p is not None:
+                _kill_tree(_p.pid)
+            ch, aid = key
+            p2 = _spawn_actor(ch, aid, fleet_port(aid), opp_specs, tps)
+            actors[key] = p2
+            restarts[key] = restarts.get(key, 0) + 1
+            last_restart[key] = time.time()
+            log('看门狗已重生 %s PID=%d' % (str(key), p2.pid))
+        else:
+            _p = learners.pop(key, None)
+            if _p is not None:
+                _kill_tree(_p.pid)
+            p2 = _spawn_learner_proc(key)
+            learners[key] = p2
+            restarts[('learner', key)] = restarts.get(('learner', key), 0) + 1
+            last_restart[('learner', key)] = time.time()
+            log('看门狗已重生 learner_%s PID=%d' % (key, p2.pid))
+        return p2
+    except Exception as e:
+        log('看门狗重生失败(%s %s): %r' % (kind, str(key), e))
+        return None
+
+
 def _spawn_actor(ch, aid, port, opp_specs, tps=480):
     """启动一个actor(boot与重启共用同一构造 — 防双拷贝漂移)。
 
@@ -836,13 +878,7 @@ def main():
 
         # 启动learner(每角色一个, 先启动)
         for ch in chars:
-            cmd = [PY, '-X', 'utf8', '-u', 'learner_hub.py',
-                   '--char', ch]
-            p = subprocess.Popen(cmd, cwd=HERE, creationflags=CG | PRIORITY,
-                                 stdout=open(
-                                     r'D:\temp\learner_%s.log' % ch,
-                                     'a', encoding='utf8'),
-                                 stderr=subprocess.STDOUT)
+            p = _spawn_learner_proc(ch)
             learners[ch] = p
             log('启动 learner_%s PID=%d' % (ch, p.pid))
             time.sleep(5)
@@ -885,20 +921,13 @@ def main():
         _exhausted = set()   # P0(从零#4): 重启耗尽减员账(告警重播源)
         while actors or learners:
             time.sleep(10)
-            # task-53 看门狗: 进程活着但日志停滞 → 精确重启
+            # task-53 看门狗: 进程活着但日志停滞 → 杀后重生(P0 修复)
             for _kind, _key, _age in watchdog_stalled(actors, learners):
                 log('!!ALERT!! 看门狗停滞: %s %s 日志%.0fs未更新(>%.0fs)'
-                    ' — 精确重启' % (_kind, str(_key), _age,
+                    ' — 杀后重生' % (_kind, str(_key), _age,
                                     WATCHDOG_STALL_S))
-                try:
-                    if _kind == 'actor':
-                        _p = actors.pop(_key, None)
-                    else:
-                        _p = learners.pop(_key, None)
-                    if _p is not None:
-                        _kill_tree(_p.pid)
-                except Exception as _e:
-                    log('看门狗重启异常(%r)' % (_e,))
+                restart_stalled(_kind, _key, actors, learners, opp_specs,
+                                args.tps, restarts, _last_restart)
             games_alert()
             if win_end is not None:
                 _now = time.localtime()
@@ -1033,14 +1062,7 @@ def main():
                     del learners[ch]
                     continue
                 log('learner_%s 退出(code=%s) — 重启' % (ch, p.returncode))
-                cmd = [PY, '-X', 'utf8', '-u', 'learner_hub.py',
-                       '--char', ch]
-                p2 = subprocess.Popen(
-                    cmd, cwd=HERE, creationflags=CG | PRIORITY,
-                    stdout=open(
-                        r'D:\temp\learner_%s.log' % ch,
-                        'a', encoding='utf8'),
-                    stderr=subprocess.STDOUT)
+                p2 = _spawn_learner_proc(ch)
                 learners[ch] = p2
                 restarts[('learner', ch)] = rk + 1
                 _last_restart[('learner', ch)] = time.time()
