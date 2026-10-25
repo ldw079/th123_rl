@@ -33,7 +33,7 @@ def step(env, il, ir):
         return None
 
 
-def sync(env, lx=500.0, rx=575.0, ry=0.0):
+def sync(env, lx=500.0, rx=575.0, ry=0.0, allow_fall=False):
     ok = 0
     for i in range(260):
         if i % 40 == 0:
@@ -45,6 +45,11 @@ def sync(env, lx=500.0, rx=575.0, ry=0.0):
         r = step(env, dict(NEUTRAL), dict(NEUTRAL))
         if r is None:
             return None
+        if allow_fall:
+            # 空中场景: 对手下落中 action!=0; 等左方 idle 即可
+            if i >= 20 and r[0]["action"] == 0:
+                return r
+            continue
         if r[0]["action"] == 0 and r[1]["action"] == 0:
             ok += 1
             if ok >= 5:
@@ -62,8 +67,8 @@ def _sc_reset():
     pass
 
 
-def replay(env, script, max_frames=220, pos=(500.0, 575.0), ry=0.0):
-    r0 = sync(env, pos[0], pos[1], ry)
+def replay(env, script, max_frames=260, pos=(500.0, 575.0), ry=0.0):
+    r0 = sync(env, pos[0], pos[1], ry, allow_fall=(ry > 0))
     if r0 is None:
         return None
     left, right = r0[0], r0[1]
@@ -114,6 +119,17 @@ def replay(env, script, max_frames=220, pos=(500.0, 575.0), ry=0.0):
         _pending_d = max(0.0, _hp_before - float(right['hp']))
         traj.append((f, int(left['action']), float(right['hp'])))
         if not queue:
+            # task-58 p3: 宏结束(如弹幕型 5B)后继续跟 45F, 让在途弹幕/伤害结算
+            # 完成再统计(否则 projectile 宏被误判空挥).
+            for _t in range(45):
+                _hp_b = float(right['hp'])
+                r2 = step(env, dict(NEUTRAL), {})
+                if r2 is None:
+                    break
+                left, right = r2[0], r2[1]
+                traj.append((f, int(left['action']), float(right['hp'])))
+                if float(right['hp']) < _hp_b - 0.5:
+                    _tail_hit = True
             break
     dmg = float(hp0) - float(right['hp'])
     acts = sorted({a for _, a, _ in traj if a not in (0,) and not (50 <= a <= 78)
@@ -135,6 +151,17 @@ try:
             break
     from train_tm import CHAR_LIBS
     for ch in CHARS:
+        # P0 harness 修复(2026-10-25): 旧版全程 reimu-reimu 游戏 → marisa/suika
+        # 宏在其角色不同的游戏里 replay, 动作/伤害全错(误判空挥). 每角色重建.
+        try:
+            env.close()
+        except Exception:
+            pass
+        env = EvalEnv(PORT, char_left=ch, char_right=ch,
+                      vs_com=False, tps=None)
+        for _ in range(240):
+            if step(env, dict(NEUTRAL), dict(NEUTRAL)) is None:
+                break
         lib = CHAR_LIBS[ch]
         mac = {m[0]: m[1] for m in lib['macros']}
         combos = sorted(lib.get('combo', []))
