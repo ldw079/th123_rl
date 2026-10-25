@@ -4083,3 +4083,12 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     外推值, 站数据到位后**替换外推值**)。抓取纪律: 一次性缓存
     +出处标注(源=cleista)+低速率; 与hitlab实测出入并列上报
     用户裁定, 不自动取舍; CHM四部降为交叉验证源。
+
+## 环境变量登记（2026-10-26；R17 反债）
+| env | 默认 | 语义 | 回滚/移除 |
+|---|---|---|---|
+| `TH123_WATCHDOG_STALL_LEARNER_S` | 未设时回退 `TH123_WATCHDOG_STALL_S`/300，并取 `max(值, BATCH_WAIT_MAX+120)` | learner 日志停滞阈值（15:00 bat 显式 600，防 BATCH_WAIT 期间误杀） | 删除 bat 行即回退；15:00 窗验收后保留（长期） |
+| `TH123_WATCHDOG_STALL_S` | 300 | actor 日志停滞阈值（learner 未设专用 env 时作回退） | — |
+| `TH123_BATCH_WAIT_MAX` | 240 | learner 等数据上限；参与 learner 阈值自适应 | — |
+> 相关实现：`fleet_supervisor.learner_stall_threshold()`（纯函数，测试覆盖 env=0/缺省/非法回退）；
+> `fleet_heartbeat.health.stall_restarts/last_stall_ts` 记录停滞重启次数（验收依据）。

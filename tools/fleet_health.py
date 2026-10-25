@@ -35,7 +35,8 @@ import fleet_lock  # noqa: E402
 
 STORE = r'D:\temp\th123_models'
 HB = os.path.join(STORE, 'fleet_heartbeat')
-ALERT = HB + '.machine_alert'
+# P1-1: fleet 健康/恢复用 fleet_alert; machine_alert 归整机负载(L3)
+ALERT = HB + '.fleet_alert'
 RECOVERY = os.path.join(STORE, 'fleet_recovery.json')
 RECOVERY_LOG = os.path.join(STORE, 'fleet_recovery.log')
 WATCH_LOCK = os.path.join(STORE, 'fleet_watcher.lock')
@@ -271,6 +272,13 @@ def recover_ar6(snap, snap_fn=None, launch_fn=None, kill_fn=None,
                 return {'code': 'abort_race'}
         old = [int(o['pid']) for o in orphans]
         killed = [pid for pid in old if kill_fn(pid)]
+        if sorted(killed) != sorted(old):
+            unkilled = [x for x in old if x not in killed]
+            write_alert('AR-6 kill incomplete: unkilled=%s' % unkilled)
+            _log('AR-6 abort_kill_incomplete old=%s killed=%s unkilled=%s'
+                 % (old, killed, unkilled))
+            return {'code': 'abort_kill_incomplete', 'old_orphans': old,
+                    'killed': killed, 'unkilled': unkilled}
         new = (snap_fn or snapshot)()
         launch_ok = False
         try:

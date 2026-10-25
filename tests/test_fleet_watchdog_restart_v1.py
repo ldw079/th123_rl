@@ -93,12 +93,53 @@ def test_stall_detection_real_log():
     try:
         with open(logp, 'w') as f:
             f.write('x')
-        os.utime(logp, (time.time() - 400, time.time() - 400))
+        os.utime(logp, (time.time() - 700, time.time() - 700))
         fake = type('P', (), {'poll': lambda self: None})()
         res = FS.watchdog_stalled({}, {'zzstalltest': fake})
         check('看门狗: 检测到 learner 日志停滞',
               any(k == 'learner' and v == 'zzstalltest' for k, v, _a in res),
               str(res))
+    finally:
+        try:
+            os.remove(logp)
+        except OSError:
+            pass
+
+
+def test_learner_threshold_env():
+    f = FS.learner_stall_threshold
+    check('阈值 env: 缺省→max(300,batch+120)',
+          f(None, None, 240) == 360.0, str(f(None, None, 240)))
+    check('阈值 env: learner=600→600', f('600', None, 240) == 600.0)
+    check('阈值 env: learner=0 回退 general=300→360',
+          f('0', '300', 240) == 360.0)
+    check('阈值 env: learner 空→general 600→600', f('', '600', 240) == 600.0)
+    check('阈值 env: 非法→回退默认', f('abc', '', 240) == 360.0)
+
+
+def test_learner_threshold_600():
+    """P1: learner 阈值=max(env, BATCH_WAIT+120); 低于阈值不误杀, 高于才杀."""
+    thr = float(FS.WATCHDOG_STALL_LEARNER_S)
+    check('阈值: learner >= BATCH_WAIT_MAX+120', thr >=
+          float(FS.BATCH_WAIT_MAX) + 120, str(thr))
+    check('阈值: actor 仍 300s', FS.WATCHDOG_STALL_S <= 300)
+    logp = r'D:\temp\learner_zzstalllow.log'
+    try:
+        with open(logp, 'w') as f:
+            f.write('x')
+        low = max(30.0, thr - 120.0)
+        os.utime(logp, (time.time() - low, time.time() - low))
+        fake = type('P', (), {'poll': lambda self: None})()
+        res = FS.watchdog_stalled({}, {'zzstalllow': fake})
+        check('learner 低于阈值: 不误判',
+              not any(k == 'learner' and v == 'zzstalllow'
+                      for k, v, _a in res), str(res))
+        high = thr + 200.0
+        os.utime(logp, (time.time() - high, time.time() - high))
+        res2 = FS.watchdog_stalled({}, {'zzstalllow': fake})
+        check('learner 高于阈值: 判停滞',
+              any(k == 'learner' and v == 'zzstalllow'
+                  for k, v, _a in res2), str(res2))
     finally:
         try:
             os.remove(logp)
@@ -128,6 +169,8 @@ def main():
     test_stall_learner_respawn()
     test_stall_actor_respawn()
     test_stall_detection_real_log()
+    test_learner_threshold_env()
+    test_learner_threshold_600()
     test_spawn_failure_not_crash()
     print('\n==== supervisor_watchdog: %d PASS / %d FAIL ===='
           % (len(PASS), len(FAIL)))

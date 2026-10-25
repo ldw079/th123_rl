@@ -290,6 +290,9 @@ def fleet_health_now(learners=None, actors=None):
             'learners': snap.get('learners', -1),
             'actors': snap.get('actors', -1), 'ctl': snap.get('ctl', -1),
             'games': snap.get('games', -1), 'max_log_age': max_age,
+            'stall_restarts': int(_STALL_RESTARTS.get('n', 0)),
+            'last_stall_ts': round(float(_STALL_RESTARTS.get(
+                'last_ts', 0.0)), 1),
             'bad': bad}
 
 
@@ -591,6 +594,38 @@ ACTOR_EPISODES = 1000000
 
 # ---- task-53(2026-10-23): 进程存活但日志停滞看门狗 ----
 WATCHDOG_STALL_S = float(os.environ.get('TH123_WATCHDOG_STALL_S', '300'))
+# P1(2026-10-26): learner 在 BATCH_WAIT_MAX(240s)+批处理(~50s) 期间无日志，
+# 300s 阈值会误杀健康 learner（suika 03:01/03:28/03:38 反复重启）。
+# learner 阈值 = max(env(learner|general, 默认300), BATCH_WAIT_MAX+120)；
+# 15:00 窗 bat 显式 TH123_WATCHDOG_STALL_LEARNER_S=600。
+BATCH_WAIT_MAX = float(os.environ.get('TH123_BATCH_WAIT_MAX', '240'))
+
+
+def learner_stall_threshold(learner_env=None, general_env=None,
+                            batch_wait=None):
+    """learner 停滞阈值纯函数: max(env(learner|general, 默认300), batch+120).
+
+    env=0/空 → 回退 general → 默认 300；测试覆盖 0/缺省。
+    """
+    def _f(v, d):
+        try:
+            if v is None or str(v) == '':
+                return d
+            return float(v)
+        except (TypeError, ValueError):
+            return d
+    if learner_env is None:
+        learner_env = os.environ.get('TH123_WATCHDOG_STALL_LEARNER_S')
+    if general_env is None:
+        general_env = os.environ.get('TH123_WATCHDOG_STALL_S')
+    if batch_wait is None:
+        batch_wait = BATCH_WAIT_MAX
+    base = _f(learner_env, None) or _f(general_env, 300.0)
+    return max(base, float(batch_wait) + 120.0)
+
+
+WATCHDOG_STALL_LEARNER_S = learner_stall_threshold()
+_STALL_RESTARTS = {'n': 0, 'last_ts': 0.0, 'last_key': ''}
 WATCHDOG_GAMES = int(os.environ.get('TH123_WATCHDOG_GAMES', '4'))
 _WD_GAME_STATE = {'low_since': 0.0, 'last_check': 0.0}
 
@@ -622,7 +657,7 @@ def watchdog_stalled(actors, learners, now=None):
             age = now - os.path.getmtime(_child_log_path('learner', ch))
         except OSError:
             continue
-        if age > WATCHDOG_STALL_S:
+        if age > WATCHDOG_STALL_LEARNER_S:
             out.append(('learner', ch, age))
     return out
 
@@ -801,6 +836,9 @@ def restart_stalled(kind, key, actors, learners, opp_specs, tps,
     """
     try:
         from portmap import fleet_port
+        _STALL_RESTARTS['n'] += 1
+        _STALL_RESTARTS['last_ts'] = time.time()
+        _STALL_RESTARTS['last_key'] = '%s:%s' % (kind, str(key))
         if kind == 'actor':
             _p = actors.pop(key, None)
             if _p is not None:
@@ -979,8 +1017,8 @@ def main():
                 time.sleep(STAGGER_S)
 
         log('全部启动 — 监督模式')
-        log('[看门狗] ON stall=%.0fs games=%d'
-            % (WATCHDOG_STALL_S, WATCHDOG_GAMES))
+        log('[看门狗] ON stall=%.0fs learner=%.0fs games=%d'
+            % (WATCHDOG_STALL_S, WATCHDOG_STALL_LEARNER_S, WATCHDOG_GAMES))
 
         # 监督循环
         restarts = {k: 0 for k in list(actors) + [

@@ -42,7 +42,7 @@ def _ctx():
     d = tempfile.mkdtemp(prefix='fh_ar_')
     FH.STORE = d
     FH.HB = os.path.join(d, 'fleet_heartbeat')
-    FH.ALERT = FH.HB + '.machine_alert'
+    FH.ALERT = FH.HB + '.fleet_alert'
     FH.RECOVERY = os.path.join(d, 'fleet_recovery.json')
     FH.RECOVERY_LOG = os.path.join(d, 'fleet_recovery.log')
     FH.WATCH_LOCK = os.path.join(d, 'fleet_watcher.lock')
@@ -157,6 +157,18 @@ def test_AR4_no_kill():
     rec = json.load(io.open(FH.RECOVERY, encoding='utf-8'))
     check('AR-4: 恢复记录仅 launch/snapshot(无 kill)',
           'kill' not in json.dumps(rec).lower() and len(calls) == 1)
+
+
+def test_machine_alert_not_cleared():
+    _ctx()
+    ma = FH.HB + '.machine_alert'
+    io.open(ma, 'w').write('cpu')
+    st = {}
+    FH.loop_tick(st, now=1000.0, snap_fn=_single_missing,
+                 launch_fn=lambda: True)
+    FH.loop_tick(st, now=1200.0, snap_fn=_good, launch_fn=lambda: True)
+    check('alert 命名: 恢复只清 fleet_alert, 不动 machine_alert',
+          os.path.exists(ma) and not os.path.exists(FH.ALERT))
 
 
 def test_AR5_alert_dedupe():
@@ -294,6 +306,37 @@ def test_AR2_additions():
           str(res))
 
 
+def test_AR6_kill_incomplete_abort():
+    """AR-6: 未全杀掉孤儿→不得 launch 整队, 写 alert+记录."""
+    _ctx()
+    old = {'sup': 0, 'learners': 2, 'actors': 2, 'ctl': 1, 'games': 2}
+    procs = [{'pid': 111, 'ppid': 999999, 'name': 'python.exe',
+              'cmd': 'x learner_hub'},
+             {'pid': 222, 'ppid': 999999, 'name': 'python.exe',
+              'cmd': 'x actor_worker'}]
+    orig_pl = FH.proc_list
+    orig_alive = FH._pid_alive
+    FH.proc_list = lambda marker=None: procs
+    FH._pid_alive = lambda pid: int(pid) in (111, 222)
+    calls = []
+    try:
+        def _kill(pid):
+            return int(pid) == 111          # 222 杀失败
+        r = FH.recover_ar6(old, snap_fn=lambda: old,
+                           launch_fn=lambda: (calls.append(1), True)[1],
+                           kill_fn=_kill, marker='dummy')
+        check('AR-6: 未全杀→abort_kill_incomplete',
+              r.get('code') == 'abort_kill_incomplete', str(r.get('code')))
+        check('AR-6: 未全杀→不 launch', calls == [])
+        check('AR-6: 未全杀→写 fleet_alert',
+              os.path.exists(FH.ALERT))
+        check('AR-6: 记录未杀 PID',
+              r.get('unkilled') == [222], str(r.get('unkilled')))
+    finally:
+        FH.proc_list = orig_pl
+        FH._pid_alive = orig_alive
+
+
 def test_AR6_orphan_recovery():
     """真实 dummy: 仅 sup 死/子进程活 → 孤儿 PID 清理+整队+control 不动."""
     import subprocess as sp
@@ -393,9 +436,11 @@ def main():
     test_AR3_rate_backoff()
     test_AR4_no_kill()
     test_AR5_alert_dedupe()
+    test_machine_alert_not_cleared()
     test_AR6_single_instance()
     test_AR8_real_dummy_fleet()
     test_AR2_additions()
+    test_AR6_kill_incomplete_abort()
     test_AR6_orphan_recovery()
     print('\n==== fleet_auto_recovery AR: %d PASS / %d FAIL ===='
           % (len(PASS), len(FAIL)))

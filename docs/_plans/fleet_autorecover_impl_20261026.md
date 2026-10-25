@@ -72,3 +72,11 @@
 5. **AR-9b 有锁停 supervisor→180s 不恢复**；解锁→恢复；
 6. **stall 演练**（suspend learner>300s→kill+spawn）；
 7. health/fleet_alert/parent-check→postmortem 状态更新。
+
+## 6. P1 停滞阈值/计数（15:00 窗一并）
+- learner 阈值 = `max(TH123_WATCHDOG_STALL_LEARNER_S or TH123_WATCHDOG_STALL_S or 300, BATCH_WAIT_MAX+120)`；
+  bat 显式 `TH123_WATCHDOG_STALL_LEARNER_S=600`（备份 `train_batch_launch.bat.pre_stall_backup`）；
+  actor 阈值保持 `TH123_WATCHDOG_STALL_S`(300)。
+- `fleet_heartbeat.health.stall_restarts`/`last_stall_ts` 记录停滞重启次数（supervisor 写）。
+- 15:00 窗 stall 演练：suspend marisa learner **620s**（>600）→ kill+spawn，验收 `stall_restarts` 递增与无重复。
+- 测试：`test_fleet_watchdog_restart_v1.py` 11 项（动态阈值、低于阈值不误判、高于阈值判停滞、actor 仍 300）。

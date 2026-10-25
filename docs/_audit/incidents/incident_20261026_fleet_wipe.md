@@ -78,3 +78,12 @@ harness 清理仍在运行的后台作业，进程树 kill 把 fleet 一并杀�
 
 > 部署窗：2026-10-26 15:00（WMI，≤15min）：部署 supervisor 心跳扩展+启动策略+外部探针→
 > 重启→验收 alert/心跳字段/父杀/停滞演练→auditor 核验→R17-12 关闭。
+
+## 7. P1 风险（2026-10-26 03:50）：停滞阈值过紧→反复重启丢学习时间
+- 实证：`fleet_supervision.log` 03:01:25 / 03:28:09 / 03:38:29 连续
+  `看门狗停滞 learner suika 日志~305s — 杀后重生`（修复后已正确 spawn，但每 ~10-27min 重启一次）。
+- 根因：`TH123_BATCH_WAIT_MAX=240s` 等数据 + 批处理 ~50s ≈290-350s 无日志，旧 learner 阈值 300s；
+  旧 supervisor 只杀不启时表现为缺员，修复后表现为频繁重启。
+- 修复：learner 阈值 = `max(env(learner|general, 默认300), BATCH_WAIT_MAX+120)`；
+  15:00 窗 bat 显式 `TH123_WATCHDOG_STALL_LEARNER_S=600`；stall 重启次数入 `fleet_heartbeat.health.stall_restarts`。
+- 验收：部署后 30min 内 suika learner 无"停滞重启"；`stall_restarts` 计数可读。
