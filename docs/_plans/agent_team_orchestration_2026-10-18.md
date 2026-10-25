@@ -665,6 +665,19 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 51. 10-25 深夜：用户长期主义 R16 + 技术债 P0 + BC 合成锚 + Gen-3 路线图
+
+- **用户长期主义裁定（R16）**："目的=超人模型，不应积攒技术债；永远选择长期维护有利的方案" → 写入 METHODOLOGY/HANDOVER（`ca58459`/`42fb812`）；所有设计文档须含反债评估；短期权宜须显式批准+移除计划；动态宏库捷径 D1/D2 取消，改为永久子系统（固定容量 slot registry + Registry Manager + Executor Continuation + 离线 Discovery + Combo Memory Bank）。
+- **task-58 部署后 2h 观察（20:23→22:04）**：连段宏选择率仍极低（reimu **0.040%**/marisa 0.003%/suika 0.022%；bh combo hit≈0、dropped/interrupted 少量）；KL mean 0.128/0.166/0.211（max 0.301）；ent 0.795/0.738/0.918；空挥 reimu -20.3/局 → **执行器修复已生效但策略偏好未变**，BC 锚+24h 观察必要（P1 记录，不回滚）。
+- **BC 合成锚（task-60，未部署）**：`D:\temp\th123_anchor\` reimu 214/marisa 164/suika 174 = **552 行**（每宏 15–20）；宽 X14400/S831/866/846 与生产 trio 一致；**严格复验 552/552=1.00**（dmg mean 647/775/774）；合并 dry-run +0.05%/角色；R1 离线 replay/木头人/逐行 provenance；审计包 `bc_anchor_audit_package_20261026.md` → auditor 复核后 15:00 部署窗。
+- **C1 只读前置（修订）**：68 模型 npz（plain 部分 pre-GEN2 宽 5N+358/fleet/`_v` meta 空/exploit；snap pre_space 旧代）；**BC trio X/S/Y/meta 行数/宽/hash 全一致**（此前"哈希不一致"为施工算错，已纠正）；**风险= `data/bc/*.npz` 旧代 npz（S 宽 680/710/715）在 store 缺失时可被 `bc_io.find_bank` 静默回退**；一次性迁移脚本 9 个。
+- **技术债 P0（auditor，task-64）**：C1 制品/BC 代际（30+ 模型多代并存；plain/fleet meta 不一致；trio 8 次告警；9 一次性迁移）> C2 env 动物园（98 个 `TH123_*`、51 跨模块重复）> C3 gate 单体（268 行单函数、`_buf_cnt` 崩溃事故）；AC 合同 C1(8)/C2(8)/C3(7) 已出（`docs/_audit/acceptance_c{1,2,3}_*_20261026.md`）。
+- **Gen-3 路线图**：`docs/_plans/gen3_architecture_refactor_20261026.md` — W1=C1 / W2=C2 / W3=C3 / W4=Episode v4+slot registry（与 task-63 合并）；AC 编号+证据映射、成本/风险/回滚/反债评估；**W1 先设计+离线，不动训练**。
+- **门禁**：**739 PASS / 0 WARN / 0 FAIL**（`gate_anchor_batch1b`，新增 `test_bc_anchor_v1` 12 项）；ahead2 → 加本 §51 后 push。
+- **下一步**：push；auditor 复核 BC 锚；明日 10:30 UKEMI 窗（v9）→ 15:00 BC 锚部署窗（审计+我批）→ 10-27 B 窗；Gen-3 W1 设计启动（离线）；00:30 v8 4h 复测。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
