@@ -31,7 +31,7 @@
 - 停滞只写 `fleet_supervision.log` 的 ALERT 文本，未升级为机器告警（alert 文件/通知）。
 - 门禁/审计不检查训练进程完整性（无 3 learner×3 actor + control 的运行期契约）。
 
-## 4. 修复（已实现，未部署）
+## 4. 修复（已部署并验收）
 1. `fleet_supervisor.py`：新增 `_spawn_learner_proc(ch)`（boot/死亡重启/看门狗重生单一路径）与
    `restart_stalled(kind,key,...)`：**kill 后必须 spawn**，替换字典项，计数/时间戳更新，
    失败不掀翻监督器（记录日志）。
