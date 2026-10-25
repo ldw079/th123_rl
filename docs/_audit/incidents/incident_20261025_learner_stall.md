@@ -41,8 +41,9 @@
    - actor 停滞 → 替换/计数；
    - 真实旧日志 mtime 检测；
    - spawn 失败返回 None 不崩。
-4. 待办（15:00 窗）：部署 patched supervisor（WMI 重启 supervisor → 会重启 actor/learner，需窗口）；
-   control actor 纳入监督；心跳加 learner/actor 进程数+日志 age 告警。
+4. 未完成增强（非本次窗，P1/P2）：control actor 纳入监督；心跳加 learner/actor
+   进程数+日志 age 告警；live 停滞演练（2026-10-26 15:00，演练通过+auditor 核验后
+   R17-12 正式关闭）。
 
 ## 5. 系统预防
 - 心跳/监控：`fleet_heartbeat` 扩展字段（learner 数、actor 数、max log age）；缺员>120s 机器告警。
