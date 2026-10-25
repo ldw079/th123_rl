@@ -33,6 +33,7 @@
 | R13 | **沙箱纪律(2026-10-11用户明令)**: 变异自检等**一切沙箱一律落D盘**(默认 `D:/temp/gate_sandbox`; SELFTEST_TMPDIR 仅作无D盘机器覆盖), **禁用系统盘**; **按时清理** — 自检启动自动回收>2h过期沙箱(含系统盘遗留清扫), 正常/异常退出由finally自清 | R63首例(%TEMP%在C:, 残留1.5GB×2压满系统盘)同日原样复发: C:100%仅剩526MB, 自检WinError 112假死 → 用户裁定升格红线 |
 | R14 | **CPU负载红线(2026-10-12用户明令)**: 训练/工具全家总CPU **≤75%** — 满配让位于红线; 落地: learner torch限3线程(TH123_TORCH_THREADS可调)+全树BELOW_NORMAL优先级+supervisor看门狗(连续3次采样>75%自动杀最新actor降容, 只降不升) | 用户通报CPU占用过大; 实测14核/18逻辑机4游戏+3learner(torch默认全核线程)即饱和 |
 | R15 | **禁止无意义自检与门禁(2026-10-25 用户明令·红线)**: 新增/修改断言/自检/变异锚点/replay 判据**必须验证真实行为或游戏真值**。禁止: ①纯源码字符串/结构匹配断言且无行为基座; ②与实现同源自证(replay 与训练共用同一 bug 逻辑、`dmg>0` 宽松判据); ③只验"有这行/计数不变"不验帧序行为; ④为凑 PASS 的重复/装饰断言。新增门禁断言须先报**行为基座证据**(真实帧 golden trace 含 frozen 帧 / 手动输入基准对照); 变异必须导致行为测试红。已合规范例: `test_executor_hitmem_v1`(真实帧 frozen 序列)、`combo_replay_check` 严格判据(多段/dmg≥300 + 手动基准)。 | 2026-10-25 连段 P1: task-33 "串断言+宽松 replay 自证" 掩盖 confirm 门在 frozen 帧丢伤害的语义 bug（训练连段长期≈0） |
+| R16 | **不积攒技术债（2026-10-25 用户令·红线）**: 目的=超人模型；架构决策须**长期可维护**，禁止一次性 hack/旁路；短期权宜必须**书面批准+附移除计划**；所有新设计文档必须含"反债评估"节；过渡 env/兼容层须登记到期日与移除 Wave。 | 用户令：趁技术债未累计早点重构；D1/D2 捷径被取消改永久子系统 |
 
 ---
 
@@ -2804,7 +2805,7 @@ sceneId直写LOADING卡死→经TITLE原生转换 · 演示模式竞态→开局
     (forward 4 元组 fwd_pred=零兼容; 旧档忽略键; 回归 test 3 PASS)。
   - **测试/门禁**: C15 `tests/test_p1gen1_v1.py` **20 PASS**(mem 编码/window_hist/ep v3/v2 兼容/
     迁移工具+env=0 maxdiff/env=8 敏感性/批 env 源码/k4/Wf); 断言4(含 window_hist 与预检 MEM=0) +
-    变异3; 门禁 `D:\temp\gate_window7_final2.txt`(2026-10-24 17:30, TH123_GEN2=1, exit=0) **738 PASS / 0 WARN / 0 FAIL**;
+    变异3; 门禁 `D:\temp\gate_window7_final2.txt`(2026-10-24 17:30, TH123_GEN2=1, exit=0) **739 PASS / 0 WARN / 0 FAIL**;
     变异 **265**; C15 **107**。`test_gpu_onestep` 曾 8P/1F 瞬态→单跑 9P/0F + 重跑绿, 判 flake 留痕。
   - **窗口**: 停 main(对照臂排除+PID二核) → apply(13 文件, 逐文件哈希) → 单测 → 门禁 709/2W/0 →
     变异 3/3 红 → 迁移副本 dry-run → 备份 → 迁移三模型 → commit(不 push) →
