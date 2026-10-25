@@ -639,6 +639,18 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 49. 10-25 下午：熵修复 C1→C2（C1 无效、C2 TEMP_MIN=0.8 生效）
+
+- **背景**：A′ 效率修复后 ent 仍低（reimu ~0.49/marisa .58/suika .66 vs pre-A .650/.616/.886）；诊断=candidate C（temp/beta 均在硬下限）。
+- **C1 窗（11:34:09→11:37:52，停机 ≈5min）**：env 仅加 `TH123_BETA_ENT_MIN=0.01`；生效证据 `[ent_env] env_override=True beta_min=0.0100`、meta beta=0.010；**reimu 60min/45+ 批 ent 中位恒 0.49（零响应）**，marisa/suika 平 → **C1 判无效**（temp 仍 0.5 下限+策略饱和，仅抬 beta 不足）。
+- **C2 窗（14:26:58→14:30:10，停机 ≈5min）**：撤 `BETA_ENT_MIN`、加 **`TH123_TEMP_MIN=0.8`**（单变量=temp）；生效链三级核验：`[ent_env] temp=0.800 temp_min=0.80 env_override=True` → learner meta `[0.8, 0.0097–0.01]` → 快照 `v#` meta temp=0.8 → actor `_ppo_act._temp=0.8`（采样温度真变化，无需代码改动）。
+- **C2 效果（60min，30min 首读同向）**：ent mean/median **reimu 0.822/0.86、marisa 0.906/0.89、suika 1.086/1.09**（全≥0.75，无回落）；KL 0.159/0.179/0.235（≤0.30）；skip 0.7/0.7/1.6%（<10%）；P50 games **2.0**；suika 值损 12.7→9.9（回落中）。
+- **P1 观察项**：suika 近批仍 `[batch] timeout waited=240–241s games=1`（reimu/marisa 暂无）→ 待 24h 后单变量试 `WAIT_MAX=300` 或 `BATCH_MIN_GAMES=1`（我批后做）；锐化（bh MELEE 3.5–5.0%）略降，auditor 统一 normal/strict 口径再判。
+- **结论/板面**：**task-57 结项（C2 生效）**；维持现 env（A′+buffer 修复+C2 temp）24h 观察 ent/KL/值损/锐化/timeout/4 游戏；今日不再开窗；HEAD=`434de36`=origin（无代码 commit）。
+- **下一步（C2 稳定 24h 后）**：①UKEMI 重开单独 env 窗（方向受身；buffer ONCE/NO_OVERWRITE 已修复+仪器齐）②task-55 B 窗（n_out 88→91）③timeout 单变量试验 ④task-24/31-激活/32-实现/33b/35-数据持久化 按序。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
