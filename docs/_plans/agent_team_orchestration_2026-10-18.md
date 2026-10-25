@@ -627,6 +627,18 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 48. 10-25 上午：窗#9 buffer 修复 + 窗#10 C1 熵开启（含 P1/hotfix；用户令暂停训练）
+
+- **窗#9（buffer 过注册修复部署）**：stop 10:14:45 → 变异 **2/2 红**（`mut_window9.log` 224s）→ 门禁 `gate_window9`=**743/0/0** → 树干净（env-only 无 commit）→ bat env `BUFFER_ONCE=1`+`BUFFER_NO_OVERWRITE=1`+`UKEMI_DIR=0`+`WAIT_MAX=240` → 重启 10:25:47 → **P1 暴露**。
+- **P1（窗#9 新代码笔误）**：`getattr(self._buf_cnt, 0)` → `getattr(self, '_buf_cnt', 0)`；首次进 buffer 分支 `AttributeError` → actor 崩-loop、games 1–2、watchdog ALERT；仅窗#9 前最后 commit 引入（A′ 自 10-24 未崩吻合）。窗#9 首启数据标 **"P1 污染，不作验收"**。
+- **hotfix**：stop 10:42:59 → 门禁 `gate_hotfix_bufcnt`=743/0/0 → commit **`a8d23cb`**（1 行）→ 重启 10:47:00 → preflight 6s → **窗#9 补验全绿**：4 游戏、`[buffer] segs=10 once_block=0 ow_block=0 blk_idle=13/486`、**drop_ow=0**、**exec/reg=1.0**、`dir_*=0`（预期）、**episode 新键 `sampled_mid/skip_reason` 落盘**、无新 AttributeError。停机合计 **≈15.0min**（11.0+4.0；带病运行段 10:25–10:43 不计停机）。push 0/0（origin=`a8d23cb`）。
+- **窗#10（C1 熵/温度 env 化开启）**：stop 11:34:09 → 同树门禁 `gate_window10`=743/0/0 → bat 仅加 `TH123_BETA_ENT_MIN=0.01` → 重启 11:37:52 → **停机 ≈5min**；生效证据：`[ent_env] effective beta=0.0100 temp=0.500 beta_min=0.0100 beta0=0.0200 decay=0.97 temp_min=0.50 **env_override=True**`（对照旧行 env_override=False）；4 游戏/hb/无 alert；**post-window ent 趋势复测因暂停中断**（恢复后补）。
+- **用户令暂停训练（12:01）**：先删 `th123_autorecover`，先停对照臂（明确意图，非误杀）→ 主臂 `train_start --stop`（12:01:40→12:01:46 树杀完成）；停后 MAIN_py=0/CTL_py=0/th123=0；模型/BC/episodes/备份/日志未动（mtime 一致）；repo HEAD=origin=`a8d23cb`、树干净。**恢复方式**：主臂 `train_batch_launch.bat`（env 含 GEN2/FEAT_ACTABLE/ONCE/NO_OVERWRITE/UKEMI_DIR=0/WAIT_MAX=240/BETA_ENT_MIN=0.01）+ 对照臂原命令（21080）；恢复后重建 autorecover。
+- **板面**：task-56 结项；task-57 判定挂起（待恢复后 ent 复测）；task-24/27暂停/31/32/33/35/55/58 待排。
+- **经验**：①窗口验收必须含"新代码路径首跑冒烟"（本次 P1 由冒烟暴露，非变异/门禁覆盖）——列窗 runbook 固定项；②hotfix 记入同变更停机账；③暂停训练时先删自动拉起任务、先对照后主臂、数据零改动。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
