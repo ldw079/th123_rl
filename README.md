@@ -49,7 +49,7 @@ D:\temp\pyenv\python.exe -X utf8 tools\contract_check.py
 
 | 项 | 状态 |
 |---|---|
-| **门禁** | `745 PASS / 0 WARN / 0 FAIL`（`tools/contract_check.py`，裸跑退出码 0；变异 265 条；TH123_GEN2=1 口径 `gate_window7_final2.txt`） |
+| **门禁** | `738 PASS / 0 WARN / 0 FAIL`（`tools/contract_check.py`，裸跑退出码 0；变异 265 条；TH123_GEN2=1 口径 `gate_window7_final2.txt`） |
 | 行为测试 | `tests/` 118 档，全部入 C15 白名单对账（`tests/test_*.py` 集合==白名单，缺口必红） |
 | 核心常量 | `CORE_DIMS=358`（S-2段343+JZ-1段15）；宏数 reimu 88 / marisa 95 / suika 91；`n_side` = 798/833/813 |
 | **`soku_arch`** | 已 **vendor 入库**（`soku_arch/`，30 档 283KB，见其 `VENDORED.md`）；**授权已裁**：自有代码 → 并入根 MIT（R191 用户裁定），出处/血统见该文件 |

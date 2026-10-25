@@ -58,7 +58,7 @@ D:\temp\pyenv\python.exe -X utf8 tools\contract_check.py
 
 - 必须 0 FAIL 才能提交
 - 变异自检: `SELFTEST_TAGS=<标签> python tools/gate_selftest.py`
-- 当前断言: **745 PASS / 0 WARN / 0 FAIL**(2026-10-24 17:30 实测 `D:\temp\gate_window7_final2.txt`, TH123_GEN2=1; 变异 265 条, 变异 265 条, 行为测试 118 档(C15 白名单对账常驻: `tests/test_*.py` 集合==白名单, 禁新测试漏注册; TH123_FEAT_SPACE=1 → CORE_DIMS=382)
+- 当前断言: **738 PASS / 0 WARN / 0 FAIL**(2026-10-24 17:30 实测 `D:\temp\gate_window7_final2.txt`, TH123_GEN2=1; 变异 265 条, 变异 265 条, 行为测试 118 档(C15 白名单对账常驻: `tests/test_*.py` 集合==白名单, 禁新测试漏注册; TH123_FEAT_SPACE=1 → CORE_DIMS=382)
 
 ## 2. 奖励体系(当前)
 

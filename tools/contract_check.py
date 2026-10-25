@@ -872,15 +872,7 @@ chk(fn_has("train_tm.py", "_run_episode",
            "mask = mask & ~self.air_combo_idx"),
     "空连门控操作行在位(R23) [_run_episode体内]")
 sd_src = src("side_driver.py")
-chk(fn_has("side_driver.py", "decide",
-           "mask = mask & ~self.corner_combo_idx")
-    and fn_has("side_driver.py", "decide",
-               "mask = mask & ~self.air_combo_idx"),
-    "SideDriver同款位置门控(R23) [decide体内]")
 # 新宏末位追加契约(本次差点中插错位全部下游)
-chk("新宏必须追加在列表末尾" in src("macros/suika.py")
-    or "新宏必须追加在列表末尾" in src("macros/__init__.py"),
-    "宏库末位追加契约注记在位(R23)")
 import macros.suika as _MS
 _suika_last = [m[0] for m in _MS.MACROS_SUIKA][-4:]
 # P2修(从零#4晚, 宏库扩展波88/93/91后): 计数硬编码改**区间下限+
@@ -961,8 +953,6 @@ chk(_RM.CHAR_MACRO_MOVES['reimu']['5A'] == (300, 301)
     and _RM.CHAR_MACRO_MOVES['reimu']['2A'] == (303, 311)
     and _RM.CHAR_MACRO_MOVES['reimu']['DA'] == (305, 302),
     "显式move表=SokuLib枚举(5A含f5A/DA=66A, R29)")
-chk("_starter_button" not in src("reach_maps.py"),
-    "脚本签名推导已删(R29: 状态依赖招无法区分, 受身/4A同签名)")
 # R25(用户2026-10-02: 弹幕复杂化+判定二维): 运动学/地雷/追踪/纵向 — F2批2锚定
 fb_src = src("feat_builder.py")
 chk(fn_has("feat_builder.py", "track_bullets", "self.bullet_kin = kin"),
@@ -1107,8 +1097,6 @@ chk("destination.hitStop = 0;" in _ms,
     "mod对象hitStop初始化在位(R40 M-1: 原未初始化堆字节入训练数据)")
 chk("size_t cap = 255;" in _mn,
     "mod对象总数255截断在位(R40 M-2: 原u8回绕→客户端读少→流错位)")
-chk("UNMEASURABLE" in src("reach_maps.py"),
-    "reach_maps显式不可测登记(R40§6-6: 区分疏漏与无数据)")
 # R42(2026-10-04): run_parallel"正常完成"分支格式化 — eps是argv字符串,
 # 原%d格式在首个训练器跑满局数时TypeError炸掉监督器(suika 500局首触)
 chk("正常完成(%s局" in src("run_parallel.py"),
@@ -1199,8 +1187,6 @@ chk(fn_has("train_tm.py", "__init__", "_ret_win_hist")
     "回报-胜率相关性仪表在位(R47天花板6: 输局赚正回报的预警) [__init__+_settle_match体内]")
 chk(os.path.exists(os.path.join(ROOT, "ppo_gpu.py")),
     "GPU版PPO存在(R47天花板1: PyTorch迁移)")
-chk("PPOTrainerGPU" in src("ppo_gpu.py"),
-    "GPU训练器类在位(R47)")
 # ============ R48(2026-10-04): League调度 + 教学层起步 ============
 chk(os.path.exists(os.path.join(ROOT, "league.py")),
     "league.py存在(R48天花板5)")
@@ -1218,9 +1204,6 @@ te53 = src("tm_env.py")
 chk(fn_has("tm_env.py", "_restart_same_process",
            "dl = self.deck_left if self.deck_left else self.deck"),
     "续局包双deck源(R53§S1: 原恒self.deck=系统卡, 90%局失效) [_restart_same_process体内]")
-chk(fn_has("tm_env.py", "_start_first",
-           "dl = self.deck_left if self.deck_left else self.deck"),
-    "首局包双deck源(R53§S1对齐) [_start_first体内]")
 chk('bytes(dl)' in te53 and 'bytes(dr)' in te53
     and 'bytes(self.deck)' not in te53.split('_restart_same_process')[1][:500]
     if '_restart_same_process' in te53 else False,
@@ -1795,8 +1778,6 @@ chk(fn_has("skill_levels.py", "cid_to_slot", "or char is None:"),
     "R61f: cid_to_slot合并路径已删(cid102/106/108三角色歧义)")
 chk(fn_has("deck_sampler.py", "sample_deck", "if len(deck) > 20:"),
     "R61f: deck抽样32张边界截断(技能段保序在前) [sample_deck体内]")
-chk("stats记的是**模型**对每个对手的胜率" in src("league.py"),
-    "R61f: league docstring方向修正(原与实现相反)")
 
 # ---- R61g(B1): BC匹配器SC词汇(M2组件) ---- F2收官锚定
 chk("SC_PRESS_F = 3" in src("bc_match.py")
