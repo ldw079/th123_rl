@@ -268,10 +268,13 @@ def advance_queue(macro_queue, gate_frames, left, right, d_deal, d_take,
             elif isinstance(keys, str):
                 # confirm/cconfirm 门(既有语义)
                 gate_frames += 1
+                # task-58 phase-2: 记忆窗开启时 confirm 观察窗 4F→18F
+                # (攻击 active/命中可能晚于门前缀 6F, 4F 会在命中前超时).
+                _wait = 18 if hit_mem is not None else 4
                 if _dd > 0:
                     macro_queue.pop(0)
                     gate_frames = 0
-                elif gate_frames >= 4:
+                elif gate_frames >= _wait:
                     near = abs(right.get("position.x", 0)
                                - left.get("position.x", 0)) < 300
                     if keys.startswith("cconfirm") and near:

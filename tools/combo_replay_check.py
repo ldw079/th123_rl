@@ -33,13 +33,13 @@ def step(env, il, ir):
         return None
 
 
-def sync(env, lx=500.0, rx=575.0):
+def sync(env, lx=500.0, rx=575.0, ry=0.0):
     ok = 0
     for i in range(260):
         if i % 40 == 0:
             try:
                 env.inst._send(struct.pack("<BHH", 13, 10000, 10000))
-                env.inst._send(struct.pack("<B4f", 14, lx, 0.0, rx, 0.0))
+                env.inst._send(struct.pack("<B4f", 14, lx, 0.0, rx, ry))
             except Exception:
                 pass
         r = step(env, dict(NEUTRAL), dict(NEUTRAL))
@@ -62,8 +62,8 @@ def _sc_reset():
     pass
 
 
-def replay(env, script, max_frames=220, pos=(500.0, 575.0)):
-    r0 = sync(env, pos[0], pos[1])
+def replay(env, script, max_frames=220, pos=(500.0, 575.0), ry=0.0):
+    r0 = sync(env, pos[0], pos[1], ry)
     if r0 is None:
         return None
     left, right = r0[0], r0[1]
@@ -146,8 +146,13 @@ try:
             _has_sc = any(isinstance(k, str) and str(k).startswith('sc:')
                           for k, _f in mac[nm])
             rs = []
-            for _pos in ((500.0, 575.0), (960.0, 1030.0)):
-                rs += [replay(env, mac[nm], pos=_pos) for _ in range(1)]
+            _scen = [((500.0, 575.0), 0.0), ((960.0, 1030.0), 0.0),
+                     ((500.0, 540.0), 0.0)]
+            if any(k in nm for k in ('空', '对空')):
+                _scen.append(((500.0, 580.0), 120.0))  # 对手空中场景
+            for _pos, _ry in _scen:
+                rs += [replay(env, mac[nm], pos=_pos, ry=_ry)
+                       for _ in range(1)]
             rs = [x for x in rs if x]
             if not rs:
                 out[nm] = {'err': True}
