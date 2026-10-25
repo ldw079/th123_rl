@@ -111,6 +111,12 @@ FILES = [
 
 # (文件, 原文, 变异文, 防的回归)
 MUTATIONS = [
+    # R17-12 AR-6: 放宽孤儿校验(含 control/活父)→行为测试必红
+    ('tools/fleet_health.py',
+     "def _valid_orphan(p, sup_pids):\n    if not _is_main_child(p):",
+     "def _valid_orphan(p, sup_pids):\n    return True\n    if not _is_main_child(p):",
+     'R17-12 AR-6: 孤儿校验放宽→行为测试必须红'),
+
     # 审计#3 P1-5②: 封顶zmax反向项 — 关掉修正=回到旧"只补1/cap"行为
     # → onestep有限差分数值直钉必须红(权重增量符号级对此项不敏感,
     # 曾漏网; 数值直钉敏感度~3e-9)

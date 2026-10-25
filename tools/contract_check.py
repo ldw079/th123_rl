@@ -1841,6 +1841,8 @@ _BEHAVIOR_TESTS = [
      "R4: 12宏branch四路升级(名/前缀不变/路由步归一)72项"),
     ("test_executor_hitmem_v1.py",
      "task-58: 执行器命中记忆窗(frozen帧伤害/confirm/branch/等价)14项"),
+    ("test_fleet_auto_recovery_v1.py",
+     "R17-12 P0: watcher 限流自动恢复+维护锁+不 kill(12项)"),
     ("test_fleet_heartbeat_health_v1.py",
      "R17-12 P0: 心跳健康字段/缺员告警写入与清除/看门狗 sidecar 10项"),
     ("test_window_launch_policy_v1.py",

@@ -41,7 +41,8 @@ def main():
     macs = A.CHAR_LIBS[a.char]['macros']
     per = {int(k): int(v) for k, v in zip(*np.unique(Y, return_counts=True))}
     need = [i for i, n in enumerate(names)
-            if int(per.get(i, 0)) < a.min_rows]
+            if any(k in n for k in A.TARGET_KEYS)
+            and int(per.get(i, 0)) < a.min_rows]
     print('[topup] %s low macros=%s' % (a.char, [names[i] for i in need]))
     if not need:
         print('[topup] no need')
