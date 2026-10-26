@@ -39,6 +39,10 @@ def main():
     ok, d = FH.check(snap=dup, hb_age=1.0)
     check('probe: learners 超数→bad(dup/extra)', (not ok) and
           any('dup/extra' in x for x in d['bad']), str(d['bad']))
+    dup2 = {'sup': 1, 'learners': 3, 'actors': 3, 'ctl': 4, 'games': 4}
+    okd, dd = FH.check(snap=dup2, hb_age=1.0)
+    check('probe: ctl 4>2→bad(dup/extra)', (not okd) and
+          any('ctl' in x and 'dup' in x for x in dd['bad']), str(dd['bad']))
     good = {'sup': 1, 'learners': 3, 'actors': 3, 'ctl': 2, 'games': 4}
     ok2, d2 = FH.check(snap=good, hb_age=1.0)
     check('probe: 精确计数→PASS', ok2, str(d2['bad']))

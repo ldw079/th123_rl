@@ -65,7 +65,7 @@ def _snapshot_script(marker=None):
     if marker:
         excl = ''          # 测试模式: dummy 由 marker 精确圈定
     else:
-        excl = (" -notmatch '-c ' -and $_.CommandLine -notmatch "
+        excl = ("-and $_.CommandLine -notmatch '-c ' -and $_.CommandLine -notmatch "
                 "'dummy_fleet|ar6dummy|stopclean_marker'")
     return (
         "$py=Get-CimInstance Win32_Process | ? {$_.Name -eq 'python.exe'"
