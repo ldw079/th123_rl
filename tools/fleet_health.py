@@ -40,8 +40,8 @@ ALERT = HB + '.fleet_alert'
 RECOVERY = os.path.join(STORE, 'fleet_recovery.json')
 RECOVERY_LOG = os.path.join(STORE, 'fleet_recovery.log')
 WATCH_LOCK = os.path.join(STORE, 'fleet_watcher.lock')
-REQUIRED = {'sup': 1, 'learners': 3, 'actors': 3, 'games': 4}
-INFO_KEYS = ('ctl',)
+REQUIRED = {'sup': 1, 'learners': 3, 'actors': 3, 'ctl': 2, 'games': 4}
+INFO_KEYS = ()
 RECOVERY_MAX_AGE = 600.0
 FAIL_WINDOW = 1800.0
 FAIL_MAX = 3
@@ -80,7 +80,7 @@ def _snapshot_script(marker=None):
         "actors=@($py|?{$_.CommandLine -match "
         "'actor_worker[.]py --char ' -and $_.CommandLine -notmatch "
         "'th123_rl_control'%s}).Count;"
-        "ctl=@($py|?{$_.CommandLine -match 'th123_rl_control'}).Count;"
+        "ctl=@($py|?{$_.CommandLine -match 'th123_rl_control' -and $_.CommandLine -notmatch 'dummy_fleet|ar6dummy|stopclean_marker'}).Count;"
         "games=@($g%s).Count" "} | ConvertTo-Json -Compress"
         % (cond, cond, cond, cond))
 

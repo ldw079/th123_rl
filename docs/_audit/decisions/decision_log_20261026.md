@@ -23,3 +23,7 @@
 | 12:14 | C 盘清理（4.55→13.33GB，仅旧 temp/pip cache） | 加固窗需要 C≥6GB | 已执行，未碰模型/BC/备份 |
 | 12:22 | UKEMI 样本门 70min/≥2帧档/受身≥25 | auditor 复核 | 明日 11:30 窗前 |
 | 15:21 | 加固窗 AR-9a/9b/stall 通过；helper watcher 引号匹配 bug 修复 | AR-9a 首跑失败根因；R17-12 演练发现 | helper regex/校验修复；重跑证据 |
+| 15:32 | P1-1 probe ctl 误计复现：AR dummy 测试进程 `python -c ... dummy_fleet_marker learner_hub/actor_worker` 与 control marker 进程含 `th123_rl_control` 被 ctl 查询计数（瞬态 ctl=4） | 修 probe: 排除 `dummy_fleet|ar6dummy|stopclean_marker`、ctl 期望精确 2/超缺报警；行为测试覆盖 dummy 不计/超数报警 | 已修 |
+
+| 15:33 | P1-2 powercfg：LID/PBUTTON/UIBUTTON setac/dc=0 rc=0；UIBUTTON 查询 AC/DC=0；LID/PBUTTON 隐藏项 query 无输出（非管理员受限，如实记录"命令执行但无法查询生效"） | 用户要求按钮/LID=0 | 已执行+记录 |
+| 15:33 | P1-3 crash dump：`crashdump_config.py --apply` 非管理员 PermissionError；当前 DedicatedDumpFile/DumpFileSize=null、pagefile 仅 D:16GB → kernel dump 不可配置；**未实测**（不伪造） | 15:00 窗证据要求 | 如实记录 |

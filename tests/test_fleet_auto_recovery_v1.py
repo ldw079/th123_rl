@@ -226,6 +226,7 @@ def test_AR8_real_dummy_fleet():
         time.sleep(1.0)
         snap = FH.snapshot(MARKER)
         snap['games'] = 4
+        snap['ctl'] = 2
         check('AR-8: 真实 dummy 进程计数(sup/learners/actors)',
               int(snap.get('sup', 0)) >= 1
               and int(snap.get('learners', 0)) >= 3
