@@ -87,3 +87,9 @@
 - **今晚不再开窗**；BC 顺延 **2026-10-27 UKEMI 后（13:00+）**，开窗前列签新 gate+本预注册+诊断证据。
 - 诊断证据：docs/_audit/bc_deploy_lock_diagnosis_20261026.md；c_lock65_evidence.txt；数据未变（4 次回滚 hash=pre）。
 - 指针切换实现（2026-10-26）：`bc_io._default_dirs` 已支持 **`TH123_BC_DIR` 优先**（无 env 行为不变）；新窗可用它指向 `bc_<char>_genN` 目录，失败删 env+重启回滚。
+
+## 11. 指针窗优化（2026-10-26 21:29）
+- **gen2 提前构建**（明日 09:30–12:00 训练中；新目录，不碰生产）：`bc_gen_build.py` 生成 `D:\temp\bc_gen2_20261027/bc_<char>_{X,S,Y,meta}` + C1 manifest；`bc_gen_verify` 校验 429579/353791/329422、宽 831/866/846、hash/new=old+509。
+- **窗内（13:00+，≤10min）**：锁→helper --assume-locked→读者=0→**只验证 gen2**→bat 写 `TH123_BC_DIR=D:\temp\bc_gen2_20261027`→WMI 重启→health/4 游戏→loader env 证据；失败恢复 bat+重启；**不在窗内复制 20GB**。
+- 磁盘：gen2 后 D 预计 ~39GB（≥35 阈值）；不足先清 backup/staging（保留生产 trio+回滚）。
+- 列签：gate_753（753/0/0）+gen2 实际行/宽/hash+本预注册+无 reader/锁+回滚。
