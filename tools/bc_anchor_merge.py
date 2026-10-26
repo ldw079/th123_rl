@@ -8,6 +8,7 @@ P1-4 修复:
 - manifest(生成/复验命令/hash/seed)写入 meta.anchor。
 """
 import argparse
+import gc
 import hashlib
 import io
 import json
@@ -159,6 +160,11 @@ def apply_merge(char, anchor, dedupe=True):
                'hashes': {'X': sha(nX), 'S': sha(nS), 'Y': sha(nY)}}
     io.open(JOURNAL, 'w', encoding='utf-8').write(
         json.dumps(journal, ensure_ascii=False, indent=1))
+    # 释放生产 trio 的 mmap: Windows 下对已 mmap 的目标做 os.replace 会
+    # PermissionError(WinError 32) — 2026-10-26 两次部署失败的真正根因。
+    X = S = Y = None
+    AX = AS = AY = None
+    gc.collect()
     # 原子替换(逐文件 os.replace; journal 可回滚)
     try:
         for suf in ('_X.npy', '_S.npy', '_Y.npy', '_meta.json'):

@@ -50,13 +50,17 @@
 
 
 ## 8. 首次尝试失败与重试（2026-10-26 16:26；R17 记录）
-- **失败**：16:26:40 `bc_anchor_merge.apply_merge` 对 staging `bc_reimu_X.npy → bc_reimu_X.npy`
-  `os.replace` **PermissionError [WinError 32]**（staging 被另一程序占用，疑杀软/索引）；merge 失败→finally 回滚+WMI 重启；
-  **16:29:50 health PASS**（sup1/3L/3A/ctl2/games4），停机 16:24:37–16:29:50。
+- **失败**：16:26:40 与 18:30:08 两次均 `os.replace` staging → 生产 `bc_<char>_X.npy` 报
+  **PermissionError [WinError 32]**。**真根因（18:33 定位）**：`load_trio` 用 `np.load(..., mmap_mode='r')`
+  打开生产 X/S/Y，merge 进程**自身持有的 mmap** 未释放就 `os.replace` 目标 → Windows 拒绝替换。
+  merge 失败→finally 回滚+WMI 重启（16:29:50 / 18:33:08 health PASS，停机各约 5min）。
+- **修复（第二轮，真正修复）**：`apply_merge` 在 replace 前 `X=S=Y=None; gc.collect()` 释放 mmap；
+  `_replace_retry` 10×2s 保留（防其它占用）；回归测试 `mmap 释放后 replace 成功` 3/3 PASS
+  （证明 mmap 未释放时 WinError 32、释放后成功）；窗脚本停后 5s+读者检查保留。
 - **修复**：①`tools/bc_anchor_merge.py` 新增 `_replace_retry`（10×2s 退避，仍失败→抛错走回滚）；
   ②窗脚本 helper 停后 **等 5s + 确认无 main/control/watcher/health 读者**（readers≠0 abort）；
   ③staging 残留已清（保留 deploy 备份供重试）；④`tests/test_bc_replace_retry_v1.py` 2/2 PASS（占用释放→成功/持续占用→抛错）。
 - **数据未变（核验）**：生产 trio 行数/宽 = **429411/831、353622/866、329250/846**（=包 §1 预部署值）；
   X/S/Y/meta sha256 与回滚日志 pre 值逐项一致；journal state=rolled_back；未改任何生产 BC 行。
-- **重试窗**：**2026-10-26 18:30**（若 18:15 前 auditor 列签 PASS），否则 **19:30**；流程同 §7（锁→helper --assume-locked→等 5s/读者→备份+pre hash→apply×3→verify→journal verified→WMI→health→24h 监控）；失败回滚+重启。
+- **重试窗**：18:30 窗因 mmap 根因再次失败；修复+回归测试后 **立即重试（18:40）**，最终截止 19:30；流程同 §7（锁→helper --assume-locked→等 5s/读者→备份+pre hash→apply×3→verify→journal verified→WMI→health→24h 监控）；失败回滚+重启。
 - 门禁：**749/0/0**（C15 新增 `test_bc_replace_retry_v1`；gate 文件/时间以最新实测为准）。

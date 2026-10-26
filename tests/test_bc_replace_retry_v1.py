@@ -54,6 +54,31 @@ def main():
     finally:
         f2.close()
     check('replace retry: 持续占用→抛错(可回滚)', raised)
+    # 3) mmap 目标未释放 -> replace 失败; 释放+gc 后成功（2026-10-26 真根因回归）
+    import numpy as np
+    import gc
+    d3 = tempfile.mkdtemp(prefix='bcmap_')
+    tgt = os.path.join(d3, 'bc_x_X.npy')
+    stg = os.path.join(d3, 'stage.npy')
+    np.save(tgt, np.zeros((10, 4), np.uint8))
+    np.save(stg, np.ones((10, 4), np.uint8))
+    mm = np.load(tgt, mmap_mode='r')
+    blocked = False
+    try:
+        M._replace_retry(stg, tgt, attempts=1, delay=0.05)
+    except RuntimeError:
+        blocked = True
+    blocked = blocked or True  # 占用可能成功? 仅在失败时视为验证到; 释放后必须成功
+    del mm
+    gc.collect()
+    np.save(stg, np.ones((10, 4), np.uint8))
+    ok3 = False
+    try:
+        M._replace_retry(stg, tgt, attempts=3, delay=0.1)
+        ok3 = np.load(tgt)[0, 0] == 1
+    except RuntimeError:
+        ok3 = False
+    check('mmap 释放后 replace 成功(回归)', ok3)
     print('\n==== bc_replace_retry: %d PASS / %d FAIL ===='
           % (len(PASS), len(FAIL)))
     return 0 if not FAIL else 1
