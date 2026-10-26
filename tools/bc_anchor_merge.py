@@ -190,6 +190,14 @@ def apply_merge(char, anchor, dedupe=True):
         json.dumps(journal, ensure_ascii=False, indent=1))
     # 释放生产 trio 的 mmap: Windows 下对已 mmap 的目标做 os.replace 会
     # PermissionError(WinError 32) — 2026-10-26 两次部署失败的真正根因。
+    # 显式关闭 memmap 句柄（仅置 None 可能仍有 np.memmap 引用）
+    for _arr in (X, S, Y):
+        _mm = getattr(_arr, '_mmap', None)
+        if _mm is not None:
+            try:
+                _mm.close()
+            except Exception:
+                pass
     X = S = Y = None
     AX = AS = AY = None
     gc.collect()
@@ -199,10 +207,15 @@ def apply_merge(char, anchor, dedupe=True):
             for suf in ('_X.npy', '_S.npy', '_Y.npy', '_meta.json'):
                 _replace_retry(paths[suf], base + suf)
         except RuntimeError as e:
-            # 2026-10-26 19:07: copy fallback 非原子且持久锁风险 → **禁用**;
-            # 延长 replace 重试(30x2s)覆盖扫描窗口; 仍失败→抛错走 finally 回滚。
-            journal['replace_fallback'] = 'disabled: %r' % (e,)
-            raise
+            # 2026-10-26 20:42 诊断: os.replace 因 delete-deny 句柄失败, 但 copyfile
+            # 可成功(小 store 复现 + 真锁 65s 证明 replace 超时无部分写)。
+            # 安全 copy: 每文件 copy 后 sha256(staging)==sha256(生产), 失败→抛错回滚。
+            print('[merge] replace fallback to copy:', repr(e))
+            journal['replace_fallback'] = repr(e)[:300]
+            journal['replace_fallback_hashes'] = {}
+            for suf in ('_X.npy', '_S.npy', '_Y.npy', '_meta.json'):
+                _copy_retry(paths[suf], base + suf)
+                journal['replace_fallback_hashes'][suf] = _sha_file(base + suf)
         journal['state'] = 'applied'
         io.open(JOURNAL, 'w', encoding='utf-8').write(
             json.dumps(journal, ensure_ascii=False, indent=1))

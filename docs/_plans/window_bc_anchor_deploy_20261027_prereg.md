@@ -79,3 +79,10 @@
 - **门禁**：**749/0/0**（`D:\temp\gate_bc_retry4.txt`，19:59 实测；merge 30×2/fallback 禁用后）。
 - **数据未变（第 4 次）**：trio 行数/宽 429411/831、353622/866、329250/846；X/S/Y/meta hash=pre；journal rolled_back；staging 清；backup 保留。
 - **20:30 执行**：流程不变（锁→helper --assume-locked→5s/读者=0→备份+pre hash→3×apply→verify→journal verified→WMI→health→24h）；≤15min；失败 finally 回滚+重启。
+
+## 10. 20:30 失败诊断与新窗计划（2026-10-26 20:45）
+- 4 次 replace WinError32（delete-deny 句柄；非 mmap/非大文件）；小 store 复现；copyfile 可成功；65s 真锁测试无部分写。
+- 修复 A（已实现）：replace 30×2s 失败→逐文件 shutil.copyfile + **sha256(staging)==sha256(生产)** 校验；失败→finally 恢复 backup+WMI+health。
+- 修复 B（备选）：c_<char>_genN 指针切换（不 replace 生产；C1 manifest+loader 强校验）。
+- **今晚不再开窗**；BC 顺延 **2026-10-27 UKEMI 后（13:00+）**，开窗前列签新 gate+本预注册+诊断证据。
+- 诊断证据：docs/_audit/bc_deploy_lock_diagnosis_20261026.md；c_lock65_evidence.txt；数据未变（4 次回滚 hash=pre）。
