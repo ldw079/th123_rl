@@ -72,7 +72,7 @@
 - 窗后同夹具对比；基线 hash 写入窗日志。
 
 ## 基线/观察
-- 窗起用 **v2 baseline 工具**重跑并写完整 JSON+sha256 到窗日志（`window_baseline_ukemi_<ts>.json`）；
+- 窗起用 **v2 baseline 工具**重跑并写完整 JSON+sha256 到窗日志（`window_baseline_ukemi_<ts>.json`（窗起动态时间戳））；
 - 窗后 **12:40** 观察（检查点）；作废段/样本门按上。
 
 ## 独立真值

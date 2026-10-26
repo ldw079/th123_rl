@@ -63,13 +63,37 @@ token_t = [side_feat_t (5N+391) ⊕ action_emb(a_t) ⊕ reward_t (标量)
 - 反债：不建一次性旁路；env 默认 0；旧模型可回退；序列数据格式随 episode schema v4 统一。
 - R15：延迟/预测/加载行为测试；A/B 前离线对比（独立真值=held-out episode）。
 
-## 11. 延迟基准实测（2026-10-26，原型）
-- 模型：d_model128/4层/4头/vocab128，params **834,305（<5M）**；batch1；含因果 mask；CPU torch 2 线程。
-- 结果（	ools/seq_transformer_bench.py → D:\temp\scratch\h1_seq_bench_20261026.json）：
-  | device | T | p50 | p99 |
+## 11. 延迟基准（优化版，CPU-only 实测）
+- 本机 **torch 2.14.0+cpu，cuda_available=False（18 核）** → GPU 实测不可行，按 CPU 优化复测。
+- 优化：`torch.inference_mode()` + KV cache 增量解码 + 预分配/复用 kv + `set_num_threads(2)`
+  + 动态 int8 量化对照 + 收窄变体（d64/2层/T8-16）；warmup 后 1000 次；训练运行中测（真实负载）。
+- 结果（`tools/seq_transformer_bench_v2.py` → `D:\temp\scratch\h1_seq_bench_v2.json`）：
+  | 配置 | p50 | p95 | p99 |
   |---|---|---|---|
-  | cpu | 16 | 7.0ms | 90.6ms |
-  | cpu | 32 | 12.8ms | 62.9ms |
+  | T=16 d128/4L 无量化 | 2.82ms | 6.17ms | **9.85ms** |
+  | T=32 d128/4L 无量化 | 3.65ms | 7.07ms | **12.34ms** |
+  | T=16 动态 int8 | 9.30ms | 16.69ms | 22.99ms（量化开销劣化→**不采用**） |
+  | d64/2L/T=8 int8 | 4.29ms | 8.55ms | 13.03ms |
+- **结论**：KV-cache 增量解码后 **T16 p99 9.85ms、T32 p99 12.34ms，均满足 ≤20/≤30ms**；
+  动态量化在 CPU 上反而更慢→弃用；无需收窄到低频 H1'（T32 仍可支撑 62Hz 预算余量）。
+- 注意：首次 bench（无 cache）p99 90ms 为未优化假象；本表为最终口径。
 
-- 结论：**T=16 达标（p50 7.0ms，5–10ms 目标内）**；T=32 p50 12.8ms 略超，需 d_model/层数压缩或缓存 mask；
-  GPU 未在基准中启用（torch.cuda 不可用/未测），后续在训练机复测。
+## 12. env=0 逐位等价证据
+- `TH123_SEQ_TRANSFORMER` 在仓库代码中**无引用**（grep 0 命中）→ 当前 env 默认/0 与旧路径完全等价（不改变任何行为）；
+- 原型接入时必须加行为测试：env=0 时模型结构/前向/输出逐位等于旧路径；H1 进窗前补测试。
+
+## 13. A/B 预注册（待批窗）
+- 单变量 `TH123_SEQ_TRANSFORMER` 0/1；冻结 pool 夹具（对手/种子/局面集，记录 hash）；
+- 主指标：对冻结 pool 胜率 + 行为（远弹/受身/防御/连段）+ KL/ent 不退化；
+- 样本门：每角色≥3000 决策 & ≥2 帧档；停止规则=P0/缺员/ent<0.6/KL>0.5 持续 10min→回滚 env=0 单次重启；
+- 预算 ≤60min；不与其他变量叠加。
+
+## 14. mem_v1 对比（协议，待数据）
+- 同一 episode 划分（held-out 20%）：比较 next-macro top1、value MSE、aux 命中、延迟；
+- 基线 A：mem_v1（GRU mem_dim=8）；基线 B：无历史 MLP；候选：H1 T16/T32；
+- 数据量不足时先补 episode（当前 fleet 每分钟新增），不伪造结论。
+
+## 15. R19 映射
+- H1 验收权威=**user**（行为是否更"像人"、操作是否改善）；离线指标/延迟仅初判；
+- 验收包：回放片段 + 延迟/胜率/行为对比 + 无法独立判断点 + yes/no 问题；
+- H1 不进 A/B 窗前不要求用户验收；进窗前给 Lead/auditor 材料。
