@@ -11,28 +11,30 @@
 
 ## 2. 生成/复验命令（可直接执行）
 
+> manifest 内 16 位 hash 为采集期记录；**部署以本包 §1 的完整 sha256 为准**。
+
 ### reimu（168 行；seed_base=初始 collect --seeds 4；topup 追加 seeds 4..6 （--max-extra-seeds 3~6））
 ```bat
 D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_verify.py --char reimu --npz "D:\temp\th123_anchor\bc_anchor3_reimu_20261026_003321.npz" --blind 50
-D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char reimu --anchor "D:\temp\th123_anchor\bc_anchor3_reimu_20261026_003321.npz" --apply
+D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char reimu --anchor "D:\temp\th123_anchor\bc_anchor3_reimu_20261026_003321.npz" --apply --no-dedupe
 ```
 - manifest: `D:\temp\th123_anchor\manifest3_reimu_20261026_003321.json`（sha256 见上表）
 
 ### marisa（169 行；seed_base=初始 collect --seeds 4；topup 追加 seeds 4..6 （--max-extra-seeds 3~6））
 ```bat
 D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_verify.py --char marisa --npz "D:\temp\th123_anchor\bc_anchor3_marisa_20261026_003459.npz" --blind 50
-D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char marisa --anchor "D:\temp\th123_anchor\bc_anchor3_marisa_20261026_003459.npz" --apply
+D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char marisa --anchor "D:\temp\th123_anchor\bc_anchor3_marisa_20261026_003459.npz" --apply --no-dedupe
 ```
 - manifest: `D:\temp\th123_anchor\manifest3_marisa_20261026_003459.json`（sha256 见上表）
 
 ### suika（172 行；seed_base=初始 collect --seeds 4；topup 追加 seeds 4..6 （--max-extra-seeds 3~6））
 ```bat
 D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_verify.py --char suika --npz "D:\temp\th123_anchor\bc_anchor3_suika_20261026_003624.npz" --blind 50
-D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char suika --anchor "D:\temp\th123_anchor\bc_anchor3_suika_20261026_003624.npz" --apply
+D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char suika --anchor "D:\temp\th123_anchor\bc_anchor3_suika_20261026_003624.npz" --apply --no-dedupe
 ```
 - manifest: `D:\temp\th123_anchor\manifest3_suika_20261026_003624.json`（sha256 见上表）
 
-## 3. dedupe 预览（生产 X 去重，`--dedupe` 默认 apply 开启）
+## 3. dedupe 预览（**已否决**；仅反例记录，apply 使用 `--no-dedupe`）
 | char | 生产行 | 锚输入 | 保留 | 去重丢弃 | 合并后 |
 |---|---|---|---|---|---|
 | reimu | 429411 | 168 | 19 | 149 | 429430 |
