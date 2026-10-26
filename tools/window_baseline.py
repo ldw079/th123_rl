@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
-"""UKEMI/窗基线采集: dir_f/dir_b 基线、样本门计数、hash、窗起时刻.
+"""窗基线采集 v2: frame_logs 实际路径/受身机会/完整 JSON+sha256.
 
 用法: python tools/window_baseline.py --out <json> [--minutes 60]
-输出（窗起日志）：per char decisions(episode acts), frame档数, UKEMI 机会(基线),
-macro_counts 快照 hash, bat/config/model hash, 窗起时刻。
+frame_logs: STORE/frame_logs/<char>/fl_*.pkl (dict: fields/frames/decisions)
+受身机会: frame 中左方 action 进入 knockdown(50-78) 的次数（口径写 prereg）。
 """
 import argparse
 import glob
 import hashlib
 import json
 import os
+import pickle
 import sys
 import time
 
@@ -18,8 +19,9 @@ import numpy as np
 ROOT = r'C:\Users\96120\Desktop\workplace\th123_rl'
 STORE = r'D:\temp\th123_models'
 FLEET = os.path.join(STORE, 'fleet')
-FRAME_LOGS = os.path.join(FLEET, 'frame_logs')
+FRAME_ROOT = os.path.join(STORE, 'frame_logs')
 EPISODES = os.path.join(FLEET, 'episodes')
+KNOCK = set(range(50, 79))
 
 
 def sha_file(p):
@@ -28,9 +30,35 @@ def sha_file(p):
         with open(p, 'rb') as f:
             for chunk in iter(lambda: f.read(1 << 20), b''):
                 h.update(chunk)
-        return h.hexdigest()[:16]
+        return h.hexdigest()
     except OSError:
         return None
+
+
+def sha_bytes(b):
+    return hashlib.sha256(b).hexdigest()
+
+
+def count_ukemi_opportunities(files):
+    """受身机会=左方 action 进入 knockdown(50-78) 的次数（帧档口径）."""
+    n = 0
+    for p in files:
+        try:
+            d = pickle.load(open(p, 'rb'))
+        except Exception:
+            continue
+        prev = None
+        for fr in d.get('frames') or []:
+            try:
+                left = fr[0]
+                act = int(left[4])
+            except Exception:
+                continue
+            in_knock = act in KNOCK
+            if in_knock and not prev:
+                n += 1
+            prev = in_knock
+    return n
 
 
 def main():
@@ -41,43 +69,51 @@ def main():
     now = time.time()
     cut = now - a.minutes * 60
     rep = {'ts': now, 'time': time.strftime('%Y-%m-%d %H:%M:%S'),
-           'window_minutes': a.minutes, 'chars': {}}
+           'window_minutes': a.minutes,
+           'definitions': {
+               'frame_file': 'STORE/frame_logs/<char>/fl_*.pkl',
+               'decisions': 'frame_logs decisions 条数(优先)/episode acts',
+               'ukemi_opportunity':
+               '左方 action 进入 knockdown(50-78) 的次数（帧档口径）'},
+           'chars': {}}
     sys.path.insert(0, ROOT)
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
-    from train_tm import CHAR_LIBS
     for ch in ('reimu', 'marisa', 'suika'):
-        names = [m[0] for m in CHAR_LIBS[ch]['macros']]
-        idx = {n: i for i, n in enumerate(names)}
+        d = os.path.join(FRAME_ROOT, ch)
+        fl = [p for p in glob.glob(os.path.join(d, 'fl_*.pkl'))
+              if os.path.getmtime(p) > cut] if os.path.isdir(d) else []
+        dec = 0
+        for p in fl:
+            try:
+                with open(p, 'rb') as f:
+                    dd = pickle.load(f)
+                dec += len(dd.get('decisions') or [])
+            except Exception:
+                pass
+        eps = [p for p in glob.glob(os.path.join(EPISODES, 'ep_*.npz'))
+               if os.path.getmtime(p) > cut]
+        if dec == 0:
+            for p in eps:
+                try:
+                    with np.load(p, allow_pickle=True) as z:
+                        if 'acts' in z.files:
+                            dec += int(len(z['acts']))
+                except Exception:
+                    pass
+        opp = count_ukemi_opportunities(fl)
         mc_path = os.path.join(STORE, 'macro_counts_%s_fleet.npy' % ch)
         try:
             mc = np.load(mc_path).astype(np.int64)
-            mc_hash = hashlib.sha256(mc.tobytes()).hexdigest()[:16]
-            base_f = int(mc[idx['前进']]) if '前进' in idx else 0
-            base_b = int(mc[idx['后退']]) if '后退' in idx else 0
+            mc_hash = sha_bytes(mc.tobytes())
         except Exception:
-            mc, mc_hash, base_f, base_b = None, None, 0, 0
-        # decisions/frame档: episode 文件(近 N 分钟)
-        eps = [p for p in glob.glob(os.path.join(EPISODES, 'ep_*.npz'))
-               if os.path.getmtime(p) > cut]
-        dec = 0
-        for p in eps:
-            try:
-                with np.load(p, allow_pickle=True) as z:
-                    if 'acts' in z.files:
-                        dec += int(len(z['acts']))
-            except Exception:
-                pass
-        fl = [p for p in glob.glob(os.path.join(FRAME_LOGS, '*.log'))
-              if os.path.getmtime(p) > cut] if os.path.isdir(FRAME_LOGS) else []
+            mc_hash = None
         rep['chars'][ch] = {
+            'frame_files_lastN': len(fl),
+            'frame_files': [os.path.basename(p) for p in fl[-5:]],
             'decisions_lastN': dec,
             'episodes_lastN': len(eps),
-            'frame_files_lastN': len(fl),
-            'ukemi_opportunities_baseline': 0,
-            'ukemi_note': '窗起基线=0 起点；受身机会由窗内 frame 解析计数(口径见 prereg)',
-            'dir_f_baseline_count': base_f,
-            'dir_b_baseline_count': base_b,
-            'macro_counts_hash': mc_hash,
+            'ukemi_opportunities_lastN': opp,
+            'macro_counts_sha256': mc_hash,
         }
     rep['hashes'] = {
         'bat': sha_file(r'D:\temp\train_batch_launch.bat'),
@@ -87,9 +123,15 @@ def main():
         'model_reimu': sha_file(os.path.join(STORE, 'model_ppo_reimu.npz')),
     }
     os.makedirs(os.path.dirname(a.out) or '.', exist_ok=True)
-    with open(a.out, 'w', encoding='utf-8') as f:
-        json.dump(rep, f, ensure_ascii=False, indent=1)
-    print(json.dumps(rep, ensure_ascii=False)[:600])
+    raw = json.dumps(rep, ensure_ascii=False, indent=1).encode('utf-8')
+    with open(a.out, 'wb') as f:
+        f.write(raw)
+    rep['baseline_path'] = os.path.abspath(a.out)
+    rep['baseline_sha256'] = sha_bytes(raw)
+    print(json.dumps({k: rep[k] for k in ('baseline_path',
+                                          'baseline_sha256',
+                                          'hashes')}, ensure_ascii=False))
+    print(json.dumps(rep['chars'], ensure_ascii=False))
     return 0
 
 

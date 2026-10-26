@@ -121,6 +121,8 @@ def main():
     ap.add_argument('--keep-control', action='store_true')
     ap.add_argument('--timeout', type=int, default=90)
     ap.add_argument('--reason', default='manual clean stop')
+    ap.add_argument('--live', action='store_true',
+                    help='真停（默认拒绝：无 --live 仅打印/拒绝）')
     a = ap.parse_args()
     if TEST_DIR and not TEST_MARKER:
         print('[stop_clean] TEST_DIR set but TEST_MARKER missing — abort')
@@ -145,8 +147,13 @@ def main():
                                            'fleet_maintenance.lock')
         _lk = fleet_lock.acquire('train_stop_clean', a.reason, ttl=1200)
         print('[stop_clean] lock', _lk[1])
+        if not _lk[0] and not TEST_DIR:
+            print('[stop_clean] live stop blocked by maintenance lock — abort')
+            return 4
     except Exception as e:
         print('[stop_clean] lock exception', repr(e))
+        if not TEST_DIR:
+            return 5
     # 1) watcher first (防自动恢复抢跑)
     for pid in snap['watcher']:
         if _verify_target(pid, m):

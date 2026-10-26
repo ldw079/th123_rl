@@ -70,6 +70,21 @@ def test_stop_clean_real():
                 pass
 
 
+def test_live_required():
+    """无 --live 真停必须被拒绝(exit 3); --help 暴露 --live."""
+    import subprocess
+    r = subprocess.run([sys.executable, '-X', 'utf8',
+                        os.path.join(ROOT, 'tools', 'train_stop_clean.py')],
+                       capture_output=True, text=True, timeout=60)
+    check('--live 硬门: 无 --live 拒绝真停(exit3)', r.returncode == 3,
+          'rc=%d out=%s' % (r.returncode, (r.stdout or '')[-80:]))
+    h = subprocess.run([sys.executable, '-X', 'utf8',
+                        os.path.join(ROOT, 'tools', 'train_stop_clean.py'),
+                        '--help'], capture_output=True, text=True,
+                       timeout=60)
+    check('--live 参数存在', '--live' in (h.stdout or ''))
+
+
 def test_dry_run_no_kill():
     d = tempfile.mkdtemp(prefix='stop_dry_')
     marker = uuid.uuid4().hex[:8]
@@ -92,6 +107,7 @@ def test_dry_run_no_kill():
 
 def main():
     test_stop_clean_real()
+    test_live_required()
     test_dry_run_no_kill()
     print('\n==== train_stop_clean: %d PASS / %d FAIL ===='
           % (len(PASS), len(FAIL)))

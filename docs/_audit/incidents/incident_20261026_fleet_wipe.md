@@ -87,3 +87,12 @@ harness 清理仍在运行的后台作业，进程树 kill 把 fleet 一并杀�
 - 修复：learner 阈值 = `max(env(learner|general, 默认300), BATCH_WAIT_MAX+120)`；
   15:00 窗 bat 显式 `TH123_WATCHDOG_STALL_LEARNER_S=600`；stall 重启次数入 `fleet_heartbeat.health.stall_restarts`。
 - 验收：部署后 30min 内 suika learner 无"停滞重启"；`stall_restarts` 计数可读。
+
+## 8. 后续教训：helper 安全开关（2026-10-26 09:58 二次误停）
+- 事件：`train_stop_clean.py` 行为测试的 marker 过滤补丁**未真正生效**（pids 函数无 marker 参数），
+  测试在 09:58 live 运行 helper 时误杀真实 main+control+watcher（约 5min 停摆，10:03 WMI 恢复）。
+- 根因：安全过滤仅写在文档/部分代码，未在**杀前逐 PID 校验**；测试模式未强制 marker；真实停止无硬门。
+- 修复（已 push）：marker 精确过滤；**杀前 `_verify_target` cmdline 校验**；`--live` 硬门（默认拒绝真停）；
+  先持锁+标记+停机账；测试隔离（dummy 标记）；7 项行为测试。
+- 教训（R15/R16）：**安全开关默认拒绝**；过滤逻辑必须有行为测试（负例：真实进程不被选中）；
+  live 测试前必须持锁并写停机账。
