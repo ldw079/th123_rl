@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import glob
 import hashlib
+import io
 import json
 import os
 import sys
@@ -77,10 +78,15 @@ def main():
     ap.add_argument('--dir', default="D:\\TR丹尼尔棉咖啡等录像精选"
                                     "\\国内\\【置顶】mian（国内）（神）")
     ap.add_argument('--limit', type=int, default=50)
+    ap.add_argument('--files', default=None)
     ap.add_argument('--out', default=r'D:\temp\scratch\human_replay_coverage_v0.json')
     a = ap.parse_args()
-    files = sorted(glob.glob(os.path.join(a.dir, '**', '*.rep'),
-                             recursive=True))
+    if a.files:
+        files = [l.strip() for l in io.open(a.files, encoding='utf-8')
+                 if l.strip()]
+    else:
+        files = sorted(glob.glob(os.path.join(a.dir, '**', '*.rep'),
+                                 recursive=True))
     files = files[:a.limit] if a.limit > 0 else files
     agg = {'files': 0, 'frames': 0, 'expressible': 0, 'gap_C': 0,
            'gap_dash': 0, 'gap_diag': 0, 'gap_both_AB': 0,
