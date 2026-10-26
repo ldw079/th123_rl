@@ -16,21 +16,21 @@
 ### reimu（168 行；seed_base=初始 collect --seeds 4；topup 追加 seeds 4..6 （--max-extra-seeds 3~6））
 ```bat
 D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_verify.py --char reimu --npz "D:\temp\th123_anchor\bc_anchor3_reimu_20261026_003321.npz" --blind 50
-D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char reimu --anchor "D:\temp\th123_anchor\bc_anchor3_reimu_20261026_003321.npz" --apply --no-dedupe
+D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char reimu --anchor "D:	emp	h123_anchorc_anchor3_reimu_20261026_003321.npz" --apply --no-dedupe
 ```
 - manifest: `D:\temp\th123_anchor\manifest3_reimu_20261026_003321.json`（sha256 见上表）
 
 ### marisa（169 行；seed_base=初始 collect --seeds 4；topup 追加 seeds 4..6 （--max-extra-seeds 3~6））
 ```bat
 D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_verify.py --char marisa --npz "D:\temp\th123_anchor\bc_anchor3_marisa_20261026_003459.npz" --blind 50
-D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char marisa --anchor "D:\temp\th123_anchor\bc_anchor3_marisa_20261026_003459.npz" --apply --no-dedupe
+D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char marisa --anchor "D:	emp	h123_anchorc_anchor3_marisa_20261026_003459.npz" --apply --no-dedupe
 ```
 - manifest: `D:\temp\th123_anchor\manifest3_marisa_20261026_003459.json`（sha256 见上表）
 
 ### suika（172 行；seed_base=初始 collect --seeds 4；topup 追加 seeds 4..6 （--max-extra-seeds 3~6））
 ```bat
 D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_verify.py --char suika --npz "D:\temp\th123_anchor\bc_anchor3_suika_20261026_003624.npz" --blind 50
-D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char suika --anchor "D:\temp\th123_anchor\bc_anchor3_suika_20261026_003624.npz" --apply --no-dedupe
+D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char suika --anchor "D:	emp	h123_anchorc_anchor3_suika_20261026_003624.npz" --apply --no-dedupe
 ```
 - manifest: `D:\temp\th123_anchor\manifest3_suika_20261026_003624.json`（sha256 见上表）
 
@@ -72,9 +72,9 @@ D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char suika --anchor 
 - **理由**：锚 X 与生产 X 重复时去重即删除补标签行（预览 168→19 等，丢 89%）；补标签价值不以去重后行数衡量。
 - **执行命令**（可直接复制）：
 ```bat
-D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char reimu  --anchor "D:\temp\th123_anchor\bc_anchor3_bc_anchor3_reimu_20261026_003321.npz"  --no-dedupe --apply
-D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char marisa --anchor "D:\temp\th123_anchor\bc_anchor3_bc_anchor3_marisa_20261026_003459.npz" --no-dedupe --apply
-D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char suika  --anchor "D:\temp\th123_anchor\bc_anchor3_bc_anchor3_suika_20261026_003624.npz"  --no-dedupe --apply
+D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char reimu  --anchor "D:	emp	h123_anchorc_anchor3_reimu_20261026_003321.npz"  --no-dedupe --apply
+D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char marisa --anchor "D:	emp	h123_anchorc_anchor3_marisa_20261026_003459.npz" --no-dedupe --apply
+D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char suika  --anchor "D:	emp	h123_anchorc_anchor3_suika_20261026_003624.npz"  --no-dedupe --apply
 ```
 - **dry-run 证据**：`D:\temp\th123_anchor\bc_anchor_v3_merge_dryrun_nodeplace.txt`
   （三 char `dedupe:false`，merged=429579/353791/329422）。
