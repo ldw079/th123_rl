@@ -96,3 +96,9 @@ harness 清理仍在运行的后台作业，进程树 kill 把 fleet 一并杀�
   先持锁+标记+停机账；测试隔离（dummy 标记）；7 项行为测试。
 - 教训（R15/R16）：**安全开关默认拒绝**；过滤逻辑必须有行为测试（负例：真实进程不被选中）；
   live 测试前必须持锁并写停机账。
+
+## 9. 15:00 加固窗新发现：旧 watcher 引号路径漏杀（2026-10-26）
+- 症状：AR-9a 停 sup 后 4min 无恢复；running watcher 为旧进程（cmdline 含引号路径 `fleet_health.py" --loop`），无 `--auto-recover`，占单实例。
+- 根因：`train_stop_clean.watcher_pids` 用字面 `fleet_health.py --loop` 匹配，引号路径不命中；`_verify_target` 同样漏。
+- 修复：regex `fleet_health[.]py.*--loop`；`_verify_target` 改 `fleet_health`+`--loop`；helper 实测清掉旧 watcher，WMI 重建。
+- 教训：**按进程路径匹配必须容忍引号/空格**；AR 演练必须确认 watcher 是否带 `--auto-recover`（新增检查项）。

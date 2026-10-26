@@ -22,3 +22,4 @@
 | 12:20 | H1 延迟 scope：CPU-only 优化后 T16 p99≤20ms/T32≤30ms | 本机 torch 2.14+cpu，无 GPU；KV cache 后 T16 9.85/T32 12.34ms | 原型继续；量化弃用 |
 | 12:14 | C 盘清理（4.55→13.33GB，仅旧 temp/pip cache） | 加固窗需要 C≥6GB | 已执行，未碰模型/BC/备份 |
 | 12:22 | UKEMI 样本门 70min/≥2帧档/受身≥25 | auditor 复核 | 明日 11:30 窗前 |
+| 15:21 | 加固窗 AR-9a/9b/stall 通过；helper watcher 引号匹配 bug 修复 | AR-9a 首跑失败根因；R17-12 演练发现 | helper regex/校验修复；重跑证据 |
