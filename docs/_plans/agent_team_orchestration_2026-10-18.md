@@ -731,6 +731,16 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 56. 10-26 下午：GPU 环境长期规划（task-78）
+
+- **用户裁定**："以后会在有 GPU 环境下训练，把相关改进加入长期规划" → task-78 立项（设计/规划，不部署）。
+- **当前环境事实**：本机 `torch 2.14.0+cpu`、`cuda_available=False`、18 核；H1 CPU 优化后 T16 p99 **9.85ms** / T32 **12.34ms**（0.83M 参数，决策点可用）。
+- **GPU 规划范围**：①环境/依赖（≥16GB VRAM 起步、CUDA/torch 锁定、`TH123_DEVICE=auto/cpu/cuda` 默认 auto、无 GPU 逐位等价）②训练架构（learner GPU、actor GPU 批处理/共享卡、序列数据预取）③模型放大：H1 5–50M、H2 实体/弹幕 attention、H3 多角色共享、H4 动作块/选项；蒸馏大→小；task-74 BC/DAgger（地基+用户批后才启动）④迁移验证（CPU↔GPU 等价容差、吞吐/延迟/显存基准、回滚 CPU、R15/C1 registry device 元数据）⑤**R14 扩展**：CPU 红线保留 + GPU 利用率/显存红线 ⑥阶段 A 云 GPU 验证 → B 本地 GPU 训练 → C 全面 GPU+蒸馏。
+- **GPU 会改变/不会改变**：改变=模型上限（H1 放大/H2 attention/H3-4/BC 预训练/self-play 规模/蒸馏速度）；不改变=动作表达力缺口（task-71）、人类数据量（61.8k vs Faynt 840k）、环境仿真瓶颈、人测/超人证据要求。**不因 GPU 规划推迟现有地基**；H1 原型继续 CPU。
+- **交付**：`docs/_plans/gpu_platform_roadmap_20261026.md` + `tools/gpu_bench.py` 草稿（ETA 1–2 天，不占窗）；Lead 审后按阶段排期。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
