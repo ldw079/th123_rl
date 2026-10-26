@@ -86,3 +86,4 @@
 - 修复 B（备选）：c_<char>_genN 指针切换（不 replace 生产；C1 manifest+loader 强校验）。
 - **今晚不再开窗**；BC 顺延 **2026-10-27 UKEMI 后（13:00+）**，开窗前列签新 gate+本预注册+诊断证据。
 - 诊断证据：docs/_audit/bc_deploy_lock_diagnosis_20261026.md；c_lock65_evidence.txt；数据未变（4 次回滚 hash=pre）。
+- 指针切换实现（2026-10-26）：`bc_io._default_dirs` 已支持 **`TH123_BC_DIR` 优先**（无 env 行为不变）；新窗可用它指向 `bc_<char>_genN` 目录，失败删 env+重启回滚。

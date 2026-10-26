@@ -404,10 +404,22 @@ def update_from_episodes(gpu_tr, eps, char, suffix, n_macros,
         temp=gpu_tr._temp, stored_logp=logps, gru_reprs=gru_reprs,
         hist=hist_all)
     # ---- update成功 → 提交副作用(P1-C: 删除/蒸馏/计数下行) ----
+    _keep_n = int(os.environ.get('TH123_EP_KEEP', '0') or 0)
+    _keep_dir = os.path.join(STORE, 'fleet', 'episodes_keep', char)
     for ep_path, dist in zip(ok_paths, distill_batches):
         if len(dist):
             save_distill_rows(STORE, char, suffix, dist)
-        os.remove(ep_path)
+        if _keep_n > 0:
+            try:
+                from episode_core import archive_episode
+                archive_episode(ep_path, _keep_dir, _keep_n)
+            except Exception:
+                try:
+                    os.remove(ep_path)
+                except OSError:
+                    pass
+        else:
+            os.remove(ep_path)
     # R57(2.4): 宏计数下行 — 随快照目录发布(actor换版时一并载入)
     if snap_dir is not None:
         _c_tmp = os.path.join(snap_dir, 'counts.npy.tmp.npy')

@@ -9,24 +9,34 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-EP = r'D:\temp\th123_models\fleet\episodes\*.npz'
+EP = r'D:\temp\th123_models\**\ep_*.npz'
 OUT = r'D:\temp\scratch\h1_mem_compare_20261026.json'
 torch.set_num_threads(2)
 
 
 def load():
-    eps = []
-    for p in sorted(glob.glob(EP), key=os.path.getmtime):
+    raw = []
+    for p in sorted(glob.glob(EP, recursive=True), key=os.path.getmtime):
         try:
             with np.load(p, allow_pickle=True) as z:
                 S = np.asarray(z['sides'], np.float32)
                 A = np.asarray(z['acts'], np.int64)
             if len(A) < 20:
                 continue
-            eps.append((S, A))
+            raw.append((S, A, p))
         except Exception:
             continue
-    return eps
+    dims = {}
+    for S, A, p in raw:
+        dims[S.shape[1]] = dims.get(S.shape[1], 0) + 1
+    if not dims:
+        return []
+    D = max(dims, key=dims.get)
+    kept = [x for x in raw if x[0].shape[1] == D]
+    if len(kept) < len(raw):
+        print('[compare] dims', dims, 'use D=%d kept=%d/%d'
+              % (D, len(kept), len(raw)))
+    return [(S, A) for S, A, _ in kept]
 
 
 class MLP(nn.Module):

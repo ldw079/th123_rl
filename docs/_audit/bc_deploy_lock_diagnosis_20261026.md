@@ -1,7 +1,7 @@
 # BC 部署失败诊断 + 指针切换评估（2026-10-26 20:45）
 
-> 结论先行：`os.replace(staging→生产)` 在 **delete-deny 句柄**存在时失败（WinError 32），
-> 但 **`shutil.copyfile` 可成功覆盖**；小 store 可复现；mmap 已排除（gc 0）。
+> 结论先行（auditor 口径）：**机制已证**——`os.replace` 在 **delete-deny 句柄**存在时 WinError32；
+> 但 **`shutil.copyfile` 可成功**；小 store 可复现；mmap 已排除（gc 0）；**持有 PID/句柄/AV 日志未取到 → 疑 AV/索引**。
 > 今晚不再开窗；BC 顺延 **UKEMI 后（13:00+）**；修复=安全 copy fallback（sha256 校验+回滚）或指针切换。
 
 ## 1. 事实（4 次尝试，全部安全回滚）
@@ -20,8 +20,8 @@
 - **小 store 可复现**：KB 级 fake trio+anchor 走 `apply_merge` 同样 WinError32（非大文件特有；排除"5.7GB 大小"）。
 - **copyfile 可行**：同环境下 `shutil.copyfile(staging→生产)` **成功**（小 store 实测），`_copy_retry` 后进程可继续。
 - **真锁超时无部分写**：65s 持有测试 → replace 30×2s 耗尽 60.1s 抛错，目标 hash 不变；30s 持有→30.0s 成功。
-- 未能锁定具体 PID：本机无 handle.exe/openfiles 权限；psutil 不可用；已记录"无持有者证据不判死因"。
-  **结论：机制明确（delete-deny），持有者待用户协助（AV 排除目录）或指针切换绕开。**
+- **未能锁定具体 PID/句柄**：本机无 handle.exe/openfiles 权限；psutil 不可用；AV 扫描/隔离日志未取到。
+  **口径：机制已证（delete-deny），持有者未定位（疑 AV/索引）；明日窗前后再取证据；不写死根因。**
 
 ## 3. 修复方案（二选一，均需 R17 列签）
 ### A. 安全 copy fallback（已实现）

@@ -103,3 +103,9 @@ token_t = [side_feat_t (5N+391) ⊕ action_emb(a_t) ⊕ reward_t (标量)
 - **当前阻塞**：leet/episodes 仅 **1** 个 episode（滚动保留），不足 2 个无法划分 held-out → 未出数字（不伪造）。
 - ETA：episodes 累积后（明早）跑出 MLP/GRU/Transformer 三行 top1 + value MSE；正式 A/B 需 ≥数十 episodes。
 - 数据安全：只读 episodes；不占训练窗。
+
+## 17. mem_v1 对照 demo 数字（2026-10-26 21:02）
+- 数据：全 store 16 episodes，按 sides 维度取主流 813（7 局训练/验证按 episode 划分，6821/974 步；混合 schema 其余丢弃）。
+- 结果：**MLP 无历史 top1=0.196；GRU mem_v1 代理 top1=0.692**（next-macro，7 episodes 仅协议 demo，统计意义不足）。
+- 观察：序列/记忆显著优于无历史（与 mem_v1 方向一致）；Transformer 未跑（数据量不足）。
+- **数据解决**：已加 `TH123_EP_KEEP=300`（learner 消费后归档 `fleet/episodes_keep/<char>`，保留最近 300）→ 明日 09:30 起累积，10:00 前跑正式三行对照。

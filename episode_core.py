@@ -469,3 +469,35 @@ def read_version(snap_dir):
                   '请查该目录写入方(此后再出现不重复告警)'
                   % (vfile, _e), flush=True)
         return 0
+
+
+def archive_episode(ep_path, keep_dir, keep_n):
+    """消费后归档 episode(TH123_EP_KEEP): move 到 keep_dir 并保留最近 keep_n; 失败回退删除."""
+    import glob
+    import shutil
+    import time
+    try:
+        os.makedirs(keep_dir, exist_ok=True)
+        dst = os.path.join(keep_dir, os.path.basename(ep_path))
+        try:
+            os.replace(ep_path, dst)
+        except OSError:
+            shutil.copy2(ep_path, dst)
+            try:
+                os.remove(ep_path)
+            except OSError:
+                pass
+        files = sorted(glob.glob(os.path.join(keep_dir, 'ep_*.npz')),
+                       key=os.path.getmtime)
+        for old in files[:-int(keep_n)]:
+            try:
+                os.remove(old)
+            except OSError:
+                pass
+        return True
+    except Exception:
+        try:
+            os.remove(ep_path)
+        except OSError:
+            pass
+        return False
