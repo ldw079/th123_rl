@@ -741,6 +741,18 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 57. 10-26 下午/晚：加固窗 PASS + BC v3 部署连续 4 次失败→指针切换方案（R17-12 条件关闭）
+
+- **加固窗（15:00，≤35min）完成**：helper `--live` 实战（rc0/marker/锁释放/停后清零）、旧 watcher 引号漏杀修复+证据、**AR-9a 停 sup→新 sup 122.5s（control 未变）**、**AR-9b 锁抑制 60s 无恢复→解锁 73.5s**、**stall 620s→640.4s kill+spawn**（stall_restarts 0→1）、无自启、L3 clear 4/4、powercfg/ crashdump 如实记录；门禁 749/0/0。R17-12 现场 3 项 PASS，**条件关闭（24h 无新 P0，15:21 起计时）**；遗留 P1：计数精确性（后修：probe 排除 dummy/ctl==2+4/4 测试/749）、powercfg 语义（UIBUTTON=0=睡眠，未验证→如实）、crash dump 未实测。
+- **BC v3 部署（数据-only）4 次失败**：16:30 PermissionError WinError32（staging→生产 os.replace 被锁）→回滚；18:30 同因→回滚；18:39 未列签提前重试（流程违规记 decision）→回滚；20:30 30×2s 重试仍失败→回滚。**每次均安全回滚：生产 trio 行数/宽 429411/831、353622/866、329250/846、X/S/Y/meta hash=pre、journal rolled_back、staging 清、health PASS、停机各约 5–6min**。
+- **根因链**：①merge `load_trio` 自身 mmap 持有生产文件→replace 前释放+gc（已修）②大 staging（5.76GB）replace 仍被锁（30×2s 耗尽）；失败后 staging 立刻可移动→疑 merge 残留句柄或 AV 扫描窗口。**未定根因前不再盲试**。
+- **诊断计划（auditor 判据）**：handle.exe/psutil open_files/Restart Manager 找持有 PID+句柄；AV/Defender/360 日志；staging Move-Item 证据；1MB/10MB 小 store 最小复现→放大；区分代码自锁 vs AV。
+- **修复方向（auditor 条件可接受）**：**指针切换**——新 `bc_<char>_genN` 完整 trio+meta；junction/`TH123_BC_DIR` **原子切换**（不 replace 生产）；切换前无 reader+维护锁；失败切回旧指针；C1 manifest（gen/宽/hash/parent/device/status）+loader 强校验/禁静默 fallback；等价 new=old+509/行宽/Y/hash/bc_io；回滚演练；R17 预注册+列签。
+- **排期**：今晚不开窗；BC 新窗 **明日 UKEMI 后 13:00+**（诊断证据+指针 AC+预注册+无 reader/锁测试+等价/回滚齐→auditor 签→Lead 批）。
+- **其他**：H1 设计条件 PASS（CPU-only 延迟 T16 p99 9.85ms/T32 12.34ms；待 mem_v1 对照/env0 行为等价）；task-70 结项（全库覆盖率 73.92%/90.89%）；task-71–80 设计/材料推进；用户 laptop/GPU 讨论（台式 5070 Ti 16GB 为 Lead 推荐；笔记本 5080 16GB 为移动备选）；训练工作日 23:00 停。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
