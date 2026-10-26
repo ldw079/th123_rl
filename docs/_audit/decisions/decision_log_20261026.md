@@ -13,3 +13,12 @@
 | 2026-10-26 02:35 | 外部看门狗 v2（AR-1..9）：fleet_lock 租约锁/stale 接管、fleet_health 自动恢复(必需集排除 control/连续2次/限流1/10min/失败退避/二次锁+二次快照/单实例/告警去重)、WMI detached、无 kill；15:00 加固窗部署+AR-9 现场 | commit 本批；门禁 **744 PASS/0/0**（D:\temp\gate_ar_final.txt）；	ests/test_fleet_auto_recovery_v1.py 16 项（含真实 subprocess dummy fleet）；docs/_plans/fleet_autorecover_impl_20261026.md；15:00 窗脚本 D:\temp\hardening_window.ps1 | construction | 代码+测试就绪；未部署；15:00 部署/验收 |
 | 2026-10-26 02:55 | AR-2 增量（stale 锁 fleet_alert/CAS 原子创建/ttl 7200/owner 释放/窗 acquire 失败 abort） + AR-6（仅 sup 死→锁+孤儿 PID 二次校验清理+WMI 整队+复核；sup 活≥2 缺不整队） | commit 本批；门禁 744/0/0（`D:\temp\gate_ar6.txt`）；测试 34 项（AR-1..8 含真实 dummy 孤儿场景）；`docs/_plans/fleet_autorecover_impl_20261026.md` §5；窗脚本 rc/abort/ttl/owner 已改 | construction | 代码+测试就绪；15:00 部署/AR-9 现场 |
 | 2026-10-26 03:50 | P1 停滞阈值：learner=max(env, BATCH_WAIT_MAX+120)，bat 显式 `TH123_WATCHDOG_STALL_LEARNER_S=600`；stall 重启次数入 heartbeat.health；hardening 窗 stall 演练 suspend 620s | commit 本批；门禁 744/0/0（`D:\temp\gate_stall_p1.txt`）；`tests/test_fleet_watchdog_restart_v1.py` 11 项（动态阈值/actor 300） | construction | 代码+env 就绪；15:00 部署验收 |
+
+## 2026-10-26 追加裁定
+| 时间 | 决策 | 依据/理由 | 执行 |
+|---|---|---|---|
+| 11:00 | BC 锚 apply 用 **A：--no-dedupe**（保留 509 行） | X 去重会删 89% 补标签行；标签价值不以去重行数衡量 | 包§8/§3；10-27 10:30 部署 |
+| 11:32 | **task-74 暂缓**（人类数据只分析不训练） | 地基(task-70/71/72)稳前不盲目学习；BC 锚反复重构教训 | task-74 backlog；task-70 仍只读 |
+| 12:20 | H1 延迟 scope：CPU-only 优化后 T16 p99≤20ms/T32≤30ms | 本机 torch 2.14+cpu，无 GPU；KV cache 后 T16 9.85/T32 12.34ms | 原型继续；量化弃用 |
+| 12:14 | C 盘清理（4.55→13.33GB，仅旧 temp/pip cache） | 加固窗需要 C≥6GB | 已执行，未碰模型/BC/备份 |
+| 12:22 | UKEMI 样本门 70min/≥2帧档/受身≥25 | auditor 复核 | 明日 11:30 窗前 |
