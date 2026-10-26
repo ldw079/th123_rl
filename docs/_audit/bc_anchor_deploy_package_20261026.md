@@ -67,3 +67,20 @@ D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char suika --anchor 
 - `bc_io` 强校验（hash cache 关）→ 重启 learner → 验收 coverage/选择率/KL/ent/4 游戏；
 - 失败：journal 回滚+单次重启。
 
+## 8. 裁定 A：apply 不做 X 去重（Lead 11:00）
+- **决策**：保留全部锚行（168/169/172，合计 **509 行**，+0.05%），**不做 X 去重**；
+  显式 `--no-dedupe`；若用 `--dedupe` 必须显式并记录（本包不采用）。
+- **理由**：锚 X 与生产 X 重复时去重即删除补标签行（预览 168→19 等，丢 89%）；补标签价值不以去重后行数衡量。
+- **执行命令**（可直接复制）：
+```bat
+D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char reimu  --anchor "D:\temp\th123_anchor\bc_anchor3_reimu_<ts>.npz"  --no-dedupe --apply
+D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char marisa --anchor "D:\temp\th123_anchor\bc_anchor3_marisa_<ts>.npz" --no-dedupe --apply
+D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char suika  --anchor "D:\temp\th123_anchor\bc_anchor3_suika_<ts>.npz"  --no-dedupe --apply
+```
+- **dry-run 证据**：`D:\temp\th123_anchor\bc_anchor_v3_merge_dryrun_nodeplace.txt`
+  （三 char `dedupe:false`，merged=429579/353791/329422）。
+- **same-X 多 Y 冲突**：保留并登记；row-level 120/128/115 vs groups 25/24/24 口径见 §5；
+  歧义登记（默认不加权），若未来加权需单独设计。
+- **部署后监控（必须）**：①锚留出集/heldout 上 BC aux 命中/损失（标签是否学到）；
+  ②连段宏选择率/BH combo/whiff；③KL/ent 不退化；④冲突样本权重/歧义说明（默认登记不加权）；
+  异常→备份回滚+单次重启。
