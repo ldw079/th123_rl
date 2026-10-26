@@ -15,11 +15,11 @@
 - 数据：`D:\temp\th123_anchor\bc_anchor3_{reimu,marisa,suika}_*.npz`（509 行）。
 - dry-run：`D:\temp\th123_anchor\bc_anchor_v3_merge_dryrun_nodeplace.txt`（dedupe:false，merged 429579/353791/329422）。
 
-## 3. 窗脚本
-- `D:\temp\bc_deploy_window.ps1`（parse 待验）：helper `--live` 停 → 维护锁 → 备份硬链 → 3×
+## 3. 窗脚本（v2，parse OK）
+- `D:\temp\bc_deploy_window.ps1`：**先维护锁** → helper `--live --assume-locked` 停 → 备份（4 文件）+ **pre-deploy 全 hash** → 3×
   `--apply --no-dedupe` → `bc_deploy_verify.py`（行数/宽度/meta）→ WMI 重启 → health PASS →
-  learner 日志 BC 加载证据 → release；失败恢复备份。
-- 回滚：备份 `bc_backup_deploy_20261027` + 单次 WMI 重启。
+  learner 日志 BC 加载证据 → release；失败：恢复备份 + WMI 重启 + health 复核 + rollback hash 记录。
+- 回滚：备份 `bc_backup_deploy_20261027`（4 文件）+ journal 状态核 + WMI 重启 + health；失败升级。
 
 ## 4. 待 auditor 列签项
 1. 预注册是否符合 R17（单变量/样本门/停止规则/回滚/frozen fixture）；

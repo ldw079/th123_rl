@@ -83,6 +83,12 @@ def test_live_required():
                         '--help'], capture_output=True, text=True,
                        timeout=60)
     check('--live 参数存在', '--live' in (h.stdout or ''))
+    r2 = subprocess.run([sys.executable, '-X', 'utf8',
+                         os.path.join(ROOT, 'tools', 'train_stop_clean.py'),
+                         '--live', '--assume-locked'],
+                        capture_output=True, text=True, timeout=60)
+    check('--assume-locked 无锁→拒绝(exit6)', r2.returncode == 6,
+          'rc=%d' % r2.returncode)
 
 
 def test_dry_run_no_kill():

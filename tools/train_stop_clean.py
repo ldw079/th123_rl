@@ -123,6 +123,8 @@ def main():
     ap.add_argument('--reason', default='manual clean stop')
     ap.add_argument('--live', action='store_true',
                     help='真停（默认拒绝：无 --live 仅打印/拒绝）')
+    ap.add_argument('--assume-locked', action='store_true',
+                    help='调用方已持维护锁（跳过 acquire/release，仅校验）')
     a = ap.parse_args()
     if TEST_DIR and not TEST_MARKER:
         print('[stop_clean] TEST_DIR set but TEST_MARKER missing — abort')
@@ -139,17 +141,25 @@ def main():
     if a.dry_run:
         print('[stop_clean] dry-run — no action')
         return 0
-    # 0) maintenance lock (test mode: temp path)
+    # 0) maintenance lock (test mode: temp path; assume-locked: caller holds)
+    _need_release = False
     try:
         import fleet_lock
         if TEST_DIR:
             fleet_lock.LOCK = os.path.join(TEST_DIR,
                                            'fleet_maintenance.lock')
-        _lk = fleet_lock.acquire('train_stop_clean', a.reason, ttl=1200)
-        print('[stop_clean] lock', _lk[1])
-        if not _lk[0] and not TEST_DIR:
-            print('[stop_clean] live stop blocked by maintenance lock — abort')
-            return 4
+        if a.assume_locked and not TEST_DIR:
+            if not fleet_lock.status().get('active'):
+                print('[stop_clean] assume-locked but no active lock — abort')
+                return 6
+            print('[stop_clean] using caller-held maintenance lock')
+        else:
+            _lk = fleet_lock.acquire('train_stop_clean', a.reason, ttl=1200)
+            print('[stop_clean] lock', _lk[1])
+            _need_release = bool(_lk[0])
+            if not _lk[0] and not TEST_DIR:
+                print('[stop_clean] live stop blocked by maintenance lock — abort')
+                return 4
     except Exception as e:
         print('[stop_clean] lock exception', repr(e))
         if not TEST_DIR:
@@ -193,11 +203,12 @@ def main():
             json.dump(entry, f, ensure_ascii=False)
     except OSError:
         pass
-    try:
-        import fleet_lock
-        fleet_lock.release(owner='train_stop_clean', force=True)
-    except Exception:
-        pass
+    if _need_release:
+        try:
+            import fleet_lock
+            fleet_lock.release(owner='train_stop_clean', force=True)
+        except Exception:
+            pass
     log('done left_main=%s left_games=%s' % (left_main, left_games))
     print('[stop_clean] left main=%s games=%s' % (left_main, left_games))
     return 0 if (not left_main and (a.keep_control or not left_games)) else 1
