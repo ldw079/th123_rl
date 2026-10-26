@@ -33,4 +33,8 @@
 - 失败：`os.replace` staging 被占用 PermissionError WinError 32（16:26 与 18:30 两次）；**真根因=merge 自身 `mmap_mode` 持有生产 X/S/Y**；已回滚+WMI 重启 health PASS，停机各约 5min。
 - 修复：merge `_replace_retry` 10×2s；窗脚本停后等 5s+读者检查 abort；`test_bc_replace_retry` 2/2；门禁 **749/0/0**。
 - 数据未变：trio 行数/宽/X/S/Y/meta hash == pre；journal rolled_back；staging 清。
-- 重试：修复后 **立即（18:40）**，最迟 19:30；流程/回滚不变。
+- 重试：**2026-10-26 19:30**（19:20 前列签）；replace 失败时 copy fallback；流程/回滚不变。
+
+## 6. copy fallback 安全（19:00）
+- replace 失败→`_copy_retry` copy 覆盖生产；每个文件 copy 后 sha256(staging)==sha256(生产) 校验；不一致→回滚；journal 记 fallback+hash。
+- 256MB 模拟占用释放测试 PASS；失败 finally 恢复备份+WMI 重启+health；门禁 **749/0/0**（19:02 `gate_bc_retry3.txt`）。

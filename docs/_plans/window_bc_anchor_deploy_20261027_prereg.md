@@ -62,5 +62,8 @@
   ③staging 残留已清（保留 deploy 备份供重试）；④`tests/test_bc_replace_retry_v1.py` 2/2 PASS（占用释放→成功/持续占用→抛错）。
 - **数据未变（核验）**：生产 trio 行数/宽 = **429411/831、353622/866、329250/846**（=包 §1 预部署值）；
   X/S/Y/meta sha256 与回滚日志 pre 值逐项一致；journal state=rolled_back；未改任何生产 BC 行。
-- **重试窗**：18:30 窗因 mmap 根因再次失败；修复+回归测试后 **立即重试（18:40）**，最终截止 19:30；流程同 §7（锁→helper --assume-locked→等 5s/读者→备份+pre hash→apply×3→verify→journal verified→WMI→health→24h 监控）；失败回滚+重启。
+- **重试窗**：18:30/18:40 两次仍失败（大 staging replace）；已加 **copy fallback**；**2026-10-26 19:30 重试**（19:20 前 auditor 列签）；流程同 §7（锁→helper --assume-locked→等 5s/读者→备份+pre hash→apply×3→verify→journal verified→WMI→health→24h 监控）；失败回滚+重启。
 - 门禁：**749/0/0**（C15 新增 `test_bc_replace_retry_v1`；gate 文件/时间以最新实测为准）。
+
+- **copy fallback 安全（2026-10-26 19:00 补齐）**：`_copy_retry` 非原子 copy → 每个文件 copy 后 **sha256(staging)==sha256(生产)** 校验；不一致→异常→回滚；journal 记 `replace_fallback` + `replace_fallback_hashes`；256MB 模拟占用释放测试 PASS；失败路径 finally 恢复备份+WMI 重启+health。
+- **流程违规记录**：18:39 未列签提前重试（虽安全回滚）已记 decision log；19:30 严格按列签执行。
