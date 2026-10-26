@@ -62,3 +62,14 @@ token_t = [side_feat_t (5N+391) ⊕ action_emb(a_t) ⊕ reward_t (标量)
 - 风险：序列模型过拟合/延迟超预算/与 BC 标签错位/显存；→ 限参数量、缓存序列、W4 一次迁移载体；
 - 反债：不建一次性旁路；env 默认 0；旧模型可回退；序列数据格式随 episode schema v4 统一。
 - R15：延迟/预测/加载行为测试；A/B 前离线对比（独立真值=held-out episode）。
+
+## 11. 延迟基准实测（2026-10-26，原型）
+- 模型：d_model128/4层/4头/vocab128，params **834,305（<5M）**；batch1；含因果 mask；CPU torch 2 线程。
+- 结果（	ools/seq_transformer_bench.py → D:\temp\scratch\h1_seq_bench_20261026.json）：
+  | device | T | p50 | p99 |
+  |---|---|---|---|
+  | cpu | 16 | 7.0ms | 90.6ms |
+  | cpu | 32 | 12.8ms | 62.9ms |
+
+- 结论：**T=16 达标（p50 7.0ms，5–10ms 目标内）**；T=32 p50 12.8ms 略超，需 d_model/层数压缩或缓存 mask；
+  GPU 未在基准中启用（torch.cuda 不可用/未测），后续在训练机复测。
