@@ -58,7 +58,7 @@ def _copy_retry(src, dst, attempts=10, delay=2.0):
             _t.sleep(delay)
     raise RuntimeError('copy failed after %d retries: %r' % (attempts, last))
 
-def _replace_retry(src, dst, attempts=10, delay=2.0):
+def _replace_retry(src, dst, attempts=30, delay=2.0):
     """Windows: 目标/源被占用(WinError 32)→重试+退避; 仍失败→抛错由回滚处理."""
     import time as _t
     last = None
@@ -199,13 +199,10 @@ def apply_merge(char, anchor, dedupe=True):
             for suf in ('_X.npy', '_S.npy', '_Y.npy', '_meta.json'):
                 _replace_retry(paths[suf], base + suf)
         except RuntimeError as e:
-            # 2026-10-26: 大 staging replace 在 Windows 反复 WinError32 → 回退 copy
-            print('[merge] replace fallback to copy:', repr(e))
-            journal['replace_fallback'] = repr(e)[:300]
-            journal['replace_fallback_hashes'] = {}
-            for suf in ('_X.npy', '_S.npy', '_Y.npy', '_meta.json'):
-                _copy_retry(paths[suf], base + suf)
-                journal['replace_fallback_hashes'][suf] = _sha_file(base + suf)
+            # 2026-10-26 19:07: copy fallback 非原子且持久锁风险 → **禁用**;
+            # 延长 replace 重试(30x2s)覆盖扫描窗口; 仍失败→抛错走 finally 回滚。
+            journal['replace_fallback'] = 'disabled: %r' % (e,)
+            raise
         journal['state'] = 'applied'
         io.open(JOURNAL, 'w', encoding='utf-8').write(
             json.dumps(journal, ensure_ascii=False, indent=1))

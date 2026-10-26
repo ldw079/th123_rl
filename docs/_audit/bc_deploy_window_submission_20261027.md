@@ -38,3 +38,9 @@
 ## 6. copy fallback 安全（19:00）
 - replace 失败→`_copy_retry` copy 覆盖生产；每个文件 copy 后 sha256(staging)==sha256(生产) 校验；不一致→回滚；journal 记 fallback+hash。
 - 256MB 模拟占用释放测试 PASS；失败 finally 恢复备份+WMI 重启+health；门禁 **749/0/0**（19:02 `gate_bc_retry3.txt`）。
+
+## 7. 20:30 前证据（20:00）
+- gate **749/0/0**（gate_bc_retry4.txt，19:59）；retry **30×2s**；copy fallback **禁用**。
+- **65s 持有测试 PASS**：30×2s 耗尽 60.1s 抛错、目标 hash 不变（无部分写）；30s 持有→30.0s 成功；`bc_lock65_evidence.txt`。
+- 60s 测试不入 C15 原因：close 与最后重试同刻竞态假红；独立脚本 65s 错开为强证据。
+- 数据未变：trio 行/宽/hash=pre；20:30 重试，流程/回滚不变。
