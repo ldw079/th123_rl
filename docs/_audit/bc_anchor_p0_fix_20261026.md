@@ -85,3 +85,18 @@
 - marisa: 353622+169=353791（S866）
 - suika: 329250+172=329422（S846）
 - 三 char 宽度/Y 校验通过；--apply 未执行（待 17:00 窗/复审后）。
+
+## 7. 部署包登记（2026-10-26 10:05；Lead 裁定）
+- **缺行宏（target 宏，严格 combo 判据下无合格锚）**：
+  - reimu：原子·空链、择·投、压起身·空、压起身·穿
+  - marisa：原子·确认5A、择·投、压起身·穿
+  - suika：原子·确认5A、压起身·穿
+- **低配额（<5 行）**：reimu 原子·确认5A:4；marisa 原子·空链:1；suika TM·空连终结:2、原子·空链:1
+- **same-X 多 Y 冲突**：**保留并登记，不强删**（Lead 裁定）；X 去重照常（merge 时生产 X 去重）；
+  manifest 记录冲突样本与理由（见 `D:\temp\th123_anchor\conflicts_report_20261026.json`）。
+  冲突组数：reimu 25 / marisa 24 / suika 24（按 npz 全表口径 120/128/115 为行级计数差异；
+  以报告 JSON 为准）。
+- **manifest 完整字段**：generator/gen_cmd/verify_cmd/target_leak_check/hashes(X/S/Y)/
+  seed_base/heldout_consistency/conflicts/per_macro（见 `manifest3_*.json`）。
+- **部署方式**：`tools/bc_anchor_merge.py --char X --anchor <npz3> --apply`（dry-run 已过：
+  429411+168 / 353622+169 / 329250+172；宽 X14400/S831/866/846）。

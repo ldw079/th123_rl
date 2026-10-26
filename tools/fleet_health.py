@@ -57,18 +57,29 @@ def _ps_json(script):
 
 
 def _snapshot_script(marker=None):
+    """P1: 精确脚本路径+参数模式; 排除 -c/dummy/ar6dummy 测试进程."""
     cond = ''
     if marker:
-        cond = (" -and $_.CommandLine -match '%s'" % marker.replace("'", ""))
+        safe = ''.join(c for c in marker if c.isalnum() or c == '_')
+        cond = (" -and $_.CommandLine -match '%s'" % safe)
+    if marker:
+        excl = ''          # 测试模式: dummy 由 marker 精确圈定
+    else:
+        excl = (" -notmatch '-c ' -and $_.CommandLine -notmatch "
+                "'dummy_fleet|ar6dummy|stopclean_marker'")
     return (
-        "$py=Get-CimInstance Win32_Process | ? {$_.Name -eq 'python.exe'}; "
+        "$py=Get-CimInstance Win32_Process | ? {$_.Name -eq 'python.exe'"
+        + excl + "}; "
         "$g=Get-CimInstance Win32_Process | ? {$_.Name -eq 'th123.exe'}; "
         "[pscustomobject]@{"
-        "sup=@($py|?{$_.CommandLine -match 'fleet_supervisor'%s}).Count;"
-        "learners=@($py|?{$_.CommandLine -match 'learner_hub' -and "
-        "$_.CommandLine -notmatch 'th123_rl_control'%s}).Count;"
-        "actors=@($py|?{$_.CommandLine -match 'actor_worker' -and "
-        "$_.CommandLine -notmatch 'th123_rl_control'%s}).Count;"
+        "sup=@($py|?{$_.CommandLine -match "
+        "'fleet_supervisor[.]py --actors'%s}).Count;"
+        "learners=@($py|?{$_.CommandLine -match "
+        "'learner_hub[.]py --char ' -and $_.CommandLine -notmatch "
+        "'th123_rl_control'%s}).Count;"
+        "actors=@($py|?{$_.CommandLine -match "
+        "'actor_worker[.]py --char ' -and $_.CommandLine -notmatch "
+        "'th123_rl_control'%s}).Count;"
         "ctl=@($py|?{$_.CommandLine -match 'th123_rl_control'}).Count;"
         "games=@($g%s).Count" "} | ConvertTo-Json -Compress"
         % (cond, cond, cond, cond))
@@ -94,6 +105,8 @@ def check(snap=None, hb_age=None):
         got = int(s.get(k, -1))
         if got < v:
             bad.append('%s %d<%d' % (k, got, v))
+        elif got > v:
+            bad.append('%s %d>%d(dup/extra)' % (k, got, v))
     if hb_age > 120:
         bad.append('hb_age %.0fs>120s' % hb_age)
     return (not bad), {'snap': s, 'hb_age': round(hb_age, 1), 'bad': bad}

@@ -472,6 +472,24 @@ def _write_machine_alert(reason, machine, family, aux, top=None):
     return rec
 
 
+def l3_clear_alert_if_recovered(now=None):
+    """L3 告警清除: 负载恢复(m_hi/m_crit 均 0)后清 machine_alert + 日志.
+
+    P1(2026-10-26): L3 只写不清 → 长期红灯/残留误导；只清 machine_alert，
+    不碰 fleet_alert（fleet 健康域）。
+    """
+    if _L3_STATE.get('m_hi', 0) or _L3_STATE.get('m_crit', 0):
+        return False
+    if not os.path.exists(MACHINE_ALERT):
+        return False
+    try:
+        os.remove(MACHINE_ALERT)
+        log('L3 负载恢复 — 清除 %s' % os.path.basename(MACHINE_ALERT))
+        return True
+    except OSError:
+        return False
+
+
 def l3_check(machine, family, now=None):
     """L3: machine>85 连续3窗 且 family<75 → 告警; >95 连续2窗 → 立即告警.
 
@@ -495,6 +513,7 @@ def l3_check(machine, family, now=None):
     elif _L3_STATE['m_hi'] >= 3:
         dec = 'alert'
     if dec is None:
+        l3_clear_alert_if_recovered(now=now)
         return None
     if now - _L3_STATE['last_alert'] < 600:
         return dec

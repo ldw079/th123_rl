@@ -216,9 +216,12 @@ def test_AR8_real_dummy_fleet():
                 pass
     except Exception:
         pass
-    procs = {'sup': [_spawn_dummy('fleet_supervisor')],
-             'learners': [_spawn_dummy('learner_hub') for _ in range(3)],
-             'actors': [_spawn_dummy('actor_worker') for _ in range(3)]}
+    procs = {
+        'sup': [_spawn_dummy('fleet_supervisor.py --actors 3')],
+        'learners': [_spawn_dummy('learner_hub.py --char reimu')
+                     for _ in range(3)],
+        'actors': [_spawn_dummy('actor_worker.py --char reimu --actor 0')
+                   for _ in range(3)]}
     try:
         time.sleep(1.0)
         snap = FH.snapshot(MARKER)
