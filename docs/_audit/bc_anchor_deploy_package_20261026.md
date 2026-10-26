@@ -11,7 +11,7 @@
 
 ## 2. 生成/复验命令（可直接执行）
 
-> manifest 内 16 位 hash 为采集期记录；**部署以本包 §1 的完整 sha256 为准**。
+> **manifest 权威声明**：以本包 §2（命令/路径）与 §1（完整 sha256）为权威；manifest JSON 内 16 位 hash 与占位 gen_cmd 由本包覆盖。
 
 ### reimu（168 行；seed_base=初始 collect --seeds 4；topup 追加 seeds 4..6 （--max-extra-seeds 3~6））
 ```bat
@@ -34,14 +34,11 @@ D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char suika --anchor 
 ```
 - manifest: `D:\temp\th123_anchor\manifest3_suika_20261026_003624.json`（sha256 见上表）
 
-## 3. dedupe 预览（**已否决**；仅反例记录，apply 使用 `--no-dedupe`）
-| char | 生产行 | 锚输入 | 保留 | 去重丢弃 | 合并后 |
-|---|---|---|---|---|---|
-| reimu | 429411 | 168 | 19 | 149 | 429430 |
-| marisa | 353622 | 169 | 15 | 154 | 353637 |
-| suika | 329250 | 172 | 33 | 139 | 329283 |
-
-> 旧 dry-run 的 `dedupe:false` 输出为**预览档**（未对生产 X 去重）；实际 apply 使用上表去重后行数。
+## 3. 被否决的替代方案（仅预览，不采用）
+- 预览（对生产 X 去重）：reimu 168→19、marisa 169→15、suika 172→33（丢弃 149/154/139，约 89%）。
+- **裁定 A：该方案被否决**（去重会删掉补标签行；补标签价值不以去重后行数衡量）。
+- **实际 apply = `--apply --no-dedupe`，不丢行（保留 509 行）**，合并后 429579/353791/329422。
+- 本预览仅作反例记录，不代表部署行数。
 
 ## 4. 独立复验（盲放/留出）
 | char | 同位置盲放(60) | 留出 | QC 文件 |
@@ -75,9 +72,9 @@ D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char suika --anchor 
 - **理由**：锚 X 与生产 X 重复时去重即删除补标签行（预览 168→19 等，丢 89%）；补标签价值不以去重后行数衡量。
 - **执行命令**（可直接复制）：
 ```bat
-D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char reimu  --anchor "D:\temp\th123_anchor\bc_anchor3_reimu_<ts>.npz"  --no-dedupe --apply
-D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char marisa --anchor "D:\temp\th123_anchor\bc_anchor3_marisa_<ts>.npz" --no-dedupe --apply
-D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char suika  --anchor "D:\temp\th123_anchor\bc_anchor3_suika_<ts>.npz"  --no-dedupe --apply
+D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char reimu  --anchor "D:\temp\th123_anchor\bc_anchor3_bc_anchor3_reimu_20261026_003321.npz"  --no-dedupe --apply
+D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char marisa --anchor "D:\temp\th123_anchor\bc_anchor3_bc_anchor3_marisa_20261026_003459.npz" --no-dedupe --apply
+D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char suika  --anchor "D:\temp\th123_anchor\bc_anchor3_bc_anchor3_suika_20261026_003624.npz"  --no-dedupe --apply
 ```
 - **dry-run 证据**：`D:\temp\th123_anchor\bc_anchor_v3_merge_dryrun_nodeplace.txt`
   （三 char `dedupe:false`，merged=429579/353791/329422）。
