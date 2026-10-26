@@ -85,12 +85,20 @@ def _snapshot_script(marker=None):
         % (cond, cond, cond, cond))
 
 
-def snapshot(marker=None):
-    out = _ps_json(_snapshot_script(marker))
-    try:
-        return json.loads(out)
-    except Exception:
-        return {}
+def snapshot(marker=None, retries=3, delay=1.0):
+    """WMI 快照: 失败/空→重试; 仍失败→None(unknown, 不当作缺员)."""
+    for i in range(max(1, retries)):
+        out = _ps_json(_snapshot_script(marker))
+        if out:
+            try:
+                d = json.loads(out)
+                if isinstance(d, dict) and d:
+                    return d
+            except Exception:
+                pass
+        if i + 1 < retries:
+            time.sleep(delay)
+    return None
 
 
 def check(snap=None, hb_age=None):
@@ -100,6 +108,9 @@ def check(snap=None, hb_age=None):
             hb_age = time.time() - os.path.getmtime(HB)
         except OSError:
             hb_age = 1e9
+    if s is None:
+        return False, {'snap': {}, 'hb_age': round(hb_age, 1),
+                       'bad': ['unknown(snapshot failed)'], 'unknown': True}
     bad = []
     for k, v in REQUIRED.items():
         got = int(s.get(k, -1))
@@ -122,7 +133,9 @@ def missing_count(snap):
 
 
 def critical_snapshot(snap):
-    """关键缺员: supervisor 缺失 或 必需进程缺失数≥2（control 不计）."""
+    """关键缺员: supervisor 缺失 或 必需进程缺失数≥2；unknown→不判缺员."""
+    if not isinstance(snap, dict) or not snap:
+        return False
     return int(snap.get('sup', -1)) < 1 or missing_count(snap) >= 2
 
 
@@ -379,6 +392,11 @@ def loop_tick(state, now=None, snap_fn=None, launch_fn=None, auto_recover=True, 
         write_alert('fleet_health: ' + '; '.join(d['bad']))
         state['alert_sig'] = sig
         acts.append('alert_written')
+    if d.get('unknown'):
+        acts.append('unknown_snapshot')
+        _log('snapshot unknown — 不计缺员, 不触发 AR')
+        state['critical_since'] = 0
+        return ok, d, acts
     lst = fleet_lock.status()
     if lst.get('active'):
         acts.append('maintenance')

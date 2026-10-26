@@ -97,3 +97,9 @@ token_t = [side_feat_t (5N+391) ⊕ action_emb(a_t) ⊕ reward_t (标量)
 - H1 验收权威=**user**（行为是否更"像人"、操作是否改善）；离线指标/延迟仅初判；
 - 验收包：回放片段 + 延迟/胜率/行为对比 + 无法独立判断点 + yes/no 问题；
 - H1 不进 A/B 窗前不要求用户验收；进窗前给 Lead/auditor 材料。
+
+## 16. mem_v1 held-out 对照（2026-10-26 20:58 状态）
+- 协议已实现：	ools/h1_mem_compare.py（episode 级 held-out，MLP 无历史 vs GRU mem_v1 代理，next-macro top1）。
+- **当前阻塞**：leet/episodes 仅 **1** 个 episode（滚动保留），不足 2 个无法划分 held-out → 未出数字（不伪造）。
+- ETA：episodes 累积后（明早）跑出 MLP/GRU/Transformer 三行 top1 + value MSE；正式 A/B 需 ≥数十 episodes。
+- 数据安全：只读 episodes；不占训练窗。
