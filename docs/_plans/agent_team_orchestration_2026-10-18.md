@@ -678,6 +678,16 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 52. 10-26 凌晨：主臂两次全灭事故 + 预防体系（AR-1..9/AR-6 + WMI 唯一入口）
+
+- **事故 A（00:43:10，主臂全灭 ~32min）**：根因=23:30 监督修复窗用 `Start-Process` 启动 supervisor，进程成为工具后台作业子孙；**00:43:07 施工回合结束 harness 清理后台作业→进程树级联杀**；control 臂因 WMI 启动（父已脱离）存活=铁证；非 supervisor 自崩（console 无 Traceback）、无电源事件。恢复 01:15:12（WMI）。
+- **事故 B（09:40:18，用户主动关机；非硬件）**：用户主动关机；但关机**非干净完成**（09:40 发起→09:48:06 开机，约 8min；6008/41 仅证非干净关机，不作硬件证据）；训练 09:53 恢复。**用户裁定 A：不自动恢复训练**（重启后等指令；helper 提供服务）。
+- **预防体系（P0）**：①`tools/fleet_launch_wmi.py` 唯一入口（WMI detached+父链检查）+ 静态门禁（D:\temp\*.ps1 禁 Start-Process+fleet）②`tools/fleet_lock.py` 租约锁（owner/pid/TTL/原子 O_EXCL/stale 告警/owner release）+ 窗脚本 lock 失败 abort/ttl 7200/健康后释放 ③心跳扩展 `fleet_heartbeat.health`（sup/learners/actors/ctl/games/max_log_age/bad）+ `fleet_alert`（fleet 健康，与 `machine_alert` 整机负载分离）+ `stall_restarts` ④外部 watcher `fleet_health.py --loop 60`（WMI detached），15:00 切 `--auto-recover`：关键缺员连续 2 检查→WMI 恢复、限 1/10min、失败退避、二次锁+二次快照、**AR-6 仅 sup 死/子活→持锁清理 main 孤儿（父链/cmdline 校验、排除 control、禁 kill-by-name）→WMI 整队→health→release，`killed==old` 才 launch**；sup 活/≥2 缺→只告警不整队 ⑤看门狗阈值 learner `max(TH123_WATCHDOG_STALL_LEARNER_S=600, BATCH_WAIT_MAX+120)`，actor 300（修复 suika learner 被 300s 反复误杀）⑥Fleet 健康告警/machine_alert 清除责任（L3 clear-on-recover 15:00 补）。
+- **测试/门禁**：auto-recovery 39 项、watchdog 16 项、heartbeat 10 项、window-launch-policy；mutation 266（AR-6 实测红）；门禁 744/0/0。审计判据：`fleet_autorecover_design_audit`/`fleet_wipe_audit`；15:00 现场按 AR-1..9+AR-6+stall 620s 正式判定；**R17-12 闭环前 W4/迁移冻结**。
+- **当前（10:10）**：训练 health PASS（sup1/learners4=3主+control/actors3/ctl2/games4，hb fresh）；HEAD=origin=`4eae3cb`；D 77GB。今日：11:00 UKEMI 预注册判（11:30 窗，60min 固定窗）、12:00 BC v3 最终审计（P0 PASS、P1 登记豁免：缺行/低配额/same-X 跨Y冲突保留登记）、15:00 加固窗（helper 实战停+AR 现场+powercfg/crash dump/无自启）、BC 部署 10-27 10:30。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
