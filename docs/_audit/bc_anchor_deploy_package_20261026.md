@@ -62,7 +62,7 @@ D:\temp\pyenv\python.exe -X utf8 tools\bc_anchor_merge.py --char suika --anchor 
 | suika | 原子·确认5A、压起身·穿 | TM·空连终结:2、原子·空链:1 |
 
 ## 7. 部署/回滚
-- 备份硬链 `bc_backup_anchor_<char>_<ts>`；apply 原子/journal/失败回滚；
+- 备份硬链（merge 自动创建带时间戳备份目录，路径见 merge 日志）；apply 原子/journal/失败回滚；
 - `bc_io` 强校验（hash cache 关）→ 重启 learner → 验收 coverage/选择率/KL/ent/4 游戏；
 - 失败：journal 回滚+单次重启。
 
