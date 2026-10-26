@@ -27,3 +27,8 @@
 
 | 15:33 | P1-2 powercfg：**UIBUTTON_ACTION=0 语义=睡眠（非"不动作"）**；LID/PBUTTON 隐藏项 setac/dc 命令 rc=0 但 query 无输出；**"不动作"值/GUID 待查、未验证**；不得写"已置不动作" | 用户要求按钮/LID=0 | 已执行+记录 |
 | 15:33 | P1-3 crash dump：`crashdump_config.py --apply` 非管理员 PermissionError；当前 DedicatedDumpFile/DumpFileSize=null、pagefile 仅 D:16GB → kernel dump 不可配置；**未实测**（不伪造） | 15:00 窗证据要求 | 如实记录 |
+
+| 21:29 | BC 指针窗优化：gen2 提前构建（训练中），窗内仅 env 切换+WMI（≤10min） | 避免窗内 20GB copy/replace 锁风险 | c_gen_build/verify+TH123_BC_DIR；明日 13:00+ |
+| 21:17 | 清理失败窗 staging（21.8GB），保留 backup_deploy 18.9GB；D 58.87GB | 磁盘压力 | 已执行；生产 trio 未动 |
+| 21:03 | 加 TH123_EP_KEEP=300（learner 归档 episodes_keep） | H1/H2/task-74 需要数据 | 已实现+7项测试 |
+| 21:26 | H1 三行 demo：MLP0.196/GRU0.692/TT0.644（7ep，仅协议，不下结论） | 数据量不足 | 明日 retention+oracle 正式三行 |
