@@ -109,3 +109,8 @@ token_t = [side_feat_t (5N+391) ⊕ action_emb(a_t) ⊕ reward_t (标量)
 - 结果：**MLP 无历史 top1=0.196；GRU mem_v1 代理 top1=0.692**（next-macro，7 episodes 仅协议 demo，统计意义不足）。
 - 观察：序列/记忆显著优于无历史（与 mem_v1 方向一致）；Transformer 未跑（数据量不足）。
 - **数据解决**：已加 `TH123_EP_KEEP=300`（learner 消费后归档 `fleet/episodes_keep/<char>`，保留最近 300）→ 明日 09:30 起累积，10:00 前跑正式三行对照。
+
+## 18. 三行 demo（2026-10-26 21:26，仅协议）
+- 数据：7 episodes（主流 D813，按 episode 20% held-out）。
+- next-macro top1：**MLP 0.196 / GRU mem_v1 代理 0.692 / Transformer(T=16) 0.644**。
+- 结论：demo 数据量小，**不据此判优劣**；明日 retention 300 + oracle 代理后正式三行（同划分/种子/预算）；若 Transformer 显著低于 GRU→按 Lead 指示不排 A/B，转 H2/MLP 长历史。
