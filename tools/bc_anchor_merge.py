@@ -28,6 +28,23 @@ STORE = r'D:\temp\th123_models'
 JOURNAL = os.path.join(STORE, 'bc_anchor_journal.json')
 
 
+
+def _replace_retry(src, dst, attempts=10, delay=2.0):
+    """Windows: 目标/源被占用(WinError 32)→重试+退避; 仍失败→抛错由回滚处理."""
+    import time as _t
+    last = None
+    for i in range(attempts):
+        try:
+            os.replace(src, dst)
+            return True
+        except PermissionError as e:
+            last = e
+            print('[merge] replace retry %d/%d %s -> %s: %r'
+                  % (i + 1, attempts, os.path.basename(src),
+                     os.path.basename(dst), e))
+            _t.sleep(delay)
+    raise RuntimeError('replace failed after %d retries: %r' % (attempts, last))
+
 def sha(a):
     return bc_io._arr_sha256(a)
 
@@ -145,7 +162,7 @@ def apply_merge(char, anchor, dedupe=True):
     # 原子替换(逐文件 os.replace; journal 可回滚)
     try:
         for suf in ('_X.npy', '_S.npy', '_Y.npy', '_meta.json'):
-            os.replace(paths[suf], base + suf)
+            _replace_retry(paths[suf], base + suf)
         journal['state'] = 'applied'
         io.open(JOURNAL, 'w', encoding='utf-8').write(
             json.dumps(journal, ensure_ascii=False, indent=1))

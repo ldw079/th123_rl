@@ -27,3 +27,10 @@
 3. 窗脚本顺序/回滚是否覆盖失败路径；
 4. 部署后 24h 指标采集与独立复算安排；
 5. 通过后 Lead 批 → 10-27 10:30 窗。
+
+
+## 5. 16:26 失败/修复/重试（更新）
+- 失败：`os.replace` staging 被占用 PermissionError WinError 32；已回滚+WMI 重启 health PASS（16:29:50），停机约 5min。
+- 修复：merge `_replace_retry` 10×2s；窗脚本停后等 5s+读者检查 abort；`test_bc_replace_retry` 2/2；门禁 **749/0/0**。
+- 数据未变：trio 行数/宽/X/S/Y/meta hash == pre；journal rolled_back；staging 清。
+- 重试：**18:30**（auditor 列签 PASS 后）或 **19:30**；流程/回滚不变。

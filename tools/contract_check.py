@@ -1843,6 +1843,8 @@ _BEHAVIOR_TESTS = [
      "task-58: 执行器命中记忆窗(frozen帧伤害/confirm/branch/等价)14项"),
     ("test_train_stop_clean_v1.py",
      "R17-12 P1: 干净停机 helper(真实 dummy main/control/watcher, 锁/标记/无残留) 7项"),
+    ("test_bc_replace_retry_v1.py",
+     "R17-12 P1: BC 部署 os.replace 占用重试/持续占用回滚 2项"),
     ("test_fleet_probe_exact_v1.py",
      "R17-12 P1: health probe 精确匹配/唯一性(dummy不计数/超数报警) 3项"),
     ("test_l3_alert_clear_v1.py",

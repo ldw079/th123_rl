@@ -47,3 +47,16 @@
 - 行数/宽度/hash/门禁/health 全 PASS；
 - 部署后 24h 指标表完整记录并判定（保留/回滚，有证据）；
 - auditor 独立复算窗前后数据（不采用施工自报聚合）；回滚演练可执行记录。
+
+
+## 8. 首次尝试失败与重试（2026-10-26 16:26；R17 记录）
+- **失败**：16:26:40 `bc_anchor_merge.apply_merge` 对 staging `bc_reimu_X.npy → bc_reimu_X.npy`
+  `os.replace` **PermissionError [WinError 32]**（staging 被另一程序占用，疑杀软/索引）；merge 失败→finally 回滚+WMI 重启；
+  **16:29:50 health PASS**（sup1/3L/3A/ctl2/games4），停机 16:24:37–16:29:50。
+- **修复**：①`tools/bc_anchor_merge.py` 新增 `_replace_retry`（10×2s 退避，仍失败→抛错走回滚）；
+  ②窗脚本 helper 停后 **等 5s + 确认无 main/control/watcher/health 读者**（readers≠0 abort）；
+  ③staging 残留已清（保留 deploy 备份供重试）；④`tests/test_bc_replace_retry_v1.py` 2/2 PASS（占用释放→成功/持续占用→抛错）。
+- **数据未变（核验）**：生产 trio 行数/宽 = **429411/831、353622/866、329250/846**（=包 §1 预部署值）；
+  X/S/Y/meta sha256 与回滚日志 pre 值逐项一致；journal state=rolled_back；未改任何生产 BC 行。
+- **重试窗**：**2026-10-26 18:30**（若 18:15 前 auditor 列签 PASS），否则 **19:30**；流程同 §7（锁→helper --assume-locked→等 5s/读者→备份+pre hash→apply×3→verify→journal verified→WMI→health→24h 监控）；失败回滚+重启。
+- 门禁：**749/0/0**（C15 新增 `test_bc_replace_retry_v1`；gate 文件/时间以最新实测为准）。
