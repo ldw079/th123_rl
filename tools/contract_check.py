@@ -1841,6 +1841,8 @@ _BEHAVIOR_TESTS = [
      "R4: 12宏branch四路升级(名/前缀不变/路由步归一)72项"),
     ("test_executor_hitmem_v1.py",
      "task-58: 执行器命中记忆窗(frozen帧伤害/confirm/branch/等价)14项"),
+    ("test_stop_clean_live_filter_v1.py",
+     "P1: stop_clean live 只杀训练车道(真实进程/混合) 3项"),
     ("test_train_stop_clean_v1.py",
      "R17-12 P1: 干净停机 helper(真实 dummy main/control/watcher, 锁/标记/无残留) 7项"),
     ("test_bc_replace_retry_v1.py",
