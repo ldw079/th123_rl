@@ -31,3 +31,11 @@ D:\temp\pyenv\python.exe -X utf8 tools\bc_gen_verify.py --dir D:\temp\bc_gen2_20
 - 前置：预注册（10:30–11:40）mtime/0 残留；baseline `--minutes 70` v2+sha；watcher `--auto-recover`；锁；gate 761+。
 - 10:30 开窗（`D:\temp\ukemi_window.ps1`）：env=1→WMI→≤10min→验收 dir/f、skip<10%、exec/reg>0.7、ent≥0.75、KL≤0.30、4 游戏、CORE=391、BC/池回退、schema、无 alert。
 - 失败：env=0 单次重启，不留在停训；11:45 观察（≥1200/char）。
+
+## 6. BC/UKEMI 后：clean-state limit 校准 + strict lab 重判（新 P0）
+- 判据：**planned steps 全执行 AND comboLimit≥100**；damage/count 只作过程量。
+- 字段：comboLimit=0x4B8、comboCount=0x4B4、comboDamage=0x4B6（原版 PID24260 已校；训练/lab 需同版本核）。
+- 流程：每个宏前等 comboDamage/Count/Limit 清零 → 单次跑宏 → 采样 limit 曲线/最大 limit；记录偏移/版本一致性。
+- 重判 50 lab：逐条 planned/executed/segments/hits/dmg/**max_limit**/count/pass(limit≥100)/reason；39/50、37/58 标 proxy 撤回。
+- 若 limit 只能到 40：给帧证据/机制说明，标"不可实现"（路线/伤害/位置/对手状态/机制上限）。
+- 修复目标：能出圈（limit≥100）；BC 锚/连段课程/选择信号同主线。
