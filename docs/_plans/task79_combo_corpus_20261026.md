@@ -56,3 +56,8 @@
 - 矩阵候选合计 **3,622**（88 trial + 3,534 zip/rep 计数粗估）；zip/rar 内容清单已列，
   未解压到原目录（只读；exe 未执行）；rar 若工具缺失记录不可读。
 - 输出 D:\\temp\\combo_corpus_trailmod_20261027.json；清单 docs/_audit/trailmod_inventory_20261027.md。
+
+## 2026-10-27 trailmod notation→步骤（proxy）
+- 	ools/trailmod_notation.py：88 条 trial 全部转写，**584 步**（keys/dir/wait 解析）；8 条 explicit_inputs 可直接 parser；
+  其余标 
+otation-only/需严格 replay 验证；输出 D:\\temp\\combo_corpus_trailmod_transcribed_20261027.json。
