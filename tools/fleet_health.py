@@ -70,7 +70,7 @@ def _snapshot_script(marker=None):
     return (
         "$py=Get-CimInstance Win32_Process | ? {$_.Name -eq 'python.exe'"
         + excl + "}; "
-        "$g=Get-CimInstance Win32_Process | ? {$_.Name -eq 'th123.exe'}; "
+        "$g=Get-CimInstance Win32_Process | ? {$_.Name -eq 'th123.exe' -and $_.CommandLine -match 'th123_train'}; "
         "[pscustomobject]@{"
         "sup=@($py|?{$_.CommandLine -match "
         "'fleet_supervisor[.]py --actors'%s}).Count;"
