@@ -1847,6 +1847,8 @@ _BEHAVIOR_TESTS = [
      "R17-12 P1: BC 部署 os.replace 占用重试/持续占用回滚 2项"),
     ("test_supervisor_boot_heartbeat_v1.py",
      "E: supervisor boot 即写首拍心跳(消除重启假P1) 3项"),
+    ("test_action_chunk_v1.py",
+     "task-72: action chunk 骨架(env0不构造/宏/残差/校验) 7项"),
     ("test_slot_registry_v1.py",
      "W4: slot registry 骨架(C=256/旧id保留/env0/旧模型兼容) 9项"),
     ("test_action_resid_v1.py",

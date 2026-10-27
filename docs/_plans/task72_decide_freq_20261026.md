@@ -41,3 +41,8 @@
 - chunk schema：`{kind,slot,frames,resid_seq,interrupt_at}`（与 task-73 共用）；
 - 蒸馏 fast policy：大模型→小 MLP/GRU，目标 ≤5ms、top1 损失≤2%；离线 held-out。
 - 验收：62Hz P99≤16ms、帧级输入覆盖 100%（lab 场景）、中断防抖测试；不部署（W4 迁移时一次接）。
+
+## 2026-10-27 chunk 骨架（env 默认 0）
+- ction_chunk.py：macro/resid chunk schema（frames≤16、interrupt_at、resid_seq 对齐），
+  TH123_ACTION_CHUNK=0 默认不构造（旧逐决策路径）；=1 才构造/校验。
+- 测试 	est_action_chunk_v1 **7/7**；与 task-71 动作残差/时长档对齐；未接线训练路径。
