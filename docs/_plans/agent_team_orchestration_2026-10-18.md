@@ -753,6 +753,17 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 58. 10-27 上午：用户指令提前重启 + H1 数据阻断 + BC gen2 构建 + 心跳空窗 P1
+
+- **07:56 用户指令提前重启训练**（覆盖工作日 09:30 常规，decision log 记）：WMI 启动 07:59:32（sup 20148、3L/3A/ctl2/games4），08:01:40 health PASS；`TH123_EP_KEEP=300`（**per-char**，总上限 900）生效，`episodes_keep` 持续累积（11→399）。
+- **H1 结果=数据不足阻断**：per-char 同 schema episodes **reimu 97 / marisa 102 / suika 72（均<200）**；正式三行（102ep marisa 单角色演示）：**MLP .539 / GRU .376 / Transformer .449**；**不排 A/B**。与 7ep（MLP.196/GRU.692/TT.644）、12ep（.474/.399/.487）方向波动 → 样本量主导。数据计划：BC 成功后清 backup→`EP_KEEP=900`→per-char 200+ 后再跑 per-char 三行。
+- **BC 指针切换方案落地**：gen2 提前构建（08:59–09:03）`D:\temp\bc_gen2_20261027`：reimu 429579/S831、marisa 353791/S866、suika 329422/S846；C1 manifest；new=old+509；`find_bank`→gen2；**生产 trio 未动**；D 38.7GB。bc drill 10:24–10:26 PASS（停 main/control/watcher 后 readers=0、fake env 切换后 bat sha256 前后相等、WMI 重启 health PASS）。
+- **心跳空窗 P1（drill 后）**：`fleet_heartbeat` 10:24:25→10:28:02 ~3.5min 空窗；根因=supervisor boot 期错峰（learners×5s/actors×20s）进入监督循环后 `HEARTBEAT_EVERY=3`×10s 首拍，属**预期 boot 行为**非 bug；`critical_snapshot` 不因 hb_age 触发 AR；incident 记录 `incident_20261027_heartbeat_boot_gap.md`；10:40/11:12 两次复查 PASS→P1 闭环；boot 即写首拍改进排 BC/UKEMI 后（测试+gate）。
+- **窗口排期（压缩）**：UKEMI 10:30 因预注册未清/样本门不可达（decisions 1497/1305/2523<3000）顺延；**裁决样本门 ≥1200/char（stretch 3000）**、窗 **70min**；定 **13:40–14:50**；BC 指针窗优先 **13:00+**（gen2 提前构建，窗内只 env+WMI+health ≤10min）；**15:21+ R17-12 正式关闭**；BC 成功后清 backup 18.9GB→D~55GB→`EP_KEEP=900`。
+- **今日命令链**：12:40 BC 材料→12:50 列签→13:00+ 窗→13:15 结果→13:40 UKEMI 窗→14:55 结果→15:25 R17-12 检查；20:30 批处理；22:45 停训。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
