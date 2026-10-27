@@ -93,3 +93,11 @@
 - **窗内（13:00+，≤10min）**：锁→helper --assume-locked→读者=0→**只验证 gen2**→bat 写 `TH123_BC_DIR=D:\temp\bc_gen2_20261027`→WMI 重启→health/4 游戏→loader env 证据；失败恢复 bat+重启；**不在窗内复制 20GB**。
 - 磁盘：gen2 后 D 预计 ~39GB（≥35 阈值）；不足先清 backup/staging（保留生产 trio+回滚）。
 - 列签：gate_753（753/0/0）+gen2 实际行/宽/hash+本预注册+无 reader/锁+回滚。
+
+## 12. gen2 实际构建/验证（2026-10-27 08:59–09:03）
+- c_gen_build 三 char 写入 D:\temp\bc_gen2_20261027：
+  reimu **429579 行/S831**（429411+168）、marisa **353791/S866**（353622+169）、suika **329422/S846**（329250+172）；
+- c_gen_verify：**VERIFY PASS**（行/宽/manifest 全过）；
+- C1 manifest：gen_manifest_gen2_<char>.json（gen/rows/width/hash/parent/device/status=built）；
+- c_io.find_bank('reimu') with TH123_BC_DIR → **gen2 trio**（dry 验证 PASS）；
+- D 余量 **38.72GB**（≥35）；生产 trio 未动。

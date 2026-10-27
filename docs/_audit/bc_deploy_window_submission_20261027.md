@@ -44,3 +44,7 @@
 - **65s 持有测试 PASS**：30×2s 耗尽 60.1s 抛错、目标 hash 不变（无部分写）；30s 持有→30.0s 成功；`bc_lock65_evidence.txt`。
 - 60s 测试不入 C15 原因：close 与最后重试同刻竞态假红；独立脚本 65s 错开为强证据。
 - 数据未变：trio 行/宽/hash=pre；20:30 重试，流程/回滚不变。
+
+## 8. gen2 提前构建证据（2026-10-27 09:03）
+- D:\temp\bc_gen2_20261027：reimu 429579/S831、marisa 353791/S866、suika 329422/S846；c_gen_verify **PASS**；C1 manifest 三份；ind_bank env 指向 gen2；D 38.72GB；生产未动。
+- 12:50 前交 auditor 列签；13:00+ 窗内仅切 TH123_BC_DIR+WMI+health（≤10min）。
