@@ -64,7 +64,8 @@ def _verify_target(pid, marker):
         return marker in cl
     return any(k in cl for k in ('learner_hub', 'actor_worker',
                                  'fleet_supervisor', 'th123_rl_control',
-                                 'fleet_health.py --loop', 'th123.exe'))
+                                 'th123.exe')) or (
+        'fleet_health' in cl and '--loop' in cl)
 
 
 def main_pids(marker=None):
@@ -82,13 +83,20 @@ def control_pids(marker=None):
 
 def watcher_pids(marker=None):
     return _pids("Get-CimInstance Win32_Process | ? {$_.Name -eq 'python.exe' "
-                 "-and $_.CommandLine -match 'fleet_health.py --loop'" +
+                 "-and $_.CommandLine -match 'fleet_health[.]py.*--loop'" +
                  _mk(marker) + "} | % {$_.ProcessId}")
 
 
 def game_pids(marker=None):
+    # P1 修复(2026-10-27): live 只杀训练游戏(th123_train 车道端口);
+    # 非训练(用户原版)不杀。test marker 模式保留原语义。
+    if marker:
+        return _pids("Get-CimInstance Win32_Process | ? {$_.Name -eq "
+                     "'th123.exe'" + _mk(marker) + "} | % {$_.ProcessId}")
     return _pids("Get-CimInstance Win32_Process | ? {$_.Name -eq "
-                 "'th123.exe'" + _mk(marker) + "} | % {$_.ProcessId}")
+                 "'th123.exe' -and $_.CommandLine -match 'th123_train' "
+                 "-and $_.CommandLine -match '\\b210[0-8][0-9]\\b'} "
+                 "| % {$_.ProcessId}")
 
 
 def log(msg):

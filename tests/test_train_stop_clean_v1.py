@@ -115,6 +115,9 @@ def main():
     test_stop_clean_real()
     test_live_required()
     test_dry_run_no_kill()
+    check('live games 只杀训练(th123_train/端口)',
+          'th123_train' in open('tools/train_stop_clean.py',
+                                encoding='utf-8').read())
     print('\n==== train_stop_clean: %d PASS / %d FAIL ===='
           % (len(PASS), len(FAIL)))
     return 0 if not FAIL else 1
