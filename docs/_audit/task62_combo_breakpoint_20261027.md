@@ -27,3 +27,21 @@
 3) task-73/63 续接/取消（命中→续段、被防→停）；
 4) 11 条 lab 空中/OTG 场景构造+执行器 gate；
 5) task-62 仪表（attempts/completed/confirm/gate/hit）先量化再改机制。
+
+## 6. 连段分类判定（用户 22:27 定稿；禁止混判）
+| 类目 | dummy setup | 判定指标 |
+|---|---|---|
+| ①出伤连段 | 站/受击 dummy | **comboLimit≥100**、路线、comboDamage/count |
+| ②压制连段 | dummy 全防御（站防/蹲防/FD 显式） | 无隙/gap frames、frame advantage、灵力削减、推板（**不看伤害/limit**） |
+| ③压起身 | 击倒→起身 | meaty 帧、防住/穿 |
+| ④择 | dummy 防 | 中/下/投 选项成功率 |
+| ⑤空连/对空 | 浮空 dummy | 浮空高度/路线/limit |
+| ⑥爆灵/推板 | 防御/破防目标 | 破防/位移目标 |
+- setup 必须显式写 `class/dummy_state/guard_mode/fd/位置/距离`；同一 dummy 状态不得混判。
+- **39/50、37/58 作废**，按类目重跑逐条；失败标不可实现/断连/被防/空挥。
+- 输出必带 `class`+`dummy_state`；TrialMode 真值优先。
+
+## 7. TrialMode 作为游戏原生裁判（用户 22:33 提议）
+- 路径 `D:\touhou\hisoutensoku2026-06-15\th123\modules\TrialMode`；自带书面连段（步骤/可选/延迟/合格标准）与判定。
+- 计划：①调研通关信号（内存 flag/score.dat/UI 文本/日志）→ 手动通 1 条对照；②自动：把 combo 写成 TrialMode pack，宏驱动输入，读 pass/fail/limit/damage/hits/rep；③首批用用户 88 trial 包（含 8 条 explicit input）作真值；④以后所有采集连段走 TrialMode 判定，替代 proxy/limit 自证。
+- 明日 BC/UKEMI 后第一优先（今晚停训）。
