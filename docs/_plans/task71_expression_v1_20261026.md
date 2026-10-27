@@ -39,3 +39,15 @@
 - 测试 `test_action_resid_v1` 9/9（默认关/env0 不变/486 编解码/coverage 100%/env1 覆盖）；
 - 与 W4 registry 对齐：动作 id 区间/时长档/残差类型在 W4 manifest 一次登记；不重复迁移。
 - 覆盖率目标：task-70 全库 v0 73.92%/90.89% → v1 目标单帧 ≥99%；逐帧 replay 一致率≥99%（lab）。
+
+## 2026-10-27 覆盖率复算（human replay 300 样本/3.22M 帧）
+- **单帧可表达率 100%**（键{A,B,C,dash}+组合 AB/BC × 9向 全覆盖；v0 73.92%）。
+- **时序可表达率（≤3 段时长档分解）97.08%**（v0 90.89%）；≥4 段可覆盖剩余长按（待补）。
+- 目标 ≥99%：需在 v1 增加"长按/持续"动作（hold 16F+ 或允许 >3 段分解）→ 下一步调整设计。
+- 证据 `D:\temp\t71_coverage_v1_20261027.json`；脚本 `tools/t71_coverage_v1.py`。
+
+## 2026-10-27 W4 迁移 dry-run（不部署）
+- `tools/w4_migrate_dryrun.py`：旧模型输出列 0..N-1 扩到 C=256 零填；
+  **identity_old_cols=True / old_logits_bitwise_equal=True / old_ids_preserved=True**（3 角色）；
+  新空 slot=256-N（reimu 168/marisa 161/suika 165）。
+- 证据 `D:\temp\w4_migrate_dryrun_20261027.json`；无模型写入；回滚=不启 registry/env=0。
