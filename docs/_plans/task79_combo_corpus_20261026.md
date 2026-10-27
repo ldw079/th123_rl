@@ -39,3 +39,11 @@
 - **全库 61,866 场**提取已启动（all-mode，低优先级；输出 `D:\temp\combo_corpus_full_20261027.json`）；
 - 全库 20 角色段数 top：yuyuko 1,552,060、remilia 1,137,025、sakuya 1,012,510、iku 740,252、youmu 734,716、aya 559,105…
 - 说明：oracle `x` 为 11 维帧特征，无输入段语义 → 不计连段，仅作局数样本；trailmod 源路径未纳管，待补。
+
+## 2026-10-27 矩阵草稿 + corpus_combo_v1 切段口径
+- **场景矩阵草稿**：3 角色×15 起手×5 状态×4 位置×3 reps=**2700 用例**
+  → `docs/_audit/t79_scene_matrix_draft_20261027.md` / `D:\temp\t79_scene_matrix_draft_20261027.json`；
+  trailmod 待纳管后补充。
+- **corpus_combo_v1 切段（非 proxy）**：需要 hit/被防/受身等**状态事件**边界；当前 9.77M 段是"连续攻击输入段"proxy。
+  下一步用 soku_arch 解析扩展/训练 frame_events 提取状态事件 → 段定义=起手→命中/受身/断连；
+  在 trailmod 路径与状态源到位前，标"proxy 语料"，不宣称 combo-v1 完成。

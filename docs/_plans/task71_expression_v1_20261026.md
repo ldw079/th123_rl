@@ -51,3 +51,9 @@
   **identity_old_cols=True / old_logits_bitwise_equal=True / old_ids_preserved=True**（3 角色）；
   新空 slot=256-N（reimu 168/marisa 161/suika 165）。
 - 证据 `D:\temp\w4_migrate_dryrun_20261027.json`；无模型写入；回滚=不启 registry/env=0。
+
+## 2026-10-27 v1.1 长按/持续扩展（覆盖率 ≥99% 路径）
+- 设计：时序允许 **≤5 残差段**（或 hold 长按 16F 倍数）；单帧仍 100%。
+- 复算（300 样本/3.22M 帧）：≤3 段 97.08% → **≤4 段 98.56% → ≤5 段 99.17%（达标）** → ≤6 段 99.47%。
+- 结论：v1.1 取 **≤5 段残差**可满足 task-71 ≥99% 目标；hold 语义可再省段数；
+  证据 `D:\temp\t71_coverage_v2_20261027.json`。
