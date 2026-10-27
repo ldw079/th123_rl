@@ -55,3 +55,22 @@ def apply_if_enabled(base_action, resid_id, env=None):
     if not resid_enabled(env):
         return base_action
     return {'base': base_action, 'resid': decode(resid_id)}
+
+HOLD_SUPPORTED = True
+
+
+def make_hold(key, direction, dur, reps=1):
+    """长按/持续: 同一 (key,dir,dur) 重复 reps 次; dur in DURATIONS. 不部署."""
+    if key not in KEY_ID or direction not in DIR_ID or dur not in DUR_ID:
+        raise ValueError('hold invalid')
+    if int(reps) < 1:
+        raise ValueError('reps<1')
+    a = encode(key, direction, dur)
+    return [a] * int(reps)
+
+
+def hold_segments(actions, max_seg=5):
+    """动作序列是否可在 <=max_seg 段内表达(长按可重复同动作)."""
+    if not actions:
+        return True
+    return len(actions) <= int(max_seg)

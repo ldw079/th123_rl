@@ -41,6 +41,13 @@ def main():
         cov = AR.coverage(ids)
         check('coverage 100%', cov['rate'] == 1.0)
         res = AR.apply_if_enabled(base, 5)
+        hold = AR.make_hold('A', 5, 16, 2)
+        check('长按 hold A/neutral/16F x2',
+              hold == [AR.encode('A', 5, 16)] * 2)
+        check('hold_segments <=5',
+              AR.hold_segments([1, 2, 3, 4, 5])
+              and not AR.hold_segments(list(range(6))))
+
         check('env=1 残差覆盖生效', isinstance(res, dict) and 'resid' in res)
     finally:
         if old is None:
