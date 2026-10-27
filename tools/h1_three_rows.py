@@ -16,9 +16,11 @@ SEED = 0
 T = 16
 
 
-def load():
+def load(char=None):
     raw = []
     for p in glob.glob(EP, recursive=True):
+        if char and ('ep_' + char) not in os.path.basename(p) and ('\\' + char + '\\') not in p and ('/' + char + '/') not in p:
+            continue
         try:
             with np.load(p, allow_pickle=True) as z:
                 S = np.asarray(z['sides'], np.float32)
@@ -80,7 +82,11 @@ class TT(nn.Module):
 
 
 def main():
-    eps = load()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--char", default=None)
+    ap.add_argument("--out", default=OUT)
+    a = ap.parse_args()
+    eps = load(a.char)
     if len(eps) < 4:
         print(json.dumps({'error': 'episodes too few %d' % len(eps)}))
         return 1
@@ -99,7 +105,7 @@ def main():
     mu, sd = Xtr.mean(0), Xtr.std(0) + 1e-6
     Xtr = (Xtr - mu) / sd
     Xva = (Xva - mu) / sd
-    res = {'seed': SEED, 'T': T, 'episodes': len(eps),
+    res = {'char': a.char or 'cross', 'seed': SEED, 'T': T, 'episodes': len(eps),
            'train_steps': len(Ytr), 'val_steps': len(Yva), 'n_macros': n}
     # MLP
     m = MLP(D, n)
@@ -149,7 +155,7 @@ def main():
         res['transformer_top1'] = round(float(
             (tt(torch.tensor(xv)).argmax(1).numpy() == yv).mean()), 3)
     print(json.dumps(res, ensure_ascii=False, indent=1))
-    json.dump(res, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False,
+    json.dump(res, open(a.out, 'w', encoding='utf-8'), ensure_ascii=False,
               indent=1)
     return 0
 

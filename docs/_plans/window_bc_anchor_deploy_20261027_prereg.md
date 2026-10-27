@@ -120,3 +120,4 @@
 - 无 reader 证据：窗日志 readers 行；**窗前演练**（11:45 后，见 drill 日志）。
 - 失败回滚演练：bat env 写入→恢复→hash 相等→WMI 重启→health（见 drill 日志）。
 - C1 manifest 三份 + `bc_gen_verify` 输出 + find_bank 指向 + gate 753+。
+- **窗前演练（10:24）**：readers=0/bat hash 恢复相等/WMI 重启 health PASS（c_pointer_drill_20261027.log）；13:00 窗按 §13。

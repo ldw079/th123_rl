@@ -48,3 +48,12 @@
 ## 8. gen2 提前构建证据（2026-10-27 09:03）
 - D:\temp\bc_gen2_20261027：reimu 429579/S831、marisa 353791/S866、suika 329422/S846；c_gen_verify **PASS**；C1 manifest 三份；ind_bank env 指向 gen2；D 38.72GB；生产未动。
 - 12:50 前交 auditor 列签；13:00+ 窗内仅切 TH123_BC_DIR+WMI+health（≤10min）。
+
+## 9. reader/回滚演练（2026-10-27 10:24，c_pointer_drill.ps1）
+- 演练日志 D:\temp\bc_pointer_drill_20261027.log：
+  - 停 main/control/watcher 后 **readers=0**（断言 PASS）；
+  - fake TH123_BC_DIR 写入 bat → 恢复备份，**bat sha256 前后相等**（D7DA3700…）；
+  - WMI 重启 main+control+watcher → **health PASS**（sup1/3L/3A/ctl2/games4）；
+  - 锁释放；**训练已恢复**。
+- 结论：窗内 readers 断言/失败回滚（bat+WMI+health）可执行，有日志证据。
+- 门禁 **753/0/0**；gen2 verify PASS；TH123_BC_DIR 严格（禁静默 fallback）测试 4/4。
