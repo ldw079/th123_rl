@@ -61,3 +61,8 @@
 - 	ools/trailmod_notation.py：88 条 trial 全部转写，**584 步**（keys/dir/wait 解析）；8 条 explicit_inputs 可直接 parser；
   其余标 
 otation-only/需严格 replay 验证；输出 D:\\temp\\combo_corpus_trailmod_transcribed_20261027.json。
+
+## 2026-10-27 notation parser v2（复合符号）
+- 	ools/trailmod_parser_v2.py：拆 hj9/j66/d623b/[N]/:N/66/44... 为原始步骤；**1289 步**；
+- 静态可表达率 **88.98%**（naive parser 77.57% → 改进后；remaining=复合语义/无方向键步需人工）；
+- 8 条 explicit-input 仍待严格 replay（隔离 lab）；输出 D:\\temp\\combo_corpus_trailmod_parsed_v2_20261027.json。
