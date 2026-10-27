@@ -1,11 +1,11 @@
-# 窗口预注册（R17-1）：2026-10-27 10:30 BC 锚 v3 部署（data-only，≤15min）
+# 窗口预注册（R17-1）：2026-10-28 09:45 BC 指针窗（gen2，data-only，≤10min；09:35 预哈希）
 
 > 依据：R17；Lead 11:56 批准（12:00 审计 PASS）；数据-only 单变量；维护锁/WMI/helper；冻结夹具。
 > 数据包：`docs/_audit/bc_anchor_deploy_package_20261026.md`（裁定 A）。
 
 ## 窗名/日期/责任人
 - 窗名：BC anchor v3 部署（+509 行，`--no-dedupe`）
-- 日期：**2026-10-27 10:30**，≤15min（含重启与验证）
+- 日期：**2026-10-28 09:45**，≤10min（含重启与验证）
 - 责任人：construction（执行）；auditor（独立复算/抽查）；Lead（批准）
 
 ## 假设（可证伪）
@@ -78,7 +78,7 @@
 - **为何 60s 锁测试不入 C15**：close 与最后一次重试同刻存在竞态，会偶发假红；改为独立脚本强证据（65s 已错开），auditor 复核。
 - **门禁**：**750/0/0**（`D:\temp\gate_bc_retry4.txt`，19:59 实测；merge 30×2/fallback 禁用后）。
 - **数据未变（第 4 次）**：trio 行数/宽 429411/831、353622/866、329250/846；X/S/Y/meta hash=pre；journal rolled_back；staging 清；backup 保留。
-- **20:30 执行**：流程不变（锁→helper --assume-locked→5s/读者=0→备份+pre hash→3×apply→verify→journal verified→WMI→health→24h）；≤15min；失败 finally 回滚+重启。
+- **09:45 执行**：流程不变（锁→helper --assume-locked→5s/读者=0→备份+pre hash→3×apply→verify→journal verified→WMI→health→24h）；≤10min；失败 finally 回滚+重启。
 
 ## 10. 20:30 失败诊断与新窗计划（2026-10-26 20:45）
 - 4 次 replace WinError32（delete-deny 句柄；非 mmap/非大文件）；小 store 复现；copyfile 可成功；65s 真锁测试无部分写。
@@ -132,4 +132,4 @@
 - **测试**：`test_bc_gen_meta_hash_v1`（16hex→PASS、64hex→拒绝、gen build I+loader）4/4；门禁 **754/0/0**（待最新 gate 文件）。
 - **窗脚本**：health 等待 60→**120×5s（10min 上限）**；失败立即恢复 bat+重启。
 - **重试**：待用户恢复训练后 **明日 09:45** 列签重审（材料：本修复/测试/loader 证据/gen2 meta/manifest/生产未变）。
-- **env 全流程演练（15:32）**：gen2 loader 三 char PASS → fake env 严格拒绝（无静默 fallback）→恢复 gen2 PASS；`D:\temp\bc_env_rehearsal_20261027.json`；不写 bat/不停训。预检查/回滚清单：`docs/_audit/bc_pointer_window_precheck_20261027.md`。窗时间 **09:45**。
+- **env 全流程演练（15:32）**：gen2 loader 三 char PASS → fake env 严格拒绝（无静默 fallback）→恢复 gen2 PASS；`D:\temp\bc_env_rehearsal_20261027.json`；不写 bat/不停训。预检查/回滚清单：`docs/_audit/bc_pointer_window_precheck_20261027.md`。窗时间 **2026-10-28 09:45（≤10min；09:35 预哈希）**。
