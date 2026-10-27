@@ -46,6 +46,8 @@ def main():
     good = {'sup': 1, 'learners': 3, 'actors': 3, 'ctl': 2, 'games': 4}
     ok2, d2 = FH.check(snap=good, hb_age=1.0)
     check('probe: 精确计数→PASS', ok2, str(d2['bad']))
+    check('probe: 只计训练车道端口 21000-21089',
+          '210[0-8]' in FH._snapshot_script())
     check('probe: 只计 th123_train 游戏(排除用户非训练局)',
           'th123_train' in FH._snapshot_script())
     print('\n==== fleet_probe_exact: %d PASS / %d FAIL ===='
