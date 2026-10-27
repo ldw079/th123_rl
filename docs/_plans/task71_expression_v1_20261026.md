@@ -32,3 +32,10 @@
 - 动作空间膨胀 → 探索/样本效率下降；用 mask/先验/课程；
 - 残差与宏边界复杂 → 执行器单测+可视化回放；
 - 不建旁路；registry 为唯一动作来源；env 默认 0；迁移一次。
+
+## 2026-10-27 骨架（env=0 默认，不部署）
+- `action_resid.py`：**6 键 × 9 方向 × 9 时长档 = 486 动作**；`TH123_ACT_RESID` 默认 0，仅 =1 启用；
+  env=0 `apply_if_enabled` 原样返回（逐位等价），未接线到 actor/learner（W4 一次迁移时统一接）。
+- 测试 `test_action_resid_v1` 9/9（默认关/env0 不变/486 编解码/coverage 100%/env1 覆盖）；
+- 与 W4 registry 对齐：动作 id 区间/时长档/残差类型在 W4 manifest 一次登记；不重复迁移。
+- 覆盖率目标：task-70 全库 v0 73.92%/90.89% → v1 目标单帧 ≥99%；逐帧 replay 一致率≥99%（lab）。

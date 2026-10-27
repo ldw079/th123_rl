@@ -62,4 +62,5 @@
 - 13:03 首跑失败：gen2 meta 64hex vs `_arr_sha256` 16hex → learner verify 拒绝；回滚 13:12 health PASS，生产未动。
 - 修复：bc_gen_build 16hex + I 列；bc_gen_verify hash16+loader；gen2 meta/I/manifest 就地修；**真实 loader 三 char PASS**。
 - 测试 `test_bc_gen_meta_hash_v1` 4/4；门禁 754/0/0；窗脚本 health 等待 120×5s。
-- 重试：用户恢复训练后明日 09:40，列签重审。
+- 重试：用户恢复训练后明日 09:45，列签重审。
+- **env 全流程演练（15:32）**：gen2 loader 三 char PASS → fake env 严格拒绝（无静默 fallback）→恢复 gen2 PASS；`D:\temp\bc_env_rehearsal_20261027.json`；不写 bat/不停训。预检查/回滚清单：`docs/_audit/bc_pointer_window_precheck_20261027.md`。窗时间 **09:45**。

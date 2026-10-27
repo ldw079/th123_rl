@@ -34,3 +34,10 @@
 - 高频决策→CPU/延迟/抖动；chunk+蒸馏缓解；
 - 中断抖动/宏稳定性；防抖与冷却；
 - 与 task-73 共用 chunk schema，避免两套执行器（R16）。
+
+## 2026-10-27 更新（离线骨架）
+- 动作空间：与 task-71 对齐（6键×9向×时长档 486 动作；`action_resid.py` 骨架，env 默认 0）。
+- 决策频率：62Hz 预算 16.1ms；H1 CPU 优化基准 T16 p99 **9.85ms**（KV cache）→ 支撑每帧决策；
+- chunk schema：`{kind,slot,frames,resid_seq,interrupt_at}`（与 task-73 共用）；
+- 蒸馏 fast policy：大模型→小 MLP/GRU，目标 ≤5ms、top1 损失≤2%；离线 held-out。
+- 验收：62Hz P99≤16ms、帧级输入覆盖 100%（lab 场景）、中断防抖测试；不部署（W4 迁移时一次接）。

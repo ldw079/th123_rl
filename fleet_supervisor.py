@@ -296,6 +296,12 @@ def fleet_health_now(learners=None, actors=None):
             'bad': bad}
 
 
+def boot_heartbeat(now=None):
+    """P1(2026-10-27): supervisor 启动即写一拍心跳，消除 WMI 重启后
+    boot 期(~3min) 的假 hb_age P1；不改变后续循环心跳。"""
+    write_heartbeat()
+
+
 def write_heartbeat(alert=None, health=None):
     """P0(从零#4): alert≠None时同步写异常标记文件(耗尽减员等事故),
     恢复调用(alert=None)清除 — 主时间戳格式不变(offline-gap读数兼容)。
@@ -954,6 +960,7 @@ def main():
     ap.add_argument('--league-weight', type=int, default=LEAGUE_FOCUS_WEIGHT,
                     help='对手周期中主角色块倍率(D3\')')
     args = ap.parse_args()
+    boot_heartbeat()
     n_actors = args.actors
     chars = tuple(c.strip() for c in args.focus.split(',') if c.strip())
 

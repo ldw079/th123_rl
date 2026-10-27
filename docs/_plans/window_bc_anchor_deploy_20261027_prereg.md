@@ -131,4 +131,5 @@
 - **真实 loader 证据**（TH123_BC_DIR=gen2）：`load_bank`/`load_bank_seq` **三 char 全 PASS**（rows/width/I）；`bc_gen_verify --dir` **VERIFY PASS**（hash16=True/loader=True/manifest=True）。
 - **测试**：`test_bc_gen_meta_hash_v1`（16hex→PASS、64hex→拒绝、gen build I+loader）4/4；门禁 **754/0/0**（待最新 gate 文件）。
 - **窗脚本**：health 等待 60→**120×5s（10min 上限）**；失败立即恢复 bat+重启。
-- **重试**：待用户恢复训练后 **明日 09:40** 列签重审（材料：本修复/测试/loader 证据/gen2 meta/manifest/生产未变）。
+- **重试**：待用户恢复训练后 **明日 09:45** 列签重审（材料：本修复/测试/loader 证据/gen2 meta/manifest/生产未变）。
+- **env 全流程演练（15:32）**：gen2 loader 三 char PASS → fake env 严格拒绝（无静默 fallback）→恢复 gen2 PASS；`D:\temp\bc_env_rehearsal_20261027.json`；不写 bat/不停训。预检查/回滚清单：`docs/_audit/bc_pointer_window_precheck_20261027.md`。窗时间 **09:45**。

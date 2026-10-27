@@ -34,6 +34,7 @@ FILES = [
          "tools/train_detach.py",
          "tools/combo_replay_check.py",
          "mem_v1.py",
+         "action_resid.py",
          "atk_v1.py",
          "game_gates.py",
          "tm_env.py",
