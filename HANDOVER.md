@@ -407,3 +407,8 @@ D:\temp\pyenv\python.exe tools/build_kit.py --zip
 - **E**：supervisor boot 首拍心跳 + 测试 3/3（下轮重启生效）。
 - **H1**：per-char prelim（144/148/150 ep <200，不具统计意义）：MLP .549–.569 / TT .460–.472 / GRU .359–.382；正式待 per-char≥200。
 - 22:45 helper 停训；明早 09:25 启动→09:45 BC 窗→10:30 UKEMI。
+
+## 2026-10-27 22:00 收尾 / 明早
+- gate **761/0/0**；D 36.3；health PASS；22:45 host 计划停训（helper --live，不自动恢复）。
+- 明早 runbook：docs/_audit/morning_20261028_runbook.md（09:25 启动→09:35 预哈希→09:45 BC 指针窗→EP_KEEP=220→10:30 UKEMI）。
+- 今日关键证据：R19 今晚13局 clean 指标（dec/s4.44/macro13.47F/attack39.7%/react代理58.9%）、连段选择率1.2–3.6%、strict lab 39/50（11条空中/压起身/空链失败）、lab .rep 不可得（未伪造）、BC gen2 真实loader PASS/预列签 PASS。
