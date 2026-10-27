@@ -392,12 +392,12 @@ D:\temp\pyenv\python.exe tools/build_kit.py --zip
 - BC：4 次部署失败均安全回滚（c_deploy_lock_diagnosis_20261026.md：机制=delete-deny 句柄 replace WinError32；copyfile 可成功；小 store 复现；持有者未定位疑 AV/索引）。**明日 13:00+ 指针切换窗**：c_gen_build.py 提前建 gen2（C1 manifest）→c_gen_verify→窗内 bat 设 TH123_BC_DIR→WMI→health；失败恢复 bat+重启。预注册 window_bc_anchor_deploy_20261027_prereg.md；脚本 D:\\temp\\bc_pointer_window.ps1（parse OK）。
 - UKEMI：明日 10:30 窗（70min，v2 baseline 重跑）；脚本 D:\\temp\\ukemi_window.ps1 parse OK。
 - H1：三行 demo 仅协议（MLP0.196/GRU0.692/TT0.644，7ep）；明日 10:00 前 retention+oracle 正式三行；若 TT 显著低于 GRU→不排 A/B，转 H2/MLP。
-- 门禁：**759/0/0**（gate_759.txt 17:11）；C15 新增 retention/bc_dir/gen_build 等。
+- 门禁：**760/0/0**（gate_759.txt 17:11）；C15 新增 retention/bc_dir/gen_build 等。
 - 磁盘：D 58.87GB（清 staging 后）；gen2 构建约 -20GB（≥35 目标）；backup_deploy 18.9GB 成功后再清。
 - push：HEAD c3a99e6 0/0（网络断续，恢复后补推）。
 
 ## 2026-10-27 晚班进展（离线并行；训练运行中）
-- **门禁 759/0/0**（gate_759.txt 17:11；新增 action_resid/slot_registry/action_chunk/human_harness 等 C15）。
+- **门禁 760/0/0**（gate_759.txt 17:11；新增 action_resid/slot_registry/action_chunk/human_harness 等 C15）。
 - **BC 明日 09:45**：预注册头已改 2026-10-28 09:45/≤10min/09:35 预哈希；auditor 已预列签；gen2 真实 loader PASS；env 演练 PASS；失败回滚清单在 `bc_pointer_window_precheck_20261027.md`。
 - **task-79 语料**：人类 replay 全库 61,866 → 61,507 ok/359 fail，proxy 连段段 **9,771,383**；trailmod 全量只读盘点 129 文件/1GB，**88 trial 连段（8 显式输入）**；矩阵草稿 2700（+trailmod 候选 3622）。
 - **task-71/W4**：action_resid 486 动作 9/9；slot registry 9/9；W4 迁移 dry-run identity/bitwise PASS；coverage v1 单帧 100%/时序 97.08%，v1.1 ≤5 段 99.17%（达标）。

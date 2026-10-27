@@ -675,6 +675,25 @@ def run(char, headless, seconds=90, probe=False, detect_only=False):
                 actor.write(inp)
             acts.append(right.get('action', 0))
             n += 1
+            if n % 600 == 0:
+                try:
+                    _pv = locals()
+                    _part = {
+                        'ts': time.strftime('%Y-%m-%d %H:%M:%S'),
+                        'partial': True, 'char': char, 'frames': n,
+                        'matches': matches, 'human_wins': human_w,
+                        'model_wins': model_w,
+                        'detected': {'p1_char': _pv.get('p1c'),
+                                     'p2_char': _pv.get('p2c')},
+                        'model_path': os.path.basename(_pv.get('path', '')),
+                        'model_stamp': _pv.get('stamp')}
+                    json.dump(_part, open(os.path.join(
+                        sess_dir, 'sess_partial_%s%s.json' % (
+                            time.strftime('%Y%m%d_%H%M%S'),
+                            '_hl' if headless else '')), 'w',
+                        encoding='utf8'), ensure_ascii=False, indent=1)
+                except Exception:
+                    pass
             time.sleep(1 / 60)
     except KeyboardInterrupt:
         print('\n[hmv2] 收到中断(Ctrl+C) — 正在收尾并生成报告...',

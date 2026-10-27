@@ -321,17 +321,23 @@ class SideDriver:
         # task-39: 评估路径接入统一 mask(共用 env; config_error 关 gate 回旧行为)
         if _dd_gate is not None and getattr(self, '_act_mask_ok', True):
             try:
+                _gb = int(np.count_nonzero(mask))
+                _gact = own.get('action', 0)
+                _gair = bool(own.get('airBorne', False))
                 mask = _dd_gate.apply_state_gates(
                     mask, [m[0] for m in self.macros],
-                    {'action': own.get('action', 0),
-                     'airBorne': own.get('airBorne', False)})
+                    {'action': _gact, 'airBorne': _gair})
+                if os.environ.get('TH123_HM_GATE_DEBUG', '0') == '1':
+                    _ga = int(np.count_nonzero(mask))
+                    print('[gate_debug] act=%r air=%r before=%d after=%d'
+                          % (_gact, _gair, _gb, _ga), flush=True)
             except Exception as _ame:
                 self._act_mask_ok = False
                 print('[act_mask] config_error -> gates disabled: %r'
                       % (_ame,))
             self._eval_gate_cnt = getattr(self, '_eval_gate_cnt', 0) + 1
             if self._eval_gate_cnt % 200 == 0:
-                print(_dd_gate.masked_line())
+                print(_dd_gate.gate_metrics_line())
         if not mask.any():
             mask = (_end_mask if _end_mask is not None
                     and _end_mask.any() else self.base_mask)

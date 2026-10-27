@@ -57,6 +57,9 @@ _PREF_MASS_SUM = 0.0
 _PREF_MASS_N = 0
 _LAST_REMOVED = frozenset()
 _REMOVED_TOTAL = 0
+_ALLOWED_SUM = 0
+_ALLOWED_N = 0
+_ALLOWED_MIN = 10 ** 9
 
 
 def reset_masked_stats():
@@ -74,6 +77,20 @@ def reset_masked_stats():
     _PREF_MASS_N = 0
     _LAST_REMOVED = frozenset()
     _REMOVED_TOTAL = 0
+    global _ALLOWED_SUM, _ALLOWED_N, _ALLOWED_MIN
+    _ALLOWED_SUM = 0
+    _ALLOWED_N = 0
+    _ALLOWED_MIN = 10 ** 9
+
+
+def gate_metrics_line():
+    n, m = _GATE_DECISIONS, _MASKED_DECISIONS
+    pct = (100.0 * m / n) if n else 0.0
+    avg = (_ALLOWED_SUM / _ALLOWED_N) if _ALLOWED_N else 0.0
+    mn = _ALLOWED_MIN if _ALLOWED_N else 0
+    return ('[act_mask] gate_changed=%d/%d (%.1f%%) '
+            'allowed_avg=%.1f allowed_min=%d' % (
+                m, n, pct, avg, mn))
 
 
 def masked_line():
@@ -254,6 +271,11 @@ def apply_state_gates(mask, names, left, buf_block=False):
     globals()['_REMOVED_TOTAL'] = _REMOVED_TOTAL + len(_rem)
     if not (m == _orig).all():
         globals()['_MASKED_DECISIONS'] = _MASKED_DECISIONS + 1
+    _n_allow = int(np.count_nonzero(m))
+    globals()['_ALLOWED_SUM'] = _ALLOWED_SUM + _n_allow
+    globals()['_ALLOWED_N'] = _ALLOWED_N + 1
+    if _n_allow < _ALLOWED_MIN:
+        globals()['_ALLOWED_MIN'] = _n_allow
     return m
 
 
