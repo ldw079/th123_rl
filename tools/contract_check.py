@@ -1845,6 +1845,8 @@ _BEHAVIOR_TESTS = [
      "R17-12 P1: 干净停机 helper(真实 dummy main/control/watcher, 锁/标记/无残留) 7项"),
     ("test_bc_replace_retry_v1.py",
      "R17-12 P1: BC 部署 os.replace 占用重试/持续占用回滚 2项"),
+    ("test_bc_gen_meta_hash_v1.py",
+     "BC gen meta 16hex 必需/64hex 拒/loader 真实加载 4项"),
     ("test_bc_gen_build_v1.py",
      "BC 指针 gen 构建(行/宽/manifest/C1/生产不动) 6项"),
     ("test_bc_dir_env_v1.py",

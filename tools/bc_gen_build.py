@@ -18,6 +18,7 @@ ROOT = r'C:\Users\96120\Desktop\workplace\th123_rl'
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 from bc_anchor_collect import TARGET_KEYS  # noqa: E402
+import bc_io  # noqa: E402
 
 
 def sha_arr(a):
@@ -60,8 +61,20 @@ def main():
     nmeta = dict(meta)
     nmeta['rows'] = int(len(nY))
     h = dict(meta.get('hashes') or {})
-    h.update({'X': sha_arr(nX), 'S': sha_arr(nS), 'Y': sha_arr(nY)})
+    h.update({'X': bc_io._arr_sha256(nX), 'S': bc_io._arr_sha256(nS), 'Y': bc_io._arr_sha256(nY)})
     nmeta['hashes'] = h
+    # I 列: 生产 I(若存在)+新增唯一 shard id; 与 trio 同宽校验
+    ipath = os.path.join(a.store, 'bc_%s_I.npy' % a.char)
+    nI = None
+    if os.path.exists(ipath):
+        I = np.load(ipath, mmap_mode='r')
+        if len(I) != len(Y):
+            raise SystemExit('prod I rows mismatch')
+        nxt = int(I.max()) + 1
+        nI = np.concatenate([np.asarray(I),
+                             np.arange(nxt, nxt + len(AY), dtype=I.dtype)])
+        np.save(out + '_I.npy', nI)
+        h['I'] = bc_io._arr_sha256(nI)
     nmeta['gen'] = a.gen
     nmeta['anchor'] = {'npz': os.path.basename(a.anchor),
                        'n_rows': int(len(AY)),
@@ -77,7 +90,8 @@ def main():
            'anchor_rows': int(len(AY)),
            'status': 'built', 'device': 'cpu',
            'files': {s: sha_file(out + s) for s in
-                     ('_X.npy', '_S.npy', '_Y.npy', '_meta.json')}}
+                     ('_X.npy', '_S.npy', '_Y.npy', '_I.npy', '_meta.json')
+                     if os.path.exists(out + s)}}
     json.dump(man, open(os.path.join(a.outdir, 'gen_manifest_%s_%s.json'
                                      % (a.gen, a.char)), 'w',
                         encoding='utf-8'), ensure_ascii=False, indent=1)

@@ -121,3 +121,14 @@
 - 失败回滚演练：bat env 写入→恢复→hash 相等→WMI 重启→health（见 drill 日志）。
 - C1 manifest 三份 + `bc_gen_verify` 输出 + find_bank 指向 + gate 753+。
 - **窗前演练（10:24）**：readers=0/bat hash 恢复相等/WMI 重启 health PASS（c_pointer_drill_20261027.log）；13:00 窗按 §13。
+
+## 14. gen2 meta 修复 + 真实 loader 验证（2026-10-27 13:27，训练暂停期离线）
+- **13:03 指针首跑失败根因**：`bc_gen_build` 把 meta hashes 写成 **64 hex**，而 `bc_io._arr_sha256`/生产 meta 为 **16 hex**
+  → learner `verify_trio` 拒绝、crash loop；脚本已回滚 bat，13:12 health PASS，生产 trio 未动。
+- **修复**：`bc_gen_build` 改用 `_arr_sha256`（16 hex）并补 **I 列**（生产 I + 新增唯一 shard id）；
+  `bc_gen_verify` 增加 **hash16 断言 + 真实 `bc_io.load_bank`/`load_bank_seq` 校验**。
+- **gen2 就地修复（不重建 20GB）**：重算/重写三 char meta X/S/Y 16hex；补 `_I.npy`（reimu 429579/marisa 353791/suika 329422 行）；manifest 补 hash_I/files。
+- **真实 loader 证据**（TH123_BC_DIR=gen2）：`load_bank`/`load_bank_seq` **三 char 全 PASS**（rows/width/I）；`bc_gen_verify --dir` **VERIFY PASS**（hash16=True/loader=True/manifest=True）。
+- **测试**：`test_bc_gen_meta_hash_v1`（16hex→PASS、64hex→拒绝、gen build I+loader）4/4；门禁 **754/0/0**（待最新 gate 文件）。
+- **窗脚本**：health 等待 60→**120×5s（10min 上限）**；失败立即恢复 bat+重启。
+- **重试**：待用户恢复训练后 **明日 09:40** 列签重审（材料：本修复/测试/loader 证据/gen2 meta/manifest/生产未变）。

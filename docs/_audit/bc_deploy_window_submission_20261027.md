@@ -57,3 +57,9 @@
   - 锁释放；**训练已恢复**。
 - 结论：窗内 readers 断言/失败回滚（bat+WMI+health）可执行，有日志证据。
 - 门禁 **753/0/0**；gen2 verify PASS；TH123_BC_DIR 严格（禁静默 fallback）测试 4/4。
+
+## 10. gen2 meta 修复 + 真实 loader（2026-10-27 13:27）
+- 13:03 首跑失败：gen2 meta 64hex vs `_arr_sha256` 16hex → learner verify 拒绝；回滚 13:12 health PASS，生产未动。
+- 修复：bc_gen_build 16hex + I 列；bc_gen_verify hash16+loader；gen2 meta/I/manifest 就地修；**真实 loader 三 char PASS**。
+- 测试 `test_bc_gen_meta_hash_v1` 4/4；门禁 754/0/0；窗脚本 health 等待 120×5s。
+- 重试：用户恢复训练后明日 09:40，列签重审。

@@ -239,6 +239,7 @@ def test_AR8_real_dummy_fleet():
         time.sleep(0.5)
         snap2 = FH.snapshot(MARKER)
         snap2['games'] = 4
+        snap2['ctl'] = 2
         calls = []
         st = {}
         FH.loop_tick(st, now=1000.0, snap_fn=lambda: snap2,
@@ -255,6 +256,7 @@ def test_AR8_real_dummy_fleet():
         time.sleep(0.5)
         snap3 = FH.snapshot(MARKER)
         snap3['games'] = 4
+        snap3['ctl'] = 2
         calls2 = []
         st2 = {}
         FH.loop_tick(st2, now=2000.0, snap_fn=lambda: snap3,
