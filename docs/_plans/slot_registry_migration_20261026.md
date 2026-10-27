@@ -152,3 +152,9 @@
 - 一次迁移同时上：slot registry（C=256，旧 id 不变/新宏追加）+ **task-71 残差 v1 动作输出扩展**（6键×9向×486 动作编码，ction_resid.py 骨架）；**不二次迁移**。
 - 迁移窗前置：W4-1..10 AC + C1 manifest + 旧模型/BC 兼容 + 回滚演练（备份+单次重启）；BC 指针 gen2 与 W4 独立，不混窗。
 - 若 task-71 先验收：先只登记动作 id 区间/时长档；模型输出层扩展随 W4 一次做。
+
+## 2026-10-27 dry-run 证据（不部署）
+- `tools/w4_migrate_dryrun.py`：3 角色旧输出列 0..N-1 扩 C=256 零填；
+  **identity_old_cols=True / old_logits_bitwise_equal=True / old_ids_preserved=True**；
+  空 slot=256-N（reimu 168/marisa 161/suika 165）；证据 `D:\temp\w4_migrate_dryrun_20261027.json`。
+- 迁移工具/回滚演练待迁移窗（不早于 auditor AC+Lead 批）；registry 一次迁移与 task-71 残差 v1 同步。

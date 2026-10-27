@@ -395,3 +395,15 @@ D:\temp\pyenv\python.exe tools/build_kit.py --zip
 - 门禁：**759/0/0**（gate_753.txt）；C15 新增 retention/bc_dir/gen_build 等。
 - 磁盘：D 58.87GB（清 staging 后）；gen2 构建约 -20GB（≥35 目标）；backup_deploy 18.9GB 成功后再清。
 - push：HEAD c3a99e6 0/0（网络断续，恢复后补推）。
+
+## 2026-10-27 晚班进展（离线并行；训练运行中）
+- **门禁 759/0/0**（gate_759.txt 17:11；新增 action_resid/slot_registry/action_chunk/human_harness 等 C15）。
+- **BC 明日 09:45**：预注册头已改 2026-10-28 09:45/≤10min/09:35 预哈希；auditor 已预列签；gen2 真实 loader PASS；env 演练 PASS；失败回滚清单在 `bc_pointer_window_precheck_20261027.md`。
+- **task-79 语料**：人类 replay 全库 61,866 → 61,507 ok/359 fail，proxy 连段段 **9,771,383**；trailmod 全量只读盘点 129 文件/1GB，**88 trial 连段（8 显式输入）**；矩阵草稿 2700（+trailmod 候选 3622）。
+- **task-71/W4**：action_resid 486 动作 9/9；slot registry 9/9；W4 迁移 dry-run identity/bitwise PASS；coverage v1 单帧 100%/时序 97.08%，v1.1 ≤5 段 99.17%（达标）。
+- **task-69**：harness MVP 6/6 + Bo10 骨架 + 窗口只读检查；R19 首测验收包准备稿。
+- **task-80**：tactic 基线 approach 0.2–0.6%/pressure 1.7–4%/defense 20–24%/poke 72–78%。
+- **task-68**：感知 denylist（对手输入/晴岚卡/极光 raw）设计；W4 一次迁移对齐。
+- **E**：supervisor boot 首拍心跳 + 测试 3/3（下轮重启生效）。
+- **H1**：per-char prelim（144/148/150 ep <200，不具统计意义）：MLP .549–.569 / TT .460–.472 / GRU .359–.382；正式待 per-char≥200。
+- 22:45 helper 停训；明早 09:25 启动→09:45 BC 窗→10:30 UKEMI。
