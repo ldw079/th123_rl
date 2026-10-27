@@ -764,6 +764,17 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 59. 10-27 下午：R17-12 正式关闭 + BC gen2 窗口失败修复 + 用户暂停/恢复 + UKEMI 重排
+
+- **R17-12 正式关闭（auditor 确认 PASS）**：24h（10-26 15:21→10-27 15:21）**无新 P0**（计划暂停 13:16、BC 窗口失败回滚、心跳 boot 空窗 P1 均不计 P0）；现场 AR-9a 122.5s/AR-9b 锁定 60s→解锁 73.5s/stall 620s→640.4s/helper 证据齐；P1 计数/powercfg/dump 如实；证据包 `docs/_audit/r17_12_closure_20261027.md`。**W4 解冻条件满足（仍需 W4 设计+AC，不自动开窗）。**
+- **BC gen2 指针窗首跑 FAIL（13:00）**：窗内 env 写入+WMI 重启后 learners crash loop，`bc_io.verify_trio` 报 meta Y hash 不匹配——`bc_gen_build` 写 **64hex**、`bc_io._arr_sha256` 返回 **16hex** → 严格校验拒绝；13:09 finally 回滚 bat+WMI，13:12 health PASS，**生产 trio 未动**；窗口失败非 P0。
+- **离线修复（训练暂停期完成）**：`bc_gen_build` 改 16hex+I 列；`bc_gen_verify` 加 hash16 断言+**真实 `load_bank`/`load_bank_seq`**；gen2 **就地修 meta/I/manifest**（不重建 20GB）；真实 loader 三 char PASS（429579/353791/329422，宽 831/866/846）；`test_bc_gen_meta_hash_v1` 4/4；**门禁 754/0/0**；窗脚本 health 等待 120×5s+失败回滚。**auditor 复核 PASS**。
+- **用户暂停（13:16）**：Lead 执行 `train_stop_clean --live --reason 'user pause 13:16'` rc=0（main7/control2/watcher1/games4 全停；marker 13:16:40；无锁）；**UKEMI 13:40 取消**、BC 窗取消；不自动恢复（policy A）。
+- **用户恢复（15:18）**：Lead 执行 `morning_start.ps1`（WMI）→15:20 health PASS（sup 19924、3L/3A/ctl2/games4）；清 stale 标记；**UKEMI 重排**：16:00–17:10（若 15:55 重跑 baseline 达 ≥1200/char、≥2 帧档、≥25 机会→auditor 签 16:00；否则明日 10:30）；**BC gen2 窗明日 09:40**（列签重审）；boot 首拍心跳改进排后。
+- **数据/磁盘**：`EP_KEEP` 为 **per-char**（非全局）→ BC 成功后设 **220/char**（总量~660，~11.7GB），非 900/char（900/char≈31GB 不可行）；D 35GB（清理旧 frame_logs/gate 日志后）。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
