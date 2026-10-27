@@ -18,9 +18,10 @@ import numpy as np
 def _default_dirs(store=None):
     here = os.path.dirname(os.path.abspath(__file__))
     dirs = []
-    # 指针切换: TH123_BC_DIR 优先(新 genN trio 目录; 无 env 时行为不变)
-    if os.environ.get('TH123_BC_DIR'):
-        dirs.append(os.environ.get('TH123_BC_DIR'))
+    # 指针切换: TH123_BC_DIR 严格优先(仅该目录; 禁静默 fallback; 无 env 行为不变)
+    _bc_dir = os.environ.get('TH123_BC_DIR')
+    if _bc_dir:
+        return [_bc_dir]
     if store:
         dirs.append(store)
     if os.environ.get('TH123_STORE'):

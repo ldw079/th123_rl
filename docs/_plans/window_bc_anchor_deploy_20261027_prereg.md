@@ -101,3 +101,22 @@
 - C1 manifest：gen_manifest_gen2_<char>.json（gen/rows/width/hash/parent/device/status=built）；
 - c_io.find_bank('reimu') with TH123_BC_DIR → **gen2 trio**（dry 验证 PASS）；
 - D 余量 **38.72GB**（≥35）；生产 trio 未动。
+
+## 13. 13:00+ 指针切换窗流程/证据（12:40 前交 auditor）
+### 时间
+- gen2 构建：**2026-10-27 08:59–09:03**（训练中，新目录不碰生产）→ `bc_gen_verify` PASS。
+- 窗：**13:00+（≤10min）**；12:50 前列签；失败回滚。
+
+### 步骤
+1. 维护锁 acquire（失败 abort）→ helper `--live --assume-locked` 停 main/control/watcher；
+2. 等 5s → **readers=0 断言**（日志 `post-stop readers=0`；>0 abort）；
+3. `bc_gen_verify --dir D:\temp\bc_gen2_20261027`（行/宽/manifest；已 PASS）；
+4. 备份 bat `.bc_pointer_backup`；bat 追加 `set TH123_BC_DIR=D:\temp\bc_gen2_20261027`；WMI 重启 main/control/watcher；
+5. health PASS/4 游戏/control/watcher；`bc_io.find_bank` env 证据；记录 PID/停机账；
+6. release 锁；失败：恢复 bat（删 env）+ WMI 重启+health，记录。
+
+### 回滚/证据
+- 失败回滚：恢复 bat 备份 → WMI 重启 → health PASS；保留 gen2 目录（不删生产）。
+- 无 reader 证据：窗日志 readers 行；**窗前演练**（11:45 后，见 drill 日志）。
+- 失败回滚演练：bat env 写入→恢复→hash 相等→WMI 重启→health（见 drill 日志）。
+- C1 manifest 三份 + `bc_gen_verify` 输出 + find_bank 指向 + gate 753+。

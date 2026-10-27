@@ -36,8 +36,22 @@ def main():
             os.environ.pop('TH123_BC_DIR', None)
         else:
             os.environ['TH123_BC_DIR'] = old
-    check('无 env 时 find_bank 不指向临时目录', bc_io.find_bank('test')[0] in
-          (None, 'trio', 'npz'))
+    # invalid env → 不静默 fallback(必须找不到, 交回滚)
+    old2 = os.environ.get('TH123_BC_DIR')
+    try:
+        os.environ['TH123_BC_DIR'] = os.path.join(d, '__no_such__')
+        kind2, b2 = bc_io.find_bank('test')
+        check('invalid env 不 fallback', kind2 in (None,)),
+        check('无 env 时 find_bank 不指向临时目录',
+              bc_io.find_bank('test')[0] in (None, 'trio', 'npz'))
+        os.environ.pop('TH123_BC_DIR', None)
+        check('无 env 时 find_bank 不指向临时目录',
+              bc_io.find_bank('test')[0] in (None, 'trio', 'npz'))
+    finally:
+        if old2 is None:
+            os.environ.pop('TH123_BC_DIR', None)
+        else:
+            os.environ['TH123_BC_DIR'] = old2
     print('\n==== bc_dir_env: %d PASS / %d FAIL ====' % (len(PASS), len(FAIL)))
     return 0 if not FAIL else 1
 
