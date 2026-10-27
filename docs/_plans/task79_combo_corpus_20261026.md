@@ -47,3 +47,12 @@
 - **corpus_combo_v1 切段（非 proxy）**：需要 hit/被防/受身等**状态事件**边界；当前 9.77M 段是"连续攻击输入段"proxy。
   下一步用 soku_arch 解析扩展/训练 frame_events 提取状态事件 → 段定义=起手→命中/受身/断连；
   在 trailmod 路径与状态源到位前，标"proxy 语料"，不宣称 combo-v1 完成。
+
+## 2026-10-27 trailmod 纳管（用户提供路径）
+- 路径 D:\\touhou\\hisoutensoku2026-06-15\\Trialmode连段包：**129 文件/1.0GB**；
+  zip 24 / rar 5 / json 4 / exe 1（**未执行**）/ pdf 2 / png 3 / jpg 1 / txt 1 / 无扩展 88。
+- 无扩展 88 = **trialmode 连段定义 JSON**（type=combo）：**88 个连段场景**（sakuya/utsuho 等），
+  其中 **8 个含显式帧输入**（可直接走 parser/回放），其余为 expected 记谱+位置/技能/评分条件；
+- 矩阵候选合计 **3,622**（88 trial + 3,534 zip/rep 计数粗估）；zip/rar 内容清单已列，
+  未解压到原目录（只读；exe 未执行）；rar 若工具缺失记录不可读。
+- 输出 D:\\temp\\combo_corpus_trailmod_20261027.json；清单 docs/_audit/trailmod_inventory_20261027.md。
