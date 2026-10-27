@@ -34,3 +34,4 @@
 | 21:26 | H1 三行 demo：MLP0.196/GRU0.692/TT0.644（7ep，仅协议，不下结论） | 数据量不足 | 明日 retention+oracle 正式三行 |
 | 07:56 | **用户要求提前重启训练**（覆盖工作日 09:30 常规；用户明确指令） | 用户令 | 07:59 WMI morning_start 启动；health PASS；retention 生效 |
 | 15:18 | **用户恢复训练**（Lead 执行 WMI 启动；health PASS） | 用户指令 | 15:18 启动 sup19924/watcher8624/3L/3A/ctl2/games4；stale stop marker 归档+写 start marker |
+| 15:26 | **R17-12 正式关闭 PASS**（auditor 确认；24h 无新 P0；计划暂停/BC 回滚/心跳 boot P1 不计 P0） | Lead 15:26 | 规划§59+decision；W4 解冻（仍需设计 AC） |
