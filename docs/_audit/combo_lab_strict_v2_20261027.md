@@ -64,3 +64,9 @@
 | suika | 连段C | 0 | 13 | 13 | 2 | 1 | 1000.0 | 1690.2 | False | ok;dmg<target |
 
 **合计: 37/58 行 pass（含 target_undefined 未判）**
+
+## 判据限制（auditor 20:18）
+- 表内 target_damage 多数来自 `combo_replay_p4` **同源历史运行** → 只能算"回归基线"，不是独立真值；
+  独立验证示例见 `combo_lab_verify_manifest_20261027.md`（reimu 连段A：visible demo 1510×0.9=1359）。
+- **未达 C79-8 最终判据**：独立 target 未全覆盖；lab 无 `.rep`（EvalEnv 未录像）。
+- 通过数 37/58 仅表示"严格执行+回归目标"层面，不等于全连段完成率。
