@@ -35,6 +35,7 @@ FILES = [
          "tools/combo_replay_check.py",
          "mem_v1.py",
          "action_resid.py",
+         "slot_registry.py",
          "atk_v1.py",
          "game_gates.py",
          "tm_env.py",

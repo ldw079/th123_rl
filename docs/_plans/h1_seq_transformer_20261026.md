@@ -114,3 +114,12 @@ token_t = [side_feat_t (5N+391) ⊕ action_emb(a_t) ⊕ reward_t (标量)
 - 数据：7 episodes（主流 D813，按 episode 20% held-out）。
 - next-macro top1：**MLP 0.196 / GRU mem_v1 代理 0.692 / Transformer(T=16) 0.644**。
 - 结论：demo 数据量小，**不据此判优劣**；明日 retention 300 + oracle 代理后正式三行（同划分/种子/预算）；若 Transformer 显著低于 GRU→按 Lead 指示不排 A/B，转 H2/MLP 长历史。
+
+## 19. per-char prelim（2026-10-27 16:29，数据<200 仅 preliminary）
+| char | episodes | MLP top1 | GRU mem代理 | Transformer |
+|---|---|---|---|---|
+| reimu | 144 | .549 | .366 | .460 |
+| marisa | 150 | .561 | .382 | .472 |
+| suika | 148 | .569 | .359 | .468 |
+- 均**<200**：不具统计意义、不排 A/B；趋势 TT>GRU 但<MLP（与跨 char demo 一致波动）。
+- 脚本：`tools/h1_three_rows.py --char <ch> --out ...`。

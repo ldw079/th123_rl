@@ -27,3 +27,10 @@
 - 设计+离线原型（用现有 episodes 推断 tactic 分布基线，1–2 天，不占窗）；
 - 策略层→条件化训练→window→人测；与 task-73/77/79 对接；
 - 风险：z 与 PPO 冲突/策略抖动/验收主观；反债：z 定义一次、registry 化；不建旁路。
+
+## 2026-10-27 tactic 基线（episodes 代理）
+- 数据：episodes_keep/历史（reimu 297 局/177k 决策；marisa 308/182k；suika 306/290k）。
+- 分类（宏名关键词）：approach / pressure / defense / poke / card。
+- 结果：**approach 0.2–0.6% / pressure 1.7–4.0% / defense 20.1–23.7% / poke 72–78% / card <0.1%**
+  → 与"高被动/少前压"观察一致；作为 task-80 策略向量 z 的基线。
+- 脚本 `tools/tactic_baseline.py`；证据 `D:\temp\tactic_baseline_20261027.json`。
