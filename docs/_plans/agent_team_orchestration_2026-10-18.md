@@ -775,6 +775,17 @@ e. 向用户发一行接管简报（事实+第一波分工），不展开。
 
 ---
 
+## 60. 10-27 晚：连段完成判据纠错（comboLimit=40）+ 分类判定 + TrialMode 原生裁判 + 停训误杀 P1
+
+- **判据纠错（用户持续追问"真的能打完吗"）**：原版内存校准 `comboLimit=0x4B8`、`comboCount=0x4B4`、`comboDamage=0x4B6`；**reimu 连段A 实测 comboLimit 最高仅 40（未出圈）** → 按"出圈≥100"根本不算完成。**此前 92%/39/50/v2 37/58 全部撤回为 proxy**；R19 完成率不签直到 limit≥100/TrialMode 证据齐。
+- **连段分类（用户指令）**：**出伤连段**（dummy 站/受击，判 planned 全执行+limit≥100+伤害/段数）；**压制连段**（dummy 全部防御，判无隙/帧优势/灵力削减/推板，**不看伤害/limit**）；压起身/择/空连/爆灵推板各自 setup/dummy_state；失败分断连/被防/空挥/不可实现+帧证据；task-62 指标按类分母。
+- **TrialMode 原生裁判（用户提议）**：TrialMode 书面连段+合格标准+通关判定=游戏原生独立裁判；调研 `score.dat`/内存 flag/UI 信号+自动化执行；C79-8 增加 TrialMode pass 证据层级（需证明与目标连段一致/版本/场景）；优先 BC/UKEMI 后。
+- **今晚 13 局 clean 指标（排除旧混代际）**：模型 dec/s **4.44**、macro **13.47F**、attack 39.7%（近战18.2/远程17.7）、approach 33.6%、back 31.4%；擦弹/whiff 不可得（rep 无 HP/弹幕）；旧 132 混算表不作 R19。
+- **停训 P1**：22:45 `train_stop_clean` 误杀用户原版游戏 PID24260（games 过滤未排除非训练）；training/data 未损；修复 filter（只训练车道 21000–21089）+行为测试+incident，明早 BC 列签前闭环；R17-12 已正式关闭不受影响。
+- **明日**：09:25 启动→09:35 预哈希→**09:45 BC 指针窗**（预列签 PASS）→**10:30 UKEMI 窗**→11:45 观察；窗口后 TrialMode/limit 分类重判；BC 成功后清 backup→`EP_KEEP=220`/char→WMI→24h。
+
+---
+
 ## 修订记录
 
 | 日期 | 版本 | 说明 |
