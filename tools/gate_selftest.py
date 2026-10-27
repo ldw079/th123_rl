@@ -37,6 +37,7 @@ FILES = [
          "action_resid.py",
          "slot_registry.py",
          "action_chunk.py",
+         "strategy_z.py",
          "atk_v1.py",
          "game_gates.py",
          "tm_env.py",

@@ -1847,6 +1847,8 @@ _BEHAVIOR_TESTS = [
      "R17-12 P1: BC 部署 os.replace 占用重试/持续占用回滚 2项"),
     ("test_supervisor_boot_heartbeat_v1.py",
      "E: supervisor boot 即写首拍心跳(消除重启假P1) 3项"),
+    ("test_strategy_z_v1.py",
+     "task-80: strategy_z 6维/env0/非法禁用 5项"),
     ("test_gate_metrics_v1.py",
      "P1: gate 指标语义(gate_changed/allowed>0/选中合法) 6项"),
     ("test_action_chunk_v1.py",
